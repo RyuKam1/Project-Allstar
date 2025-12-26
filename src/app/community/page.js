@@ -137,9 +137,11 @@ export default function CommunityPage() {
                     />
                     <div style={{ flex: 1 }}>
                       <textarea
+                        id="post-content"
                         value={postContent}
                         onChange={(e) => setPostContent(e.target.value)}
                         placeholder="Share your wins, find teammates, or just say hi..."
+                        aria-label="Create a new post"
                         style={{
                           width: '100%',
                           minHeight: '80px',
@@ -155,9 +157,9 @@ export default function CommunityPage() {
                       />
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button type="button" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>📷</button>
-                          <button type="button" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>🏆</button>
-                          <button type="button" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>📍</button>
+                          <button type="button" aria-label="Add photo" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>📷</button>
+                          <button type="button" aria-label="Add achievement" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>🏆</button>
+                          <button type="button" aria-label="Add location" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>📍</button>
                         </div>
                         <button 
                           type="submit" 

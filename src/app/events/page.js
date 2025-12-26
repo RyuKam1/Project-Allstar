@@ -259,23 +259,27 @@ export default function EventsAndTournamentsPage() {
 
               <form onSubmit={handleHostSubmit}>
                   <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', marginBottom: '5px' }}>Title / Name</label>
+                    <label htmlFor="event-title" style={{ display: 'block', marginBottom: '5px' }}>Title / Name</label>
                     <input 
+                        id="event-title"
                         value={formData.title} 
                         onChange={e => setFormData({ ...formData, title: e.target.value })} 
                         required 
                         style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }} 
                         placeholder={hostType === 'Tournament' ? "e.g. Winter Cup" : "e.g. Yoga Class"}
+                        aria-label="Event or tournament title"
                     />
                   </div>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '5px' }}>Sport</label>
+                        <label htmlFor="event-sport" style={{ display: 'block', marginBottom: '5px' }}>Sport</label>
                         <select 
+                            id="event-sport"
                             value={formData.sport}
                             onChange={e => setFormData({ ...formData, sport: e.target.value })}
                             style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }}
+                            aria-label="Select sport type"
                         >
                             {['Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Running'].map(s => <option key={s}>{s}</option>)}
                         </select>

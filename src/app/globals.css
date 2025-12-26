@@ -599,3 +599,51 @@ h1, h2, h3, h4 {
     display: block !important;
   }
 }
+
+/* ================= ACCESSIBILITY ================= */
+
+/* Focus Indicators for Keyboard Navigation */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip Link for Screen Readers */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-primary);
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 10000;
+  border-radius: 0 0 4px 0;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Ensure sufficient color contrast */
+:root {
+  --text-muted: #b0b0c0; /* Improved from #a0a0b0 for better contrast */
+}
+
+[data-theme='pro'] {
+  --text-muted: #555555; /* Improved from #444444 */
+}
