@@ -5,6 +5,7 @@ import FieldLayout from "@/components/Tournament/FieldLayout";
 import { teamService } from "@/services/teamService";
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from 'next/navigation';
+import styles from './team-details.module.css';
 
 export default function TeamDetails() {
   const params = useParams();
@@ -117,7 +118,7 @@ export default function TeamDetails() {
       <div className="container" style={{ paddingTop: '120px' }}>
         
         {/* Header */}
-        <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '2rem', position: 'relative' }}>
+        <div className={`glass-panel ${styles.teamHeader}`}>
           
           {/* Logo Section */}
           <div style={{ position: 'relative', width: '100px', height: '100px', flexShrink: 0 }}>
@@ -168,7 +169,7 @@ export default function TeamDetails() {
         
 
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+        <div className={styles.teamLayout}>
           {/* Field View (Drop Target 1) */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

@@ -4,6 +4,7 @@ import Navbar from "@/components/Layout/Navbar";
 import { communityService } from "@/services/communityService";
 import { teamService } from "@/services/teamService";
 import { useAuth } from "@/context/AuthContext";
+import styles from './community.module.css';
 
 export default function CommunityPage() {
   const { user } = useAuth();
@@ -121,7 +122,7 @@ export default function CommunityPage() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+        <div className={styles.communityLayout}>
           {/* Main Feed */}
           <div>
             {/* Post Composer */}

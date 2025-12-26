@@ -1,0 +1,22 @@
+.communityLayout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .communityLayout {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Move sidebar below feed on mobile */
+  .communityLayout > :last-child {
+    order: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .communityLayout {
+    gap: 1.5rem;
+  }
+}
