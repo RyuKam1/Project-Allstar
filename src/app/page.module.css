@@ -1,0 +1,87 @@
+.main {
+  min-height: 100vh;
+  position: relative;
+}
+
+.heroSection {
+  padding-top: 160px;
+  padding-bottom: 80px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.backgroundGradient {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: var(--hero-glow);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.title {
+  font-size: 4.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  max-width: 800px;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto 3rem;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.primaryButton {
+  font-size: 1.1rem;
+  padding: 16px 32px;
+}
+
+.secondaryButton {
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
+  padding: 16px 32px;
+  border-radius: 99px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.secondaryButton:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.statsContainer {
+  margin-top: 5rem;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3rem;
+  text-align: left;
+}
+
+.statItem h3 {
+  font-size: 2rem;
+  margin: 0;
+}
+
+.statItem p {
+  color: var(--text-muted);
+  margin: 0;
+}

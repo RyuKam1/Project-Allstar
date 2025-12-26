@@ -1,0 +1,81 @@
+:root {
+  /* Brand Colors - HSL for easy manipulation */
+  --primary-hue: 250;
+  --primary-sat: 100%;
+  --primary-light: 60%;
+  --color-primary: hsl(var(--primary-hue), var(--primary-sat), var(--primary-light));
+  --color-primary-glow: hsl(var(--primary-hue), var(--primary-sat), 60%, 0.5);
+
+  --accent-hue: 320;
+  --color-accent: hsl(var(--accent-hue), 100%, 60%);
+
+  /* Backgrounds */
+  --bg-deep: #050507;
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --bg-glass: rgba(20, 20, 30, 0.6);
+  --border-glass: rgba(255, 255, 255, 0.1);
+
+  /* Text */
+  --text-main: #ffffff;
+  --text-muted: #a0a0b0;
+
+  /* Spacing */
+  --container-width: 1200px;
+  --header-height: 80px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--text-main);
+  background: var(--bg-deep);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Utilities */
+.container {
+  max-width: var(--container-width);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.glass-panel {
+  background: rgba(20, 20, 30, 0.4);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+}
+
+.primary-gradient-text {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), #6366f1);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 99px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px var(--color-primary-glow);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--color-primary-glow);
+}
+
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}

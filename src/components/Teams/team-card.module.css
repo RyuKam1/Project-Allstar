@@ -1,0 +1,155 @@
+.card {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+  height: 100%;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.sportBadge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+  backdrop-filter: blur(5px);
+  color: var(--text-muted);
+}
+
+.logoContainer {
+  margin-top: 3rem;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--color-primary);
+  box-shadow: 0 0 20px var(--color-primary-glow, rgba(99,102,241,0.3));
+}
+
+.fallbackLogo {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dim));
+  color: white; /* Always white text on colored bg */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 800;
+  box-shadow: 0 0 20px var(--color-primary-glow, rgba(99,102,241,0.3));
+}
+
+.content {
+  padding: 1.5rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.teamName {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.memberCount {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.description {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex-grow: 1;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.viewButton {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.viewButton:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.joinButton {
+  background: var(--color-primary);
+  color: white; 
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Pro League Overrides */
+:global([data-theme='pro']) .card {
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 0 #eee;
+}
+:global([data-theme='pro']) .teamName {
+  color: black;
+}
+:global([data-theme='pro']) .memberCount {
+  color: #666;
+}
+:global([data-theme='pro']) .description {
+  color: #555;
+}
+:global([data-theme='pro']) .viewButton {
+  background: white;
+  border: 1px solid #ccc;
+  color: black;
+}
+:global([data-theme='pro']) .viewButton:hover {
+  background: #f0f0f0;
+}
+:global([data-theme='pro']) .sportBadge {
+  background: #eee;
+  color: #333;
+}

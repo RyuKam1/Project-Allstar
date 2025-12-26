@@ -1,0 +1,48 @@
+.main {
+  min-height: 100vh;
+  padding-bottom: 4rem;
+}
+
+.container {
+  padding-top: 140px;
+}
+
+.header {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.title {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.filters {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+  margin-top: 2.3rem;
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-glass);
+  color: white;
+  padding: 10px 24px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.filterButtonActive {
+  background: var(--color-primary);
+}
