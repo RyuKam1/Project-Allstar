@@ -10,11 +10,19 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check for persisted user on mount
-    const storedUser = authService.getCurrentUser();
-    if (storedUser) {
-      setUser(storedUser);
-    }
-    setLoading(false);
+    const loadUser = async () => {
+        try {
+            const storedUser = await authService.getCurrentUser();
+            if (storedUser) {
+                setUser(storedUser);
+            }
+        } catch (e) {
+            console.error("Session restore failed", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+    loadUser();
   }, []);
 
   const login = async (email, password) => {

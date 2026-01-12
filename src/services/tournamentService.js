@@ -1,13 +1,43 @@
+import { supabase } from "@/lib/supabaseClient";
 import { teamService } from "./teamService";
-
-const STORAGE_KEY = 'allstar_tournaments';
 
 export const tournamentService = {
   getAllTournaments: async () => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    // Fetch tournaments
+    const { data: tournaments, error } = await supabase
+      .from('tournaments')
+      .select('*');
+
+    if (error) return [];
+
+    // For each, fetch matches & teams (simplified hydration for frontend)
+    const hydrated = await Promise.all(tournaments.map(async (t) => {
+        // Fetch Matches
+        const { data: matches } = await supabase
+            .from('matches')
+            .select(`
+                *,
+                team1:team1_id(id, name, logo),
+                team2:team2_id(id, name, logo),
+                winner:winner_id(id, name, logo)
+            `)
+            .eq('tournament_id', t.id)
+            .order('match_identifier'); // Order by ID logic
+
+        // Fetch Joined Teams (via join table)
+        const { data: teamJoins } = await supabase
+            .from('tournament_teams')
+            .select('team_id, team:teams(*)')
+            .eq('tournament_id', t.id);
+
+        return {
+            ...t,
+            matches: matches || [],
+            teams: teamJoins ? teamJoins.map(j => j.team) : []
+        };
+    }));
+
+    return hydrated;
   },
 
   getTournament: async (id) => {
@@ -16,133 +46,124 @@ export const tournamentService = {
   },
 
   createTournament: async (data, creator) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const all = await tournamentService.getAllTournaments();
-    
-    // Create initial matches based on team count (assuming 4 or 8 for simplicity)
-    const teams = data.teams; // Array of team objects
-    const matches = [];
-    const round1Matches = teams.length / 2;
+    // 1. Create Tournament
+    const { data: newTour, error } = await supabase
+        .from('tournaments')
+        .insert({
+            name: data.name,
+            sport: data.sport,
+            creator_id: creator.id,
+            status: 'Active'
+        })
+        .select()
+        .single();
 
-    for (let i = 0; i < round1Matches; i++) {
-        matches.push({
-            id: `m_1_${i}`,
+    if (error) throw new Error(error.message);
+
+    // 2. Link Teams
+    const teams = data.teams; 
+    const teamLinks = teams.map(t => ({
+        tournament_id: newTour.id,
+        team_id: t.id
+    }));
+    await supabase.from('tournament_teams').insert(teamLinks);
+
+    // 3. Create Matches (Round 1)
+    const matchesToInsert = [];
+    const count = teams.length;
+    const round1Count = count / 2;
+
+    for (let i = 0; i < round1Count; i++) {
+        matchesToInsert.push({
+            tournament_id: newTour.id,
             round: 1,
-            team1: teams[i * 2],
-            team2: teams[i * 2 + 1],
-            winnerId: null,
+            match_identifier: `m_1_${i}`,
+            team1_id: teams[i * 2].id,
+            team2_id: teams[i * 2 + 1].id,
             score1: 0,
             score2: 0
         });
     }
 
-    // Placeholder for subsequent rounds (empty for now)
-    if (round1Matches === 4) { // 8 teams -> 4 matches -> 2 matches -> 1 match
-       matches.push({ id: `m_2_0`, round: 2, team1: null, team2: null, winnerId: null });
-       matches.push({ id: `m_2_1`, round: 2, team1: null, team2: null, winnerId: null });
-       matches.push({ id: `m_3_0`, round: 3, team1: null, team2: null, winnerId: null }); // Final
-    } else if (round1Matches === 2) { // 4 teams -> 2 matches -> 1 match
-       matches.push({ id: `m_2_0`, round: 2, team1: null, team2: null, winnerId: null }); // Final
+    // Future Rounds (Empty)
+    if (round1Count === 4) { // 8 teams
+       matchesToInsert.push({ tournament_id: newTour.id, round: 2, match_identifier: 'm_2_0' });
+       matchesToInsert.push({ tournament_id: newTour.id, round: 2, match_identifier: 'm_2_1' });
+       matchesToInsert.push({ tournament_id: newTour.id, round: 3, match_identifier: 'm_3_0' }); // Final
+    } else if (round1Count === 2) { // 4 teams
+       matchesToInsert.push({ tournament_id: newTour.id, round: 2, match_identifier: 'm_2_0' }); // Final
     }
 
-    const newTournament = {
-      id: 'tour_' + Date.now(),
-      name: data.name,
-      sport: data.sport,
-      creatorId: creator.id,
-      status: 'Active',
-      teams: teams,
-      matches: matches,
-      winner: null
-    };
+    await supabase.from('matches').insert(matchesToInsert);
 
-    all.push(newTournament);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-    return newTournament;
+    return newTour;
   },
 
   updateMatch: async (tournamentId, matchId, result) => {
-    // result: { winnerId, score1, score2 }
-    const all = await tournamentService.getAllTournaments();
-    const tIndex = all.findIndex(t => t.id === tournamentId);
-    if (tIndex === -1) throw new Error("Tournament not found");
+     // matchId here corresponds to the UUID now, OR we need the helper to find it.
+     // The frontend currently passes the Match Object ID (UUID from Supabase)
+     
+     // 1. Update Score & Winner
+     const { data: match, error } = await supabase
+        .from('matches')
+        .update({
+            winner_id: result.winnerId,
+            score1: result.score1,
+            score2: result.score2
+        })
+        .eq('id', matchId)
+        .select(`*, team1:team1_id(*), team2:team2_id(*)`) // Need team names for win record
+        .single();
+     
+     if (error) throw new Error(error.message);
 
-    const tour = all[tIndex];
-    const mIndex = tour.matches.findIndex(m => m.id === matchId);
-    if (mIndex === -1) throw new Error("Match not found");
-
-    // Update match
-    const match = tour.matches[mIndex];
-    match.winnerId = result.winnerId;
-    match.score1 = result.score1;
-    match.score2 = result.score2;
-
-    // Record Match Win
-    if (result.winnerId) {
-        const isTeam1Winner = result.winnerId === match.team1.id;
-        const winner = isTeam1Winner ? match.team1 : match.team2;
-        const loser = isTeam1Winner ? match.team2 : match.team1;
+     // 2. Record Win
+     if (match.winner_id) {
+        const isTeam1Winner = match.winner_id === match.team1_id;
+        const loserName = isTeam1Winner ? match.team2?.name : match.team1?.name;
         
-        if (winner && loser) {
-             await teamService.addWin(
-                winner.id, 
-                'Match', 
-                `Defeated ${loser.name} in ${tour.name} (Round ${match.round})`
-            );
+        await teamService.addWin(
+            match.winner_id,
+            'Match', 
+            `Defeated ${loserName || 'Opponent'} (Round ${match.round})`
+        );
+     }
+
+     // 3. Advance to Next Round logic
+     const currentIdParts = match.match_identifier.split('_'); // m_1_0
+     const round = parseInt(currentIdParts[1]);
+     const num = parseInt(currentIdParts[2]);
+
+     const nextRound = round + 1;
+     const nextNum = Math.floor(num / 2);
+     const nextIdentifier = `m_${nextRound}_${nextNum}`;
+
+     // Find the next match row
+     const { data: nextMatch } = await supabase
+        .from('matches')
+        .select('id, team1_id, team2_id')
+        .eq('tournament_id', tournamentId)
+        .eq('match_identifier', nextIdentifier)
+        .single();
+
+     if (nextMatch) {
+        const isFirstSlot = num % 2 === 0;
+        const updates = isFirstSlot ? { team1_id: match.winner_id } : { team2_id: match.winner_id };
+        await supabase.from('matches').update(updates).eq('id', nextMatch.id);
+     } else {
+        // Tournament End?
+        // Close tournament status if it was the final
+        // For now simplest check:
+        // await supabase.from('tournaments').update({ status: 'Completed', winner_team_id: match.winner_id })...
+        
+        if (match.winner_id) {
+             await teamService.addWin(match.winner_id, 'Tournament', 'Champion');
         }
-    }
-
-    // Advance logic
-    // Find next match to feed into
-    // Simple logic: m_1_0 & m_1_1 -> m_2_0
-    // m_1_2 & m_1_3 -> m_2_1
-    const currentMatchNum = parseInt(match.id.split('_')[2]);
-    const nextRound = match.round + 1;
-    const nextMatchNum = Math.floor(currentMatchNum / 2);
-    const nextMatchId = `m_${nextRound}_${nextMatchNum}`;
-
-    const nextMatch = tour.matches.find(m => m.id === nextMatchId);
-    
-    if (nextMatch) {
-       // Is this team1 or team2 slot?
-       const isFirstSlot = currentMatchNum % 2 === 0;
-       const winnerTeam = match.winnerId === match.team1.id ? match.team1 : match.team2;
-       
-       if (isFirstSlot) nextMatch.team1 = winnerTeam;
-       else nextMatch.team2 = winnerTeam;
-    } else {
-       // No next match? Must be final!
-       if (match.round === (tour.teams.length === 4 ? 2 : 3)) {
-         tour.status = 'Completed';
-         const winnerInfo = match.winnerId === match.team1.id ? match.team1 : match.team2;
-         tour.winner = winnerInfo;
-         
-         // Award Win to Team
-         if (winnerInfo) {
-           await teamService.addWin(winnerInfo.id, 'Tournament', `Winner of ${tour.name}`);
-         }
-       }
-    }
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-    return tour;
+     }
   },
 
   deleteTournament: async (id) => {
-    const all = await tournamentService.getAllTournaments();
-    const filtered = all.filter(t => t.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    await supabase.from('tournaments').delete().eq('id', id);
     return true;
-  },
-
-  updateTournament: async (id, updates) => {
-    const all = await tournamentService.getAllTournaments();
-    const index = all.findIndex(t => t.id === id);
-    if (index !== -1) {
-       all[index] = { ...all[index], ...updates };
-       localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-       return all[index];
-    }
-    return null;
   }
 };

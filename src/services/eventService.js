@@ -1,106 +1,101 @@
-const STORAGE_KEY = 'allstar_events';
-
-// Seed Data
-const seedEvents = [
-  {
-    id: 'evt_1',
-    title: "Morning Yoga & Stretch",
-    type: "Workshop",
-    sport: "Fitness",
-    date: "2024-11-01",
-    time: "07:00",
-    location: "Central Park",
-    description: "Start your day with energy! Open to all levels.",
-    cost: "Free",
-    reward: "None",
-    maxSpots: 20,
-    attendees: [],
-    imageGradient: "linear-gradient(45deg, #FF9A9E, #FECFEF)",
-    image: "/venues/Iron Pump Gym.jpg"
-  },
-  {
-    id: 'evt_2',
-    title: "5K Charity Run",
-    type: "Race",
-    sport: "Running",
-    date: "2024-11-05",
-    time: "08:00",
-    location: "Downtown Plaza",
-    description: "Run for a cause. Proceeds go to local youth sports.",
-    cost: "$20",
-    reward: "Medal",
-    maxSpots: 100,
-    attendees: [],
-    imageGradient: "linear-gradient(45deg, #a18cd1, #fbc2eb)",
-    image: "/venues/Lakeside Run Trail.jpg"
-  },
-  {
-    id: 'evt_3',
-    title: "3v3 Basketball Scrimmage",
-    type: "Match",
-    sport: "Basketball",
-    date: "2024-10-30",
-    time: "18:00",
-    location: "City Hoop Park",
-    description: "Casual pickup games. Teams formed on site.",
-    cost: "$5",
-    reward: "Bragging Rights",
-    maxSpots: 12,
-    attendees: [],
-    imageGradient: "linear-gradient(120deg, #f6d365, #fda085)",
-    image: "/venues/City Hoop Park.jpg"
-  }
-];
+import { supabase } from "@/lib/supabaseClient";
 
 export const eventService = {
   getAllEvents: async () => {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 200));
+    const { data: events, error } = await supabase
+        .from('events')
+        .select(`
+            *,
+            attendees:event_attendees(
+                user_id,
+                profile:user_id(id, name, email)
+            )
+        `);
     
-    if (typeof window === 'undefined') return seedEvents;
-
-    let stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(seedEvents));
-        stored = JSON.stringify(seedEvents);
+    if (error) {
+        console.error("Event fetch error", error);
+        return [];
     }
-    return JSON.parse(stored);
+
+    // Map to frontend structure
+    return events.map(e => ({
+        ...e,
+        attendees: e.attendees ? e.attendees.map(a => ({
+            id: a.user_id,
+            name: a.profile?.name,
+            email: a.profile?.email
+        })) : []
+    }));
   },
 
   getEventById: async (id) => {
-    const events = await eventService.getAllEvents();
-    return events.find(e => e.id === id);
+    const { data: event } = await supabase
+        .from('events')
+        .select(`
+            *,
+            attendees:event_attendees(
+                user_id,
+                profile:user_id(id, name, email)
+            )
+        `)
+        .eq('id', id)
+        .single();
+    
+    if (!event) return null;
+
+    return {
+        ...event,
+        attendees: event.attendees ? event.attendees.map(a => ({
+            id: a.user_id,
+            name: a.profile?.name,
+            email: a.profile?.email
+        })) : []
+    };
   },
 
   createEvent: async (eventData, creator) => {
-    const events = await eventService.getAllEvents();
-    const newEvent = {
-        id: 'evt_' + Date.now(),
-        ...eventData,
-        creatorId: creator?.id || 'anon',
-        attendees: [],
-        imageGradient: "linear-gradient(45deg, #667eea, #764ba2)" // Default gradient
-    };
-    events.push(newEvent);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    const { data: newEvent, error } = await supabase
+        .from('events')
+        .insert({
+            title: eventData.title,
+            type: eventData.type,
+            sport: eventData.sport,
+            date: eventData.date,
+            time: eventData.time,
+            location: eventData.location,
+            description: eventData.description,
+            cost: eventData.cost,
+            reward: eventData.reward,
+            max_spots: eventData.maxSpots,
+            image: eventData.image, // URL assumed
+            image_gradient: eventData.imageGradient || "linear-gradient(45deg, #667eea, #764ba2)",
+            creator_id: creator.id
+        })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
     return newEvent;
   },
 
   registerForEvent: async (eventId, user) => {
-    const events = await eventService.getAllEvents();
-    const index = events.findIndex(e => e.id === eventId);
-    if (index === -1) throw new Error("Event not found");
-
-    const event = events[index];
-    if (event.attendees.length >= event.maxSpots) {
+    // Check Status first
+    const currentEvent = await eventService.getEventById(eventId);
+    if (currentEvent.attendees.length >= currentEvent.max_spots) {
         throw new Error("Event is full");
     }
-    if (event.attendees.find(a => a.id === user.id)) {
+    if (currentEvent.attendees.some(a => a.id === user.id)) {
         throw new Error("Already registered");
     }
 
-    event.attendees.push({ id: user.id, name: user.name, email: user.email });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-    return event;
+    const { error } = await supabase
+        .from('event_attendees')
+        .insert({
+            event_id: eventId,
+            user_id: user.id
+        });
+    
+    if (error) throw new Error(error.message);
+    return true; // Reloading UI will fetch fresh
   }
 };

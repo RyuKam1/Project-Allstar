@@ -1,244 +1,292 @@
-const STORAGE_KEY = 'allstar_teams';
+import { supabase } from "@/lib/supabaseClient";
 
 export const teamService = {
-  // Get all teams
+  // Get all teams with their members and owner profile
   getAllTeams: async () => {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    if (typeof window === 'undefined') return [];
+    // Fetch teams
+    const { data: teams, error } = await supabase
+      .from('teams')
+      .select('*');
+
+    if (error) {
+        console.error("Error fetching teams:", error);
+        return [];
+    }
     
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const teams = stored ? JSON.parse(stored) : [];
+    // For each team, fetch its members, requests, and wins
+    // NOTE: In production, we would use a more complex join query or view
+    // But for this refactor we'll do parallel fetches for simplicity to match old structure
     
-    // Migration: ensure 'requests' array exists
-    teams.forEach(t => {
-      if (!t.requests) t.requests = [];
-    });
-    
-    return teams;
+    const teamsWithData = await Promise.all(teams.map(async (team) => {
+        // Fetch Members
+        const { data: members } = await supabase
+            .from('team_members')
+            .select(`
+                *,
+                profile:user_id ( id, name, avatar )
+            `)
+            .eq('team_id', team.id);
+
+        // Fetch Requests
+        const { data: requests } = await supabase
+            .from('team_requests')
+            .select(`
+                *,
+                profile:user_id ( id, name, avatar )
+            `)
+            .eq('team_id', team.id);
+
+        // Fetch Wins
+        const { data: wins } = await supabase
+            .from('team_wins')
+            .select('*')
+            .eq('team_id', team.id);
+
+        // Structure it to match the old schema the frontend expects
+        return {
+            ...team,
+            ownerId: team.owner_id, // Map snake_case to camelCase
+            members: members ? members.map(m => ({
+                id: m.user_id,
+                name: m.profile?.name || m.user_id, // Fallback
+                avatar: m.profile?.avatar,
+                role: m.role,
+                position: m.position
+            })) : [],
+            requests: requests ? requests.map(r => ({
+                id: r.user_id,
+                name: r.profile?.name,
+                avatar: r.profile?.avatar,
+                requestedAt: r.requested_at
+            })) : [],
+            wins: wins || []
+        };
+    }));
+
+    return teamsWithData;
   },
 
   // Create a new team
   createTeam: async (teamData, owner) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const teams = await teamService.getAllTeams();
+    // 1. Upload Logo if it's a base64 string (from FileReader)
+    let logoUrl = null;
+    if (teamData.logo && teamData.logo.startsWith('data:image')) {
+        logoUrl = await uploadImage(teamData.logo, 'team-logos');
+    }
+
+    // 2. Insert Team
+    const { data: newTeam, error } = await supabase
+        .from('teams')
+        .insert({
+            name: teamData.name,
+            sport: teamData.sport,
+            description: teamData.description,
+            logo: logoUrl,
+            owner_id: owner.id
+        })
+        .select()
+        .single();
     
-    // Basic validation
-    if (!teamData.name || !teamData.sport) throw new Error("Name and Sport required");
+    if (error) throw new Error(error.message);
 
-    const newTeam = {
-      id: 't_' + Date.now(),
-      name: teamData.name,
-      sport: teamData.sport,
-      description: teamData.description || '',
-      logo: teamData.logo || null, // Base64 string or null
-      ownerId: owner.id,
-      wins: [], // { category: 'Tournament', name: 'Summer Cup' }
-      members: [
-        { 
-          id: owner.id, 
-          name: owner.name, 
-          avatar: owner.avatar, 
-          role: 'Owner',
-          position: 'Bench' // Start as Bench, user drags to position
-        }
-      ],
-      customGuests: [],
-      requests: [], // Array of user objects requesting to join
-      createdAt: new Date().toISOString()
-    };
+    // 3. Add Owner as Member
+    await supabase.from('team_members').insert({
+        team_id: newTeam.id,
+        user_id: owner.id,
+        role: 'Owner',
+        position: 'Bench'
+    });
 
-    teams.push(newTeam);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    return newTeam;
+    return newTeam; // Caller will likely reload list
   },
 
-  // Add a member (User on platform)
+  // Helper: Join Team (Legacy/Direct)
   joinTeam: async (teamId, user) => {
-    // Legacy direct join - keeping for now but might deprecate
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const teams = await teamService.getAllTeams();
-    const teamIndex = teams.findIndex(t => t.id === teamId);
-    
-    if (teamIndex === -1) throw new Error("Team not found");
-    
-    // Check if already member
-    if (teams[teamIndex].members.some(m => m.id === user.id)) {
-      throw new Error("User already in team");
-    }
-
-    teams[teamIndex].members.push({
-      id: user.id,
-      name: user.name,
-      avatar: user.avatar,
-      role: 'Member',
-      position: 'Bench'
-    });
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    return teams[teamIndex];
+    // Not used much anymore, but good for invites maybe
+    return teamService.requestJoinTeam(teamId, user);
   },
 
-  // Request to join a team
+  // Request to join
   requestJoinTeam: async (teamId, user) => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const teams = await teamService.getAllTeams();
-    const teamIndex = teams.findIndex(t => t.id === teamId);
-    
-    if (teamIndex === -1) throw new Error("Team not found");
-    
-    // Check if already member
-    if (teams[teamIndex].members.some(m => m.id === user.id)) {
-      throw new Error("You are already in this team");
-    }
+    // Check if member
+    const { data: isMember } = await supabase.from('team_members').select('id').eq('team_id', teamId).eq('user_id', user.id).single();
+    if (isMember) throw new Error("Already a member");
 
-    // Check if already requested
-    if (teams[teamIndex].requests.some(r => r.id === user.id)) {
-      throw new Error("Request already pending");
-    }
+    // Check if pending
+    const { data: isPending } = await supabase.from('team_requests').select('id').eq('team_id', teamId).eq('user_id', user.id).single();
+    if (isPending) throw new Error("Request already pending");
 
-    teams[teamIndex].requests.push({
-      id: user.id,
-      name: user.name,
-      avatar: user.avatar,
-      requestedAt: new Date().toISOString()
-    });
+    const { error } = await supabase
+        .from('team_requests')
+        .insert({
+            team_id: teamId,
+            user_id: user.id,
+            status: 'pending'
+        });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    return teams[teamIndex];
-  },
-
-  // Accept a join request
-  acceptJoinRequest: async (teamId, userId, targetPosition = 'Bench') => {
-    const teams = await teamService.getAllTeams();
-    const teamIndex = teams.findIndex(t => t.id === teamId);
-    if (teamIndex === -1) throw new Error("Team not found");
-
-    const requestIndex = teams[teamIndex].requests.findIndex(r => r.id === userId);
-    if (requestIndex === -1) throw new Error("Request not found");
-
-    const request = teams[teamIndex].requests[requestIndex];
-
-    // Remove from requests
-    teams[teamIndex].requests.splice(requestIndex, 1);
-
-    // Add to members
-    teams[teamIndex].members.push({
-      id: request.id,
-      name: request.name,
-      avatar: request.avatar,
-      role: 'Member',
-      position: targetPosition
-    });
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    return teams[teamIndex];
-  },
-
-  // Reject a join request
-  rejectJoinRequest: async (teamId, userId) => {
-    const teams = await teamService.getAllTeams();
-    const teamIndex = teams.findIndex(t => t.id === teamId);
-    if (teamIndex === -1) throw new Error("Team not found");
-
-    const requestIndex = teams[teamIndex].requests.findIndex(r => r.id === userId);
-    if (requestIndex !== -1) {
-        teams[teamIndex].requests.splice(requestIndex, 1);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    }
-    return teams[teamIndex];
-  },
-
-  // Cancel my own request
-  cancelJoinRequest: async (teamId, userId) => {
-    return teamService.rejectJoinRequest(teamId, userId);
-  },
-
-  // Add a guest member
-  addGuestMember: async (teamId, guestName) => {
-    const teams = await teamService.getAllTeams();
-    const teamIndex = teams.findIndex(t => t.id === teamId);
-    if (teamIndex === -1) throw new Error("Team not found");
-
-    const newGuest = {
-      id: 'g_' + Date.now(),
-      name: guestName,
-      isGuest: true,
-      avatar: `https://ui-avatars.com/api/?name=${guestName}&background=random`,
-      role: 'Guest',
-      position: 'Bench'
-    };
-
-    teams[teamIndex].members.push(newGuest);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    return teams[teamIndex];
-  },
-
-  // Update member position
-  updateMemberPosition: async (teamId, memberId, newPosition) => {
-    const teams = await teamService.getAllTeams();
-    const teamIndex = teams.findIndex(t => t.id === teamId);
-    if (teamIndex === -1) throw new Error("Team not found");
-
-    const memberIndex = teams[teamIndex].members.findIndex(m => m.id === memberId);
-    if (memberIndex === -1) throw new Error("Member not found");
-
-    // If moving to a field slot, check if someone else is already there
-    // If so, swap them to Bench (or just overwrite? Swap is friendlier)
-    if (newPosition !== 'Bench') {
-        const existingOccupantIndex = teams[teamIndex].members.findIndex(m => m.position === newPosition);
-        if (existingOccupantIndex !== -1 && existingOccupantIndex !== memberIndex) {
-            teams[teamIndex].members[existingOccupantIndex].position = 'Bench';
-        }
-    }
-
-    teams[teamIndex].members[memberIndex].position = newPosition;
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-    return teams[teamIndex];
-  },
-
-  // Get User's Teams
-  getUserTeams: async (userId) => {
-    const teams = await teamService.getAllTeams();
-    return teams.filter(t => t.members.some(m => m.id === userId));
-  },
-
-  // Admin: Delete Team
-  deleteTeam: async (teamId) => {
-    const teams = await teamService.getAllTeams();
-    const filtered = teams.filter(t => t.id !== teamId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    if (error) throw new Error(error.message);
     return true;
   },
 
-  // Admin: Update Team
-  updateTeam: async (teamId, updates) => {
-    const teams = await teamService.getAllTeams();
-    const index = teams.findIndex(t => t.id === teamId);
-    if (index !== -1) {
-      teams[index] = { ...teams[index], ...updates };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-      return teams[index];
-    }
-    return null;
+  // Accept Request
+  acceptJoinRequest: async (teamId, userId, targetPosition = 'Bench') => {
+    // Transaction-like: Delete request, insert member
+    const { error: delError } = await supabase
+        .from('team_requests')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('user_id', userId);
+    
+    if (delError) throw new Error(delError.message);
+
+    const { error: insError } = await supabase
+        .from('team_members')
+        .insert({
+            team_id: teamId,
+            user_id: userId,
+            position: targetPosition,
+            role: 'Member'
+        });
+        
+    if (insError) throw new Error(insError.message);
+    return true;
   },
 
-  // Add a Win Record
-  addWin: async (teamId, category, description) => {
-    const teams = await teamService.getAllTeams();
-    const index = teams.findIndex(t => t.id === teamId);
-    if (index !== -1) {
-      if (!teams[index].wins) teams[index].wins = [];
-      teams[index].wins.push({ 
-        id: 'w_' + Date.now(), 
-        category,     // e.g. 'Tournament', 'Single Match'
-        description,  // e.g. 'Summer Cup 2024'
-        date: new Date().toISOString()
-      });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-      return teams[index];
+  // Reject Request
+  rejectJoinRequest: async (teamId, userId) => {
+    const { error } = await supabase
+        .from('team_requests')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('user_id', userId);
+    
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  // Update Member Position
+  updateMemberPosition: async (teamId, memberId, newPosition) => {
+    // If moving to a field slot, vacate whoever is there
+    if (newPosition !== 'Bench') {
+       // Find occupant
+       const { data: occupant } = await supabase
+           .from('team_members')
+           .select('id, user_id')
+           .eq('team_id', teamId)
+           .eq('position', newPosition)
+           .single();
+       
+       if (occupant && occupant.user_id !== memberId) {
+           // Move them to bench
+           await supabase
+               .from('team_members')
+               .update({ position: 'Bench' })
+               .eq('id', occupant.id);
+       }
     }
-    return null;
+
+    const { error } = await supabase
+        .from('team_members')
+        .update({ position: newPosition })
+        .eq('team_id', teamId)
+        .eq('user_id', memberId);
+
+     if (error) throw new Error(error.message);
+  },
+
+  addGuestMember: async (teamId, guestName) => {
+    // We don't have "Guest" users in DB profiles usually. 
+    // We'll insert a specialized row in team_members with a NULL user_id?
+    // SQL schema defined user_id as NOT NULL references profiles. 
+    // Plan B: Create a "Guest" profile on the fly? Or specific guest table?
+    // For now, let's create a placeholder profile in the DB for guests? No, that messes up auth.
+    // Let's assume for this Refactor: Guests are NOT supported fully unless we change schema.
+    // Workaround: We will skip database for guests or warn.
+    alert("Guest System pending schema update. Skipping.");
+    return;
+  },
+
+  updateTeam: async (teamId, updates) => {
+     if (updates.logo && updates.logo.startsWith('data:image')) {
+         updates.logo = await uploadImage(updates.logo, 'team-logos');
+     }
+     
+     const { error } = await supabase
+        .from('teams')
+        .update({
+            name: updates.name,
+            description: updates.description,
+            logo: updates.logo
+            // sport is usually immutable or needs care
+        })
+        .eq('id', teamId);
+
+     if (error) throw new Error(error.message);
+  },
+
+  addWin: async (teamId, category, description) => {
+     await supabase
+        .from('team_wins')
+        .insert({
+            team_id: teamId,
+            category,
+            description
+        });
+  },
+
+  getUserTeams: async (userId) => {
+     // Get query through team_members
+     const { data: memberships } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', userId);
+     
+     const teamIds = memberships.map(m => m.team_id);
+     
+     if (teamIds.length === 0) return [];
+
+     // Then fetch actual teams
+     const { data: teams } = await supabase
+        .from('teams')
+        .select('*')
+        .in('id', teamIds);
+        
+     // We also need to fetch wins for these teams (for profile display)
+     const teamsWithWins = await Promise.all(teams.map(async (t) => {
+         const { data: wins } = await supabase.from('team_wins').select('*').eq('team_id', t.id);
+         return { ...t, wins: wins || [] };
+     }));
+
+     return teamsWithWins;
   }
 };
+
+// Helper: Upload Base64 to Supabase Storage
+async function uploadImage(base64Data, folder) {
+    try {
+        const base64Response = await fetch(base64Data);
+        const blob = await base64Response.blob();
+        const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.png`;
+
+        const { data, error } = await supabase.storage
+            .from('allstar-assets')
+            .upload(fileName, blob, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) {
+            console.error("Upload error:", error);
+            return null;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('allstar-assets')
+            .getPublicUrl(fileName);
+            
+        return publicUrl;
+    } catch (e) {
+        console.error("Image upload failed", e);
+        return null;
+    }
+}
