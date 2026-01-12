@@ -8,7 +8,7 @@ export const eventService = {
             *,
             attendees:event_attendees(
                 user_id,
-                profile:user_id(id, name, email)
+                profile:user_id(id, name, email, avatar, bio, height, weight, speed, vertical, sport, positions)
             )
         `);
     
@@ -24,7 +24,15 @@ export const eventService = {
         attendees: e.attendees ? e.attendees.map(a => ({
             id: a.user_id,
             name: a.profile?.name,
-            email: a.profile?.email
+            email: a.profile?.email,
+            avatar: a.profile?.avatar,
+            bio: a.profile?.bio,
+            height: a.profile?.height,
+            weight: a.profile?.weight,
+            speed: a.profile?.speed,
+            vertical: a.profile?.vertical,
+            sport: a.profile?.sport,
+            positions: a.profile?.positions
         })) : []
     }));
   },
@@ -36,7 +44,7 @@ export const eventService = {
             *,
             attendees:event_attendees(
                 user_id,
-                profile:user_id(id, name, email)
+                profile:user_id(id, name, email, avatar, bio, height, weight, speed, vertical, sport, positions)
             )
         `)
         .eq('id', id)
@@ -50,7 +58,15 @@ export const eventService = {
         attendees: event.attendees ? event.attendees.map(a => ({
             id: a.user_id,
             name: a.profile?.name,
-            email: a.profile?.email
+            email: a.profile?.email,
+            avatar: a.profile?.avatar,
+            bio: a.profile?.bio,
+            height: a.profile?.height,
+            weight: a.profile?.weight,
+            speed: a.profile?.speed,
+            vertical: a.profile?.vertical,
+            sport: a.profile?.sport,
+            positions: a.profile?.positions
         })) : []
     };
   },
