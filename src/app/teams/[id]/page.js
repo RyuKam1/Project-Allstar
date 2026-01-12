@@ -396,8 +396,12 @@ export default function TeamDetails() {
                 style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px solid var(--color-primary)', objectFit: 'cover', marginBottom: '1rem' }} 
               />
               <h2 style={{ margin: 0, fontSize: '2rem' }}>{selectedPlayer.name}</h2>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.5rem' }}>{selectedPlayer.role || 'Athlete'}</div>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{selectedPlayer.bio || 'Representing Project AllStar'}</p>
+              <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem' }}>
+                 {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || selectedPlayer.role || 'Member'}
+              </div>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
+                {selectedPlayer.bio || `Representing ${team.name}`}
+              </p>
 
               {/* Physical Stats Grid */}
               <div style={{ 
