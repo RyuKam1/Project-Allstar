@@ -89,7 +89,20 @@ export default function CommunityPage() {
     }
   };
 
-  // ... (handleLike remains same) ...
+  const handleLike = async (postId) => {
+    if (!user) {
+      alert("Please login to like posts");
+      return;
+    }
+    await communityService.toggleLike(postId, user.id);
+    // Optimistic update handled by Realtime? 
+    // Actually, toggleLike triggers a DB change. 
+    // If we have a Realtime listener on 'post_likes' table, we could update count.
+    // But our current listener is only on INSERT to 'community_posts'.
+    // So we should probably reload or locally toggle. 
+    // For simplicity, let's reload data to get fresh counts.
+    loadData();
+  };
 
   const getTimeAgo = (timestamp) => {
      // ... (remains same) ...
@@ -100,7 +113,23 @@ export default function CommunityPage() {
      return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  // ... (getLeaderboard remains same) ...
+  // Get leaderboard (top 5 users by wins)
+  const getLeaderboard = () => {
+    const userStats = {};
+    teams.forEach(team => {
+      // Ensure wins exists (it was added in recent teamService update)
+      if (team.wins && Array.isArray(team.wins)) {
+        // We credit wins to ALL members of the team
+        team.members.forEach(member => {
+            if (!userStats[member.id]) {
+              userStats[member.id] = { name: member.name, wins: 0, avatar: member.avatar };
+            }
+            userStats[member.id].wins += team.wins.length;
+        });
+      }
+    });
+    return Object.values(userStats).sort((a, b) => b.wins - a.wins).slice(0, 5);
+  };
 
   const leaderboard = getLeaderboard();
   const trendingTeams = teams.slice(0, 5);
