@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 import styles from './navbar.module.css';
@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabaseClient";
 export default function Navbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Search State
@@ -21,6 +22,13 @@ export default function Navbar() {
   const [filterType, setFilterType] = useState('All'); 
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const navItems = [
+    { label: 'Venues', href: '/venues' },
+    { label: 'Teams', href: '/teams' },
+    { label: 'Events', href: '/events' },
+    { label: 'Community', href: '/community' }
+  ];
 
   const handleLogout = () => {
     logout();
@@ -85,10 +93,15 @@ export default function Navbar() {
             
             {/* Desktop Nav Links */}
             <div className={styles.desktopNavLinks}>
-                <Link href="/venues" className={styles.navLink}>Venues</Link>
-                <Link href="/teams" className={styles.navLink}>Teams</Link>
-                <Link href="/events" className={styles.navLink}>Events</Link>
-                <Link href="/community" className={styles.navLink}>Community</Link>
+                {navItems.map((item) => (
+                    <Link 
+                        href={item.href} 
+                        key={item.label}
+                        className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
+                    >
+                        {item.label}
+                    </Link>
+                ))}
             </div>
         </div>
 
@@ -108,7 +121,11 @@ export default function Navbar() {
             <div className={styles.authButtons}>
             {user ? (
                 <>
-                <Link href="/profile" className={styles.profileLink} onClick={closeMobileMenu}>
+                <Link 
+                    href="/profile" 
+                    className={`${styles.profileLink} ${pathname === '/profile' ? styles.activeLink : ''}`} 
+                    onClick={closeMobileMenu}
+                >
                     <img src={user.avatar} alt="Profile" className={styles.avatar} />
                 </Link>
                 <button 
@@ -201,6 +218,19 @@ export default function Navbar() {
         className={`${styles.overlay} ${mobileMenuOpen ? styles.open : ''}`}
         onClick={closeMobileMenu}
       />
+
+      <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.open : ''}`}>
+          {navItems.map((item) => (
+            <Link 
+              href={item.href} 
+              key={item.label}
+              className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
+              onClick={closeMobileMenu}
+            >
+              {item.label}
+            </Link>
+          ))}
+      </div>
     </>
   );
 }
