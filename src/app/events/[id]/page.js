@@ -59,6 +59,11 @@ export default function EventDetails() {
     setShowPlayerModal(true);
   };
 
+  const getFirstName = (fullName) => {
+    if (!fullName) return "Athlete";
+    return fullName.split(' ')[0];
+  };
+
   const getEventImagePath = (title) => {
     if (!title) return null;
     return `/events/${title}.webp`;
