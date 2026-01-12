@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import { useAuth } from '@/context/AuthContext';
 import { uploadCompressedImage } from '@/lib/imageOptimizer';
+import { useRouter } from 'next/navigation';
+import { teamService } from "@/services/teamService";
+import styles from './profile.module.css';
 
 export default function ProfilePage() {
   const { user, loading, updateUser } = useAuth();
