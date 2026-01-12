@@ -8,7 +8,7 @@ export const eventService = {
             *,
             attendees:event_attendees(
                 user_id,
-                profile:user_id(id, name, email)
+                profile:user_id(id, name, email, avatar, bio, height, weight, speed, vertical, sport, positions)
             )
         `);
     
@@ -20,10 +20,19 @@ export const eventService = {
     // Map to frontend structure
     return events.map(e => ({
         ...e,
+        maxSpots: e.max_spots, // Align with frontend
         attendees: e.attendees ? e.attendees.map(a => ({
             id: a.user_id,
             name: a.profile?.name,
-            email: a.profile?.email
+            email: a.profile?.email,
+            avatar: a.profile?.avatar,
+            bio: a.profile?.bio,
+            height: a.profile?.height,
+            weight: a.profile?.weight,
+            speed: a.profile?.speed,
+            vertical: a.profile?.vertical,
+            sport: a.profile?.sport,
+            positions: a.profile?.positions
         })) : []
     }));
   },
@@ -35,7 +44,7 @@ export const eventService = {
             *,
             attendees:event_attendees(
                 user_id,
-                profile:user_id(id, name, email)
+                profile:user_id(id, name, email, avatar, bio, height, weight, speed, vertical, sport, positions)
             )
         `)
         .eq('id', id)
@@ -45,10 +54,19 @@ export const eventService = {
 
     return {
         ...event,
+        maxSpots: event.max_spots, // Align with frontend
         attendees: event.attendees ? event.attendees.map(a => ({
             id: a.user_id,
             name: a.profile?.name,
-            email: a.profile?.email
+            email: a.profile?.email,
+            avatar: a.profile?.avatar,
+            bio: a.profile?.bio,
+            height: a.profile?.height,
+            weight: a.profile?.weight,
+            speed: a.profile?.speed,
+            vertical: a.profile?.vertical,
+            sport: a.profile?.sport,
+            positions: a.profile?.positions
         })) : []
     };
   },
@@ -81,7 +99,9 @@ export const eventService = {
   registerForEvent: async (eventId, user) => {
     // Check Status first
     const currentEvent = await eventService.getEventById(eventId);
-    if (currentEvent.attendees.length >= currentEvent.max_spots) {
+    if (!currentEvent) throw new Error("Event not found");
+    
+    if (currentEvent.attendees.length >= currentEvent.maxSpots) {
         throw new Error("Event is full");
     }
     if (currentEvent.attendees.some(a => a.id === user.id)) {
@@ -96,6 +116,8 @@ export const eventService = {
         });
     
     if (error) throw new Error(error.message);
-    return true; // Reloading UI will fetch fresh
+    
+    // Return fresh data
+    return await eventService.getEventById(eventId);
   }
 };

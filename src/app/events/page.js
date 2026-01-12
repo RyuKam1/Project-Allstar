@@ -335,7 +335,7 @@ export default function EventsAndTournamentsPage() {
                   )}
 
                   <button type="submit" className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }}>
-                      {hostType === 'Tournament' ? 'Generat Bracket' : 'Create Event'}
+                      {hostType === 'Tournament' ? 'Generate Bracket' : 'Create Event'}
                   </button>
               </form>
            </div>

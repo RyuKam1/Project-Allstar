@@ -13,6 +13,10 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
 
+  // Player Modal State
+  const [showPlayerModal, setShowPlayerModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+
   useEffect(() => {
     if (params?.id) {
       loadEvent();
@@ -48,6 +52,16 @@ export default function EventDetails() {
             setRegistering(false);
         }
     }
+  };
+
+  const openPlayerModal = (player) => {
+    setSelectedPlayer(player);
+    setShowPlayerModal(true);
+  };
+
+  const getFirstName = (fullName) => {
+    if (!fullName) return "Athlete";
+    return fullName.split(' ')[0];
   };
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '100px' }}>Loading...</div>;
@@ -139,23 +153,140 @@ export default function EventDetails() {
              </div>
 
              <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                 <h4>Attendees</h4>
-                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
-                    {event.attendees.length === 0 && <span style={{ color: '#666' }}>Be the first to join!</span>}
-                    {event.attendees.map(a => (
-                        <div key={a.id} style={{ 
-                            width: '32px', height: '32px', borderRadius: '50%', background: '#333',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem',
-                            border: '1px solid #555'
-                        }} title={a.name}>
-                            {a.name.charAt(0)}
-                        </div>
-                    ))}
-                 </div>
+                 <h4 style={{ marginBottom: '1rem' }}>Attendees</h4>
+                 {event.attendees.length === 0 ? (
+                    <span style={{ color: '#666' }}>Be the first to join!</span>
+                 ) : (
+                    <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(4, 1fr)', 
+                        gap: '1rem', 
+                        marginTop: '0.5rem' 
+                    }}>
+                        {event.attendees.map(a => (
+                            <div 
+                                key={a.id} 
+                                onClick={() => openPlayerModal(a)}
+                                style={{ 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    alignItems: 'center', 
+                                    gap: '0.4rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <img 
+                                    src={a.avatar || `https://ui-avatars.com/api/?name=${a.name}&background=random`} 
+                                    alt={a.name}
+                                    style={{ 
+                                        width: '50px', 
+                                        height: '50px', 
+                                        borderRadius: '50%', 
+                                        objectFit: 'cover',
+                                        border: '2px solid rgba(255,255,255,0.1)',
+                                        transition: 'transform 0.2s'
+                                    }}
+                                    onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                                    onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                                />
+                                <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: '#ccc', 
+                                    textAlign: 'center',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    width: '100%'
+                                }}>
+                                    {getFirstName(a.name)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                 )}
              </div>
         </div>
 
       </div>
+
+      {/* Athlete Info Modal */}
+      {showPlayerModal && selectedPlayer && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', zIndex: 1000,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem'
+        }} onClick={() => setShowPlayerModal(false)}>
+          <div 
+            className="glass-panel" 
+            style={{ width: '100%', maxWidth: '450px', padding: '2rem', position: 'relative' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowPlayerModal(false)}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}
+            >
+              ×
+            </button>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div 
+                onClick={() => window.location.href = `/profile?id=${selectedPlayer.id}`}
+                style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                title="View Full Profile"
+              >
+                <img 
+                  src={selectedPlayer.avatar || `https://ui-avatars.com/api/?name=${selectedPlayer.name}&background=random`} 
+                  alt={selectedPlayer.name} 
+                  style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px solid var(--color-primary)', objectFit: 'cover', marginBottom: '1rem', transition: 'transform 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} 
+                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                />
+                <h2 style={{ margin: 0, fontSize: '2rem', textDecoration: 'underline', textUnderlineOffset: '4px' }}>
+                    {selectedPlayer.name}
+                </h2>
+              </div>
+
+              <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem', marginTop: '0.5rem' }}>
+                 {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || 'Participant'}
+              </div>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
+                "{selectedPlayer.bio || `Attendee of ${event.title}`}"
+              </p>
+
+              {/* Physical Stats Grid */}
+              <div style={{ 
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', width: '100%', 
+                background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem'
+              }}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Height</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedPlayer.height || '--'}</div>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Weight</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedPlayer.weight || '--'}</div>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Speed</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedPlayer.speed || '--'}</div>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vertical</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedPlayer.vertical || '--'}</div>
+                </div>
+              </div>
+
+              <button 
+                className="btn-primary" 
+                style={{ width: '100%' }}
+                onClick={() => window.location.href = `/profile?id=${selectedPlayer.id}`}
+              >
+                View Full Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -23,7 +23,7 @@
 }
 
 .navLinks {
-  display: flex;
+  display: none;
   gap: 2rem;
 }
 
@@ -37,6 +37,25 @@
 
 .navLink:hover {
   opacity: 1;
+  color: var(--color-primary);
+}
+
+.activeLink {
+  color: var(--color-primary) !important;
+  opacity: 1 !important;
+  font-weight: 700;
+  position: relative;
+}
+
+.activeLink::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 2px;
 }
 
 .authButtons {
@@ -105,6 +124,7 @@
   }
   
   .navLinks {
+    display: flex;
     position: fixed;
     top: 0;
     right: -100%;
@@ -165,4 +185,186 @@
 
 .overlay.open {
   display: block;
+}
+
+/* Layout Utilities */
+.navLeft, .navRight {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.desktopNavLinks {
+  display: flex;
+  gap: 2rem;
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconButton:hover, .iconButton.active {
+  background: rgba(255,255,255,0.1);
+  opacity: 1;
+}
+
+/* Expandable Search Bar container */
+.searchBarContainer {
+  position: fixed;
+  top: 80px; /* Below navbar */
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  width: 90%;
+  max-width: 600px;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.searchBarContainer.searchOpen {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.searchBarInner {
+  display: flex;
+  align-items: center;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 8px 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.filterSelect {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 0.9rem;
+  padding: 8px;
+  cursor: pointer;
+  outline: none;
+  font-weight: 500;
+}
+
+.filterSelect option {
+  background: #222;
+  color: white;
+}
+
+.searchDivider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255,255,255,0.1);
+  margin: 0 12px;
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  padding: 8px;
+  outline: none;
+}
+
+.closeSearch {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+
+.closeSearch:hover {
+  color: white;
+}
+
+/* Results Dropdown */
+.resultsDropdown {
+  margin-top: 8px;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.resultItem, .resultLoading, .resultEmpty {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: white;
+}
+
+.resultItem:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.resultItemLink {
+  text-decoration: none;
+  display: block;
+}
+
+.resultImage, .resultPlaceholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 12px;
+  object-fit: cover;
+}
+
+.resultPlaceholder {
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.resultInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.resultTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.resultSubtitle {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.resultType {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 768px) {
+  .desktopNavLinks {
+    display: none;
+  }
 }
