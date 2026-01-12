@@ -18,6 +18,50 @@ export default function ProfilePage() {
   const [userTeams, setUserTeams] = useState([]);
   const [careerWins, setCareerWins] = useState([]);
   const [isMetric, setIsMetric] = useState(false);
+  
+  // --- Conversion Helpers ---
+  const convertHeight = (val, toMetric) => {
+    if (!val) return '-';
+    // Assume input is like "6'2" or "6ft 2in" or just "188"
+    if (toMetric) {
+        if (val.includes("'")) {
+            const parts = val.split("'");
+            const ft = parseInt(parts[0]) || 0;
+            const inch = parseInt(parts[1]) || 0;
+            return Math.round((ft * 30.48) + (inch * 2.54)) + ' cm';
+        }
+        // If already numeric, assume it's cm? or assume it's inches? 
+        // Let's assume stored as Imperial usually.
+        return val; 
+    }
+    return val; // Display raw (Imperial)
+  };
+
+  const convertWeight = (val, toMetric) => {
+      if (!val) return '-';
+      const num = parseFloat(val);
+      if (isNaN(num)) return val;
+      if (toMetric) return Math.round(num * 0.453592) + ' kg';
+      return val + ' lbs';
+  };
+
+  const convertSpeed = (val, toMetric) => {
+      if (!val) return '-';
+      const num = parseFloat(val);
+      if (isNaN(num)) return val;
+      if (toMetric) return (num * 1.60934).toFixed(1) + ' km/h';
+      return val + ' mph';
+  };
+
+  const convertVertical = (val, toMetric) => {
+      if (!val) return '-';
+      const num = parseFloat(val);
+      if (isNaN(num)) return val;
+      if (toMetric) return Math.round(num * 2.54) + ' cm';
+      return val + ' in';
+  };
+  // --------------------------
+
   const [isSaving, setIsSaving] = useState(false);
   
   // Profile Data State (Separated from Auth User)
@@ -280,19 +324,19 @@ export default function ProfilePage() {
                  <div className={styles.statsGridDisplay}>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Height (cm)' : 'Height'}</div>
-                       <div className={styles.value}>{profileUser.height || '-'}</div>
+                       <div className={styles.value}>{convertHeight(profileUser.height, isMetric)}</div>
                     </div>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight'}</div>
-                       <div className={styles.value}>{profileUser.weight || '-'}</div>
+                       <div className={styles.value}>{convertWeight(profileUser.weight, isMetric)}</div>
                     </div>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed'}</div>
-                       <div className={styles.value}>{profileUser.speed || '-'}</div>
+                       <div className={styles.value}>{convertSpeed(profileUser.speed, isMetric)}</div>
                     </div>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical'}</div>
-                       <div className={styles.value}>{profileUser.vertical || '-'}</div>
+                       <div className={styles.value}>{convertVertical(profileUser.vertical, isMetric)}</div>
                     </div>
                     <div className={styles.span2}>
                        <div className={styles.label}>Sport & Positions</div>
