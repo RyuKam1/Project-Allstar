@@ -153,13 +153,18 @@ export default function CommunityPage() {
 
         {/* Tabs */}
         <div className={styles.tabs}>
-           {['All', 'Teams', 'Events'].map(tab => (
+           {[
+             { name: 'All', icon: '🌟' },
+             { name: 'Teams', icon: '👥' },
+             { name: 'Events', icon: '🎪' }
+           ].map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+              key={tab.name}
+              onClick={() => setActiveTab(tab.name)}
+              className={`${styles.tab} ${activeTab === tab.name ? styles.tabActive : ''}`}
             >
-              {tab}
+              <span style={{ marginRight: '8px' }}>{tab.icon}</span>
+              {tab.name}
             </button>
           ))}
         </div>

@@ -676,19 +676,17 @@ select:focus-visible {
 [data-theme='pro'] {
   --text-muted: #555555; /* Improved from #444444 */
 }
-/* ================= SHARED UI COMPONENTS ================= */
-
-/* Pills Filter Bar */
+/* Pills Filter Bar - Redesigned */
 .filter-group {
   display: flex;
-  gap: 0.8rem;
-  margin-bottom: 2.5rem;
+  gap: 1rem;
+  margin-bottom: 3rem;
   overflow-x: auto;
-  padding-bottom: 1rem;
+  padding: 0.5rem 0.5rem 1.5rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
 }
 
 .filter-group::-webkit-scrollbar {
@@ -699,47 +697,92 @@ select:focus-visible {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   color: var(--text-main);
-  padding: 8px 20px;
-  border-radius: 99px;
+  padding: 10px 24px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   white-space: nowrap;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   font-family: var(--font-header);
   letter-spacing: 0.5px;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.filter-pill .icon {
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
 }
 
 .filter-pill:hover {
-  background: rgba(var(--color-primary-rgb), 0.1);
+  background: rgba(var(--color-primary-rgb), 0.15);
   border-color: var(--color-primary);
   color: var(--color-primary);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+
+.filter-pill:hover .icon {
+  transform: scale(1.2) rotate(5deg);
 }
 
 .filter-pill-active {
   background: var(--color-primary) !important;
   border-color: var(--color-primary) !important;
   color: white !important;
-  font-weight: 700;
-  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.4);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(var(--color-primary-rgb), 0.4);
+}
+
+.filter-pill-active .icon {
+  transform: scale(1.1);
+}
+
+/* Theme Specific Refinements */
+[data-theme='pro'] .filter-pill {
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
 }
 
 [data-theme='pro'] .filter-pill-active {
-  background: black !important;
-  border-color: black !important;
-  box-shadow: 4px 4px 0 var(--color-primary);
+  background: #111 !important;
+  color: white !important;
+  border-color: #111 !important;
+  box-shadow: 6px 6px 0 var(--color-primary);
+}
+
+[data-theme='minimal'] .filter-pill {
+  border-radius: 0;
+  border: 1px solid #333;
+  text-transform: uppercase;
 }
 
 [data-theme='minimal'] .filter-pill-active {
-  box-shadow: none;
   background: white !important;
   color: black !important;
+  box-shadow: none;
 }
 
-[data-theme='street'] .filter-pill-active {
-  box-shadow: 4px 4px 0 #000;
+[data-theme='tactical'] .filter-pill {
+  border-radius: 0;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 100%);
+  border-left: 2px solid var(--color-primary);
+}
+
+[data-theme='retro'] .filter-pill {
+  border-radius: 0;
+  font-family: 'Share Tech Mono', monospace;
+  box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+[data-theme='retro'] .filter-pill-active {
+  box-shadow: 5px 5px 0 var(--color-accent);
 }

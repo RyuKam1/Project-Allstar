@@ -153,15 +153,24 @@ export default function EventsAndTournamentsPage() {
 
         {/* Sport Filters */}
         <div className="filter-group">
-          {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'].map((sport) => (
-             <button 
-               key={sport} 
-               onClick={() => setFilterSport(sport)}
-               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
-             >
-               {sport}
-             </button>
-          ))}
+            {[
+              { name: 'All', icon: '🌟' },
+              { name: 'Basketball', icon: '🏀' },
+              { name: 'Soccer', icon: '⚽' },
+              { name: 'Tennis', icon: '🎾' },
+              { name: 'Volleyball', icon: '🏐' },
+              { name: 'Fitness', icon: '💪' },
+              { name: 'Baseball', icon: '⚾' }
+            ].map(sport => (
+                <button 
+                    key={sport.name} 
+                    onClick={() => setFilterSport(sport.name)}
+                    className={`filter-pill ${filterSport === sport.name ? 'filter-pill-active' : ''}`}
+                >
+                    <span className="icon">{sport.icon}</span>
+                    <span>{sport.name}</span>
+                </button>
+            ))}
         </div>
 
         {/* Grid Listing */}

@@ -80,13 +80,21 @@ export default function TeamsPage() {
 
          {/* Sport Filters */}
          <div className="filter-group">
-           {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball'].map(sport => (
+           {[
+             { name: 'All', icon: '🌟' },
+             { name: 'Basketball', icon: '🏀' },
+             { name: 'Soccer', icon: '⚽' },
+             { name: 'Tennis', icon: '🎾' },
+             { name: 'Volleyball', icon: '🏐' },
+             { name: 'Baseball', icon: '⚾' }
+           ].map(sport => (
              <button 
-               key={sport} 
-               onClick={() => setFilterSport(sport)}
-               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+               key={sport.name} 
+               onClick={() => setFilterSport(sport.name)}
+               className={`filter-pill ${filterSport === sport.name ? 'filter-pill-active' : ''}`}
              >
-               {sport}
+               <span className="icon">{sport.icon}</span>
+               <span>{sport.name}</span>
              </button>
            ))}
          </div>
