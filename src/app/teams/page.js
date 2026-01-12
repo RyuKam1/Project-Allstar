@@ -46,7 +46,7 @@ export default function TeamsPage() {
         return;
     }
     try {
-      await teamService.joinTeam(teamId, user);
+      await teamService.requestJoinTeam(teamId, user);
       loadTeams();
     } catch (err) {
       alert(err.message);

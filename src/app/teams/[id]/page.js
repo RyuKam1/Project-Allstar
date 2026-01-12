@@ -40,6 +40,22 @@ export default function TeamDetails() {
     loadTeam();
   };
 
+  const handleRequestAccess = async () => {
+    if (!user) return; // Should redirect to login handled by UI usually
+    await teamService.requestJoinTeam(team.id, user);
+    loadTeam();
+  };
+
+  const handleAcceptRequest = async (requesterId, targetPosition = 'Bench') => {
+    await teamService.acceptJoinRequest(team.id, requesterId, targetPosition);
+    loadTeam();
+  };
+
+  const handleRejectRequest = async (requesterId) => {
+    await teamService.rejectJoinRequest(team.id, requesterId);
+    loadTeam();
+  };
+
   const handleDragStart = (e, playerId) => {
     e.dataTransfer.setData("playerId", playerId);
   };
@@ -161,9 +177,22 @@ export default function TeamDetails() {
             <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>{team.description}</p>
           </div>
           
-          <div style={{ textAlign: 'center', paddingLeft: '2rem', borderLeft: '1px solid var(--border-glass)' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{team.members.length}</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Members</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem', paddingLeft: '2rem', borderLeft: '1px solid var(--border-glass)' }}>
+            <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{team.members.length}</div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Members</div>
+            </div>
+            
+            {!isOwner && !team.members.some(m => m.id === user?.id) && (
+                <button 
+                  onClick={handleRequestAccess}
+                  disabled={team.requests?.some(r => r.id === user?.id)}
+                  className="btn-primary"
+                  style={team.requests?.some(r => r.id === user?.id) ? { opacity: 0.7, cursor: 'not-allowed', background: '#555', fontSize: '0.9rem' } : { fontSize: '0.9rem' }}
+                >
+                  {team.requests?.some(r => r.id === user?.id) ? 'Request Sent' : 'Request Access'}
+                </button>
+            )}
           </div>
         </div>
         
@@ -185,56 +214,96 @@ export default function TeamDetails() {
             />
           </div>
 
-          {/* Bench / Roster (Drop Target 2) */}
-          <div 
-            onDragOver={handleDragOverBench}
-            onDrop={handleDropToBench}
-          >
-            <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '400px', border: isOwner ? '2px dashed var(--border-glass)' : '1px solid var(--border-glass)' }}>
-              <h2 style={{ margin: '0 0 1.5rem' }}>Bench / Roster</h2>
-              
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {benchPlayers.length === 0 && <div style={{ fontStyle: 'italic', color: '#666' }}>Bench is empty.</div>}
-                
-                {benchPlayers.map(member => (
-                  <li 
-                    key={member.id} 
-                    draggable={isOwner}
-                    onDragStart={(e) => handleDragStart(e, member.id)}
-                    onClick={() => handlePlayerClick(member)}
-                    style={{ 
-                      display: 'flex', alignItems: 'center', gap: '1rem', padding: '10px', 
-                      background: 'rgba(255,255,255,0.05)', borderRadius: '8px',
-                      cursor: 'pointer', border: '1px solid transparent'
-                    }}
-                    onMouseOver={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
-                  >
-                    <img src={member.avatar} style={{ width: '40px', height: '40px', borderRadius: '50%' }} alt={member.name} />
-                    <div style={{ flexGrow: 1 }}>
-                      <div style={{ fontWeight: '600' }}>{member.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{member.role}</div>
-                    </div>
-                    {isOwner && <span style={{ fontSize: '1.2rem', color: '#666' }}>:::</span>}
-                  </li>
-                ))}
-              </ul>
-
-              {isOwner && (
-                <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border-glass)' }}>
-                   <h3>Add Guest Player</h3>
-                   <form onSubmit={handleAddGuest} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                     <input 
-                       placeholder="Name" 
-                       value={guestName}
-                       onChange={e => setGuestName(e.target.value)}
-                       style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #444', background: '#222', color: 'white' }}
-                       required
-                     />
-                     <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Add to Bench</button>
-                   </form>
+          {/* Right Column: Requests (Owner) + Bench */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* Join Requests Panel */}
+            {isOwner && team.requests && team.requests.length > 0 && (
+                <div className="glass-panel" style={{ padding: '1.5rem', border: '1px solid var(--color-primary)' }}>
+                    <h2 style={{ margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)' }}>
+                        📩 Join Requests <span style={{ background: 'var(--color-primary)', color: 'white', fontSize: '0.8rem', padding: '2px 8px', borderRadius: '12px' }}>{team.requests.length}</span>
+                    </h2>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                        {team.requests.map(req => (
+                            <li key={req.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <img src={req.avatar} alt={req.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                                <div style={{ flexGrow: 1 }}>
+                                    <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{req.name}</div>
+                                    <div style={{ fontSize: '0.7rem', color: '#888' }}>{new Date(req.requestedAt).toLocaleDateString()}</div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '5px' }}>
+                                    <button 
+                                        onClick={() => handleAcceptRequest(req.id, 'Bench')} 
+                                        style={{ background: '#4CAF50', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px' }}
+                                        title="Accept to Bench"
+                                    >
+                                        ✅
+                                    </button>
+                                    <button 
+                                        onClick={() => handleRejectRequest(req.id)}
+                                        style={{ background: '#f44336', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px' }}
+                                        title="Reject"
+                                    >
+                                        ❌
+                                    </button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
-              )}
+            )}
+
+            {/* Bench / Roster (Drop Target 2) */}
+            <div 
+                onDragOver={handleDragOverBench}
+                onDrop={handleDropToBench}
+            >
+                <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '400px', border: isOwner ? '2px dashed var(--border-glass)' : '1px solid var(--border-glass)' }}>
+                <h2 style={{ margin: '0 0 1.5rem' }}>Bench / Roster</h2>
+                
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {benchPlayers.length === 0 && <div style={{ fontStyle: 'italic', color: '#666' }}>Bench is empty.</div>}
+                    
+                    {benchPlayers.map(member => (
+                    <li 
+                        key={member.id} 
+                        draggable={isOwner}
+                        onDragStart={(e) => handleDragStart(e, member.id)}
+                        onClick={() => handlePlayerClick(member)}
+                        style={{ 
+                        display: 'flex', alignItems: 'center', gap: '1rem', padding: '10px', 
+                        background: 'rgba(255,255,255,0.05)', borderRadius: '8px',
+                        cursor: 'pointer', border: '1px solid transparent'
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
+                    >
+                        <img src={member.avatar} style={{ width: '40px', height: '40px', borderRadius: '50%' }} alt={member.name} />
+                        <div style={{ flexGrow: 1 }}>
+                        <div style={{ fontWeight: '600' }}>{member.name}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{member.role}</div>
+                        </div>
+                        {isOwner && <span style={{ fontSize: '1.2rem', color: '#666' }}>:::</span>}
+                    </li>
+                    ))}
+                </ul>
+
+                {isOwner && (
+                    <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border-glass)' }}>
+                    <h3>Add Guest Player</h3>
+                    <form onSubmit={handleAddGuest} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <input 
+                        placeholder="Name" 
+                        value={guestName}
+                        onChange={e => setGuestName(e.target.value)}
+                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #444', background: '#222', color: 'white' }}
+                        required
+                        />
+                        <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Add to Bench</button>
+                    </form>
+                    </div>
+                )}
+                </div>
             </div>
           </div>
         </div>

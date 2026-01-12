@@ -8,7 +8,14 @@ export const teamService = {
     if (typeof window === 'undefined') return [];
     
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const teams = stored ? JSON.parse(stored) : [];
+    
+    // Migration: ensure 'requests' array exists
+    teams.forEach(t => {
+      if (!t.requests) t.requests = [];
+    });
+    
+    return teams;
   },
 
   // Create a new team
@@ -37,6 +44,7 @@ export const teamService = {
         }
       ],
       customGuests: [],
+      requests: [], // Array of user objects requesting to join
       createdAt: new Date().toISOString()
     };
 
@@ -47,6 +55,7 @@ export const teamService = {
 
   // Add a member (User on platform)
   joinTeam: async (teamId, user) => {
+    // Legacy direct join - keeping for now but might deprecate
     await new Promise(resolve => setTimeout(resolve, 400));
     const teams = await teamService.getAllTeams();
     const teamIndex = teams.findIndex(t => t.id === teamId);
@@ -68,6 +77,81 @@ export const teamService = {
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
     return teams[teamIndex];
+  },
+
+  // Request to join a team
+  requestJoinTeam: async (teamId, user) => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const teams = await teamService.getAllTeams();
+    const teamIndex = teams.findIndex(t => t.id === teamId);
+    
+    if (teamIndex === -1) throw new Error("Team not found");
+    
+    // Check if already member
+    if (teams[teamIndex].members.some(m => m.id === user.id)) {
+      throw new Error("You are already in this team");
+    }
+
+    // Check if already requested
+    if (teams[teamIndex].requests.some(r => r.id === user.id)) {
+      throw new Error("Request already pending");
+    }
+
+    teams[teamIndex].requests.push({
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar,
+      requestedAt: new Date().toISOString()
+    });
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+    return teams[teamIndex];
+  },
+
+  // Accept a join request
+  acceptJoinRequest: async (teamId, userId, targetPosition = 'Bench') => {
+    const teams = await teamService.getAllTeams();
+    const teamIndex = teams.findIndex(t => t.id === teamId);
+    if (teamIndex === -1) throw new Error("Team not found");
+
+    const requestIndex = teams[teamIndex].requests.findIndex(r => r.id === userId);
+    if (requestIndex === -1) throw new Error("Request not found");
+
+    const request = teams[teamIndex].requests[requestIndex];
+
+    // Remove from requests
+    teams[teamIndex].requests.splice(requestIndex, 1);
+
+    // Add to members
+    teams[teamIndex].members.push({
+      id: request.id,
+      name: request.name,
+      avatar: request.avatar,
+      role: 'Member',
+      position: targetPosition
+    });
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+    return teams[teamIndex];
+  },
+
+  // Reject a join request
+  rejectJoinRequest: async (teamId, userId) => {
+    const teams = await teamService.getAllTeams();
+    const teamIndex = teams.findIndex(t => t.id === teamId);
+    if (teamIndex === -1) throw new Error("Team not found");
+
+    const requestIndex = teams[teamIndex].requests.findIndex(r => r.id === userId);
+    if (requestIndex !== -1) {
+        teams[teamIndex].requests.splice(requestIndex, 1);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+    }
+    return teams[teamIndex];
+  },
+
+  // Cancel my own request
+  cancelJoinRequest: async (teamId, userId) => {
+    return teamService.rejectJoinRequest(teamId, userId);
   },
 
   // Add a guest member
