@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import { useAuth } from '@/context/AuthContext';
 import { uploadCompressedImage } from '@/lib/imageOptimizer';
@@ -8,7 +8,7 @@ import { teamService } from "@/services/teamService";
 import { authService } from "@/services/authService";
 import styles from './profile.module.css';
 
-export default function ProfilePage() {
+function ProfileContent() {
   const { user: authUser, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -428,5 +428,13 @@ export default function ProfilePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className={styles.main} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Profile...</div>}>
+      <ProfileContent />
+    </Suspense>
   );
 }
