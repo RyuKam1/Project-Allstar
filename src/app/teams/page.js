@@ -53,6 +53,10 @@ export default function TeamsPage() {
     }
   };
 
+  const activeTeams = teams.filter(team => 
+    filterSport === 'All' || team.sport === filterSport
+  );
+
   return (
     <main className={styles.main}>
       <Navbar />
@@ -73,17 +77,36 @@ export default function TeamsPage() {
           </button>
         </div>
 
+        {/* Sport Filters */}
+        <div className={styles.filters}>
+          {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Baseball'].map(sport => (
+            <button 
+              key={sport} 
+              onClick={() => setFilterSport(sport)}
+              className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
+            >
+              {sport}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
              <div className={styles.loading}>Loading teams...</div>
-        ) : teams.length === 0 ? (
+        ) : activeTeams.length === 0 ? (
              <div className={`glass-panel ${styles.emptyState}`}>
                <h2>No teams yet!</h2>
-               <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Be the first to create a team and invite your friends.</p>
-               <button className="btn-primary" onClick={() => user ? setShowCreateModal(true) : router.push('/login')}>Start a Team</button>
+               <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                 {filterSport === 'All' 
+                   ? "Be the first to create a team and invite your friends." 
+                   : `No ${filterSport} teams found. Start a new squad!`}
+               </p>
+               <button className="btn-primary" onClick={() => user ? setShowCreateModal(true) : router.push('/login')}>
+                 Start a {filterSport === 'All' ? 'Team' : filterSport + ' Team'}
+               </button>
              </div>
         ) : (
           <div className="grid-auto-fit">
-            {teams.map(team => (
+            {activeTeams.map(team => (
               <TeamCard key={team.id} team={team} user={user} onJoin={handleJoinTeam} />
             ))}
           </div>
@@ -105,6 +128,7 @@ export default function TeamsPage() {
                     <div className={styles.logoPlaceholder}>No Logo</div>
                   )}
                   <input 
+                    id="team-logo-create"
                     type="file" 
                     accept="image/*"
                     onChange={(e) => {
@@ -121,8 +145,11 @@ export default function TeamsPage() {
                         reader.readAsDataURL(file);
                       }
                     }}
-                    className={styles.fileInput}
+                    className={styles.hidden}
                   />
+                  <label htmlFor="team-logo-create" className="btn-secondary" style={{ fontSize: '0.8rem', padding: '8px 16px' }}>
+                    Choose Logo
+                  </label>
                 </div>
               </div>
 

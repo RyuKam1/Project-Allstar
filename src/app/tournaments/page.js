@@ -56,6 +56,10 @@ export default function TournamentsPage() {
     loadData();
   };
 
+  const activeTournaments = tournaments.filter(t => 
+    filterSport === 'All' || t.sport === filterSport
+  );
+
   return (
     <main className={styles.main}>
       <Navbar />
@@ -69,9 +73,23 @@ export default function TournamentsPage() {
             </button>
          </div>
 
+         {/* Sport Filters */}
+         <div className={styles.filters}>
+           {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball'].map(sport => (
+             <button 
+               key={sport} 
+               onClick={() => setFilterSport(sport)}
+               className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
+             >
+               {sport}
+             </button>
+           ))}
+         </div>
+
          {loading ? <div className="text-center">Loading...</div> : (
            <div className="grid-auto-fit">
-             {tournaments.map(t => (
+             {activeTournaments.length === 0 && <div className="text-center p-5 text-muted">No tournaments found.</div>}
+             {activeTournaments.map(t => (
                <div 
                  key={t.id} 
                  className={`glass-panel ${styles.tournamentCard}`} 

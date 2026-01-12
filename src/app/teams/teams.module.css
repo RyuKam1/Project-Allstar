@@ -193,12 +193,52 @@
   transition: all 0.2s;
 }
 
-.cancelButton:hover {
-  color: white;
-  border-color: #666;
-}
-
 .submitButton {
   flex: 1;
   padding: 12px;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 2.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filterButton {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 8px 20px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
+}
+
+.filterButton:hover {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.filterButtonActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.hidden {
+  display: none;
 }
