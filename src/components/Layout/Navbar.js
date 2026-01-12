@@ -20,6 +20,8 @@ export default function Navbar() {
   const [showResults, setShowResults] = useState(false);
   const [filterType, setFilterType] = useState('All'); 
 
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   const handleLogout = () => {
     logout();
     router.push('/');
@@ -31,6 +33,13 @@ export default function Navbar() {
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
+  };
+
+  const toggleSearch = () => {
+      setIsSearchOpen(!isSearchOpen);
+      if (!isSearchOpen) {
+          setTimeout(() => document.getElementById('global-search-input')?.focus(), 100);
+      }
   };
 
   // Search Handler
@@ -63,21 +72,6 @@ export default function Navbar() {
       setFilterType(newFilter);
       handleSearch(searchQuery, newFilter);
   };
-
-  return (
-    <>
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // ... (login/logout handlers)
-
-  const toggleSearch = () => {
-      setIsSearchOpen(!isSearchOpen);
-      if (!isSearchOpen) {
-          setTimeout(() => document.getElementById('global-search-input')?.focus(), 100);
-      }
-  };
-
-  // ...
 
   return (
     <>
@@ -117,7 +111,12 @@ export default function Navbar() {
                 <Link href="/profile" className={styles.profileLink} onClick={closeMobileMenu}>
                     <img src={user.avatar} alt="Profile" className={styles.avatar} />
                 </Link>
-                {/* Mobile Menu Toggle logic elsewhere if needed, or simplified here */}
+                <button 
+                    onClick={() => { handleLogout(); closeMobileMenu(); }}
+                    className={styles.logoutButton}
+                >
+                    Log Out
+                </button>
                 </>
             ) : (
                 <Link href="/login" onClick={closeMobileMenu}>
@@ -196,48 +195,6 @@ export default function Navbar() {
                 </div>
             )}
       </div>
-
-        <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.open : ''}`}>
-          {[
-            { label: 'Venues', href: '/venues' },
-            { label: 'Teams', href: '/teams' },
-            { label: 'Events & Tournaments', href: '/events' },
-            { label: 'Community', href: '/community' }
-          ].map((item) => (
-            <Link 
-              href={item.href} 
-              key={item.label}
-              className={styles.navLink}
-              onClick={closeMobileMenu}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-
-        <div className={styles.authButtons}>
-          {user ? (
-            <>
-              <Link href="/profile" className={styles.profileLink} onClick={closeMobileMenu}>
-                <img src={user.avatar} alt="Profile" className={styles.avatar} />
-                <span className={styles.userName}>{user.name}</span>
-              </Link>
-              <button 
-                onClick={() => { handleLogout(); closeMobileMenu(); }}
-                className={styles.logoutButton}
-              >
-                Log Out
-              </button>
-            </>
-          ) : (
-            <Link href="/login" onClick={closeMobileMenu}>
-              <button className={`btn-primary ${styles.getStartedButton}`}>
-                Get Started
-              </button>
-            </Link>
-          )}
-        </div>
-      </nav>
 
       {/* Mobile Menu Overlay */}
       <div 
