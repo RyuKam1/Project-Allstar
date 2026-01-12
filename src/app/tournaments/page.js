@@ -15,6 +15,7 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [allTeams, setAllTeams] = useState([]);
+  const [filterSport, setFilterSport] = useState('All');
   
   // Create Form
   const [newName, setNewName] = useState('');

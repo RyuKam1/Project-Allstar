@@ -9,6 +9,7 @@ import styles from './venues.module.css';
 
 export default function VenuesPage() {
   const [displayVenues, setDisplayVenues] = useState(initialVenues);
+  const [filterSport, setFilterSport] = useState('All');
   // Use a ref to ensure we don't re-randomize unnecessarily if component re-renders
   const hasRandomized = useRef(false);
 
@@ -19,6 +20,10 @@ export default function VenuesPage() {
       hasRandomized.current = true;
     }
   };
+
+  const activeVenues = displayVenues.filter(venue => 
+    filterSport === 'All' || venue.sport === filterSport
+  );
 
   return (
     <main className={styles.main}>
@@ -35,21 +40,31 @@ export default function VenuesPage() {
         </div>
 
         {/* Map Integration */}
-        <Map venues={displayVenues} onUserLocationFound={handleUserLocationFound} />
+        <Map venues={activeVenues} onUserLocationFound={handleUserLocationFound} />
 
-        {/* Filters Mockup */}
+        {/* Sport Filters */}
         <div className={styles.filters}>
-          {['All', 'Stadiums', 'Courts', 'Fields', 'Gyms'].map((filter, i) => (
-             <button key={filter} className={`${styles.filterButton} ${i === 0 ? styles.filterButtonActive : ''}`}>
-               {filter}
+          {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'].map((sport) => (
+             <button 
+               key={sport} 
+               onClick={() => setFilterSport(sport)}
+               className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
+             >
+               {sport}
              </button>
           ))}
         </div>
         
         <div className="grid-auto-fit">
-          {displayVenues.map((venue) => (
-            <VenueCard key={venue.id} venue={venue} />
-          ))}
+          {activeVenues.length === 0 ? (
+            <div className="text-center p-5 text-muted" style={{ gridColumn: '1 / -1' }}>
+              No venues found for {filterSport}.
+            </div>
+          ) : (
+            activeVenues.map((venue) => (
+              <VenueCard key={venue.id} venue={venue} />
+            ))
+          )}
         </div>
       </div>
     </main>

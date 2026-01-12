@@ -18,7 +18,6 @@ export default function EventsAndTournamentsPage() {
   
   // Filter State
   const [filterSport, setFilterSport] = useState('All');
-  const [filterType, setFilterType] = useState('All'); // Tournament, Workshop, Match, etc.
   
   // Host Modal State
   const [showHostModal, setShowHostModal] = useState(false);
@@ -83,12 +82,6 @@ export default function EventsAndTournamentsPage() {
 
   const activeItems = items.filter(item => {
     if (filterSport !== 'All' && item.sport !== filterSport) return false;
-    if (filterType !== 'All') {
-        if (filterType === 'Tournament' && item.kind !== 'Tournament') return false;
-        if (filterType !== 'Tournament' && item.kind === 'Tournament') return false; 
-        // For sub-types of events (Workshop, Race)
-        if (filterType !== 'Tournament' && item.kind === 'Event' && item.displayType !== filterType) return false;
-    }
     return true;
   });
 
@@ -159,27 +152,14 @@ export default function EventsAndTournamentsPage() {
         </div>
 
         {/* Sport Filters */}
-        <div className={styles.filterSection}>
+        <div className={styles.filters}>
             {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness'].map(sport => (
                 <button 
                     key={sport} 
                     onClick={() => setFilterSport(sport)}
-                    className={`${styles.filterBtn} ${filterSport === sport ? styles.filterBtnActive : ''}`}
+                    className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
                 >
                     {sport}
-                </button>
-            ))}
-        </div>
-
-        {/* Type Filters */}
-        <div className={styles.filterSectionSecondary}>
-            {['All', 'Tournament', 'Workshop', 'Race', 'Match'].map(type => (
-                <button 
-                    key={type} 
-                    onClick={() => setFilterType(type)}
-                    className={`${styles.typeBtn} ${filterType === type ? styles.typeBtnActive : ''}`}
-                >
-                    {type}
                 </button>
             ))}
         </div>

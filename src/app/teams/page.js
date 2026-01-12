@@ -13,6 +13,7 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filterSport, setFilterSport] = useState('All');
   
   // Create Form State
   const [newTeam, setNewTeam] = useState({ name: '', sport: 'Basketball', description: '' });
