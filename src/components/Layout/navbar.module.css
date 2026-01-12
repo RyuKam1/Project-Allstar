@@ -64,38 +64,84 @@
   align-items: center;
 }
 
-.profileLink {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: white;
-}
-
 .avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-}
-
-.userName {
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.logoutButton {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: var(--text-muted);
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.8rem;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 .getStartedButton {
   padding: 8px 20px;
   font-size: 0.9rem;
+}
+
+/* Profile Dropdown */
+.profileMenuContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.profileTrigger {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.profileTrigger:hover {
+  transform: scale(1.05);
+}
+
+.profileDropdown {
+  position: absolute;
+  top: calc(100% + 15px);
+  right: 0;
+  min-width: 200px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1002;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  animation: dropdownFade 0.2s ease-out;
+}
+
+@keyframes dropdownFade {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 12px 16px;
+  color: white;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.dropdownItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-primary);
+}
+
+.dropdownIcon {
+  font-size: 1.1rem;
 }
 
 /* Mobile Menu Toggle */
@@ -151,23 +197,37 @@
   }
   
   .authButtons {
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
+    flex-direction: row;
+    gap: 0.5rem;
+    width: auto;
   }
   
-  .profileLink {
-    justify-content: center;
+  .profileMenuContainer {
+    position: static;
+  }
+
+  .profileDropdown {
+    position: fixed;
+    top: 80px;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    min-width: 0;
   }
   
-  .logoutButton,
   .getStartedButton {
-    width: 100%;
+    width: auto;
     text-align: center;
+    padding: 6px 12px;
+    font-size: 0.75rem;
   }
   
   .userName {
     display: none;
+  }
+
+  .navRight {
+    gap: 0.75rem;
   }
 }
 

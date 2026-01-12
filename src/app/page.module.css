@@ -12,6 +12,13 @@
   align-items: center;
 }
 
+@media (max-width: 768px) {
+  .heroSection {
+    padding-top: 100px;
+    padding-bottom: 40px;
+  }
+}
+
 .backgroundGradient {
   position: absolute;
   top: 20%;
@@ -24,12 +31,32 @@
   pointer-events: none;
 }
 
+@media (max-width: 768px) {
+  .backgroundGradient {
+    width: 300px;
+    height: 300px;
+    top: 30%;
+  }
+}
+
 .title {
   font-size: 4.5rem;
   font-weight: 800;
   line-height: 1.1;
   margin-bottom: 1.5rem;
   max-width: 800px;
+}
+
+@media (max-width: 1024px) {
+  .title {
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 2.5rem;
+  }
 }
 
 .subtitle {
@@ -40,10 +67,29 @@
   line-height: 1.6;
 }
 
+@media (max-width: 768px) {
+  .subtitle {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+}
+
 .actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .primaryButton, .secondaryButton {
+    width: 100%;
+  }
 }
 
 .primaryButton {
@@ -74,6 +120,22 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 3rem;
   text-align: left;
+}
+
+@media (max-width: 1024px) {
+  .statsContainer {
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .statsContainer {
+    grid-template-columns: 1fr;
+    margin-top: 3rem;
+    gap: 2rem;
+    text-align: center;
+  }
 }
 
 .statItem h3 {

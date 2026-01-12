@@ -185,7 +185,7 @@ export default function EventsAndTournamentsPage() {
         </div>
 
         {/* Grid Listing */}
-        {loading ? <div>Loading...</div> : (
+        {loading ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading...</div> : (
             <div className="grid-auto-fit">
                 {activeItems.length === 0 && <div className={styles.emptyState}>No events found matching filters.</div>}
                 
@@ -240,62 +240,58 @@ export default function EventsAndTournamentsPage() {
 
       {/* Host Modal */}
       {showHostModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-           <div className="glass-panel" style={{ padding: '2rem', width: '90%', maxWidth: '600px', background: '#111', maxHeight: '90vh', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                  <h2>Host an Event</h2>
-                  <button onClick={() => setShowHostModal(false)} style={{ background: 'transparent', border: 'none', color: '#666', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+        <div className={styles.modalOverlay} onClick={() => setShowHostModal(false)}>
+           <div className={`glass-panel ${styles.modal}`} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                  <h2 style={{ margin: 0 }}>Host an Event</h2>
+                  <button onClick={() => setShowHostModal(false)} className={styles.modalClose}>×</button>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', background: '#222', padding: '5px', borderRadius: '8px' }}>
+              <div className={styles.hostSelector}>
                   <button 
                     onClick={() => setHostType('Tournament')}
-                    style={{ flex: 1, padding: '10px', borderRadius: '6px', background: hostType === 'Tournament' ? 'var(--color-primary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+                    className={`${styles.selectorBtn} ${hostType === 'Tournament' ? styles.selectorBtnActive : ''}`}
                   >
                     Tournament
                   </button>
                   <button 
                     onClick={() => setHostType('Workshop')}
-                    style={{ flex: 1, padding: '10px', borderRadius: '6px', background: hostType === 'Workshop' ? 'var(--color-primary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+                    className={`${styles.selectorBtn} ${hostType !== 'Tournament' ? styles.selectorBtnActive : ''}`}
                   >
                     Event / Workshop
                   </button>
               </div>
 
               <form onSubmit={handleHostSubmit}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label htmlFor="event-title" style={{ display: 'block', marginBottom: '5px' }}>Title / Name</label>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Title / Name</label>
                     <input 
-                        id="event-title"
+                        className={styles.input}
                         value={formData.title} 
                         onChange={e => setFormData({ ...formData, title: e.target.value })} 
                         required 
-                        style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }} 
                         placeholder={hostType === 'Tournament' ? "e.g. Winter Cup" : "e.g. Yoga Class"}
-                        aria-label="Event or tournament title"
                     />
                   </div>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div>
-                        <label htmlFor="event-sport" style={{ display: 'block', marginBottom: '5px' }}>Sport</label>
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGroup}>
+                        <label className={styles.label}>Sport</label>
                         <select 
-                            id="event-sport"
+                            className={styles.select}
                             value={formData.sport}
                             onChange={e => setFormData({ ...formData, sport: e.target.value })}
-                            style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }}
-                            aria-label="Select sport type"
                         >
                             {['Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Running'].map(s => <option key={s}>{s}</option>)}
                         </select>
                     </div>
                     {hostType !== 'Tournament' && (
-                        <div>
-                             <label style={{ display: 'block', marginBottom: '5px' }}>Type</label>
+                        <div className={styles.formGroup}>
+                             <label className={styles.label}>Type</label>
                              <select 
+                                className={styles.select}
                                 value={formData.type}
                                 onChange={e => { setFormData({ ...formData, type: e.target.value }); setHostType(e.target.value); }}
-                                style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }}
                              >
                                 {['Workshop', 'Race', 'Match'].map(t => <option key={t}>{t}</option>)}
                              </select>
@@ -304,42 +300,40 @@ export default function EventsAndTournamentsPage() {
                   </div>
 
                   {hostType !== 'Tournament' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Date</label>
-                            <input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} required style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }} />
+                      <div className={styles.formGrid}>
+                          <div className={styles.formGroup}>
+                            <label className={styles.label}>Date</label>
+                            <input type="date" className={styles.input} value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} required />
                           </div>
-                          <div>
-                             <label style={{ display: 'block', marginBottom: '5px' }}>Location</label>
-                             <input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} required style={{ width: '100%', padding: '12px', background: '#333', border: 'none', color: 'white', borderRadius: '4px' }} />
+                          <div className={styles.formGroup}>
+                             <label className={styles.label}>Location</label>
+                             <input className={styles.input} value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} required />
                           </div>
                       </div>
                   )}
 
                   {hostType === 'Tournament' && (
-                      <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '5px' }}>Select Teams (4 or 8)</label>
-                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #333', padding: '10px', borderRadius: '4px' }}>
-                          {allTeams.filter(t => t.sport === formData.sport).map(team => (
-                            <div key={team.id} onClick={() => handleToggleTeam(team)} style={{ 
-                              padding: '8px', 
-                              background: formData.selectedTeams.find(t => t.id === team.id) ? 'var(--color-primary)' : 'transparent',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #333',
-                              fontSize: '0.9rem'
-                            }}>
-                              {team.name}
-                            </div>
-                          ))}
-                          {allTeams.filter(t => t.sport === formData.sport).length === 0 && <div style={{color:'#666', fontSize:'0.9rem'}}>No teams found for {formData.sport}</div>}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Select Teams (4 or 8)</label>
+                        <div className={styles.teamList}>
+                          {allTeams.filter(t => t.sport === formData.sport).map(team => {
+                            const isActive = formData.selectedTeams.find(t => t.id === team.id);
+                            return (
+                              <div key={team.id} onClick={() => handleToggleTeam(team)} className={`${styles.teamItem} ${isActive ? styles.teamItemActive : ''}`}>
+                                <span>{team.name}</span>
+                                {isActive && <span>✓</span>}
+                              </div>
+                            );
+                          })}
+                          {allTeams.filter(t => t.sport === formData.sport).length === 0 && <div style={{color:'#666', fontSize:'0.9rem', padding: '10px'}}>No teams found for {formData.sport}</div>}
                         </div>
-                        <div style={{ textAlign: 'right', marginTop: '5px', fontSize: '0.8rem', color: formData.selectedTeams.length === 4 || formData.selectedTeams.length === 8 ? '#4ade80' : 'orange' }}>
-                            Selected: {formData.selectedTeams.length}
+                        <div style={{ textAlign: 'right', marginTop: '8px', fontSize: '0.85rem', fontWeight: 'bold', color: (formData.selectedTeams.length === 4 || formData.selectedTeams.length === 8) ? '#4ade80' : '#ffa500' }}>
+                            Selected: {formData.selectedTeams.length} teams
                         </div>
                       </div>
                   )}
 
-                  <button type="submit" className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }}>
+                  <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
                       {hostType === 'Tournament' ? 'Generate Bracket' : 'Create Event'}
                   </button>
               </form>

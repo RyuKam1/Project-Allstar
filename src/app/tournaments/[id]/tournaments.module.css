@@ -1,0 +1,75 @@
+.main {
+  min-height: 100vh;
+  padding-bottom: 4rem;
+  background: #0a0a0a;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+  padding-top: clamp(100px, 15vh, 160px);
+}
+
+.title {
+  font-size: clamp(2.2rem, 8vw, 4rem);
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #fff 0%, #888 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: var(--color-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.winnerCard {
+  display: inline-block;
+  padding: 1.5rem 3rem;
+  margin-top: 2.5rem;
+  border: 2px solid gold;
+  background: rgba(255, 215, 0, 0.05);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+  border-radius: 16px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.winnerName {
+  font-weight: 900;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  color: gold;
+  margin-left: 0.5rem;
+}
+
+.bracketContainer {
+  padding: 3rem 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 24px;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .bracketContainer {
+    padding: 1.5rem 0.5rem;
+  }
+}
+
+.adminTip {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 2.5rem;
+  font-size: 0.95rem;
+  padding: 0 1rem;
+}

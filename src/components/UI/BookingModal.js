@@ -1,6 +1,8 @@
 "use client";
 import { useState } from 'react';
 
+import styles from './booking-modal.module.css';
+
 export default function BookingModal({ venue, onClose }) {
   const [step, setStep] = useState(1);
   const [date, setDate] = useState('');
@@ -13,61 +15,34 @@ export default function BookingModal({ venue, onClose }) {
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.8)',
-      backdropFilter: 'blur(5px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2000
-    }} onClick={onClose}>
-      <div 
-        className="glass-panel" 
-        style={{ width: '400px', padding: '2rem', background: '#0a0a0a', border: '1px solid #333' }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={`glass-panel ${styles.modal}`} onClick={(e) => e.stopPropagation()}>
         {step === 1 && (
           <>
-            <h2 style={{ marginTop: 0 }}>Book {venue.name}</h2>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Date</label>
+            <h2 className={styles.title}>Book {venue.name}</h2>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Select Date</label>
               <input 
                 type="date" 
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px', 
-                  background: '#222', 
-                  border: '1px solid #444', 
-                  color: 'white',
-                  borderRadius: '8px' 
-                }}
+                className={styles.input}
               />
             </div>
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Time Slot</label>
-              <select style={{ 
-                width: '100%', 
-                padding: '10px', 
-                background: '#222', 
-                border: '1px solid #444', 
-                color: 'white',
-                borderRadius: '8px' 
-              }}>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Available Time Slots</label>
+              <select className={styles.select}>
                 <option>10:00 AM - 11:00 AM</option>
                 <option>11:00 AM - 12:00 PM</option>
                 <option>04:00 PM - 05:00 PM</option>
+                <option>07:00 PM - 08:00 PM</option>
               </select>
             </div>
             
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button 
-                onClick={onClose}
-                style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}
-              >
+            <div className={styles.actions}>
+              <button onClick={onClose} className={styles.cancelBtn}>
                 Cancel
               </button>
               <button className="btn-primary" onClick={handleBook}>
@@ -78,18 +53,19 @@ export default function BookingModal({ venue, onClose }) {
         )}
 
         {step === 2 && (
-          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-            <div className="spinner" style={{ marginBottom: '1rem' }}>⌛ Processing...</div>
+          <div className={styles.processing}>
+            <div className="spinner"></div>
+            <div className={styles.loadingText}>Processing your reservation...</div>
           </div>
         )}
 
         {step === 3 && (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
-            <h3 style={{ color: 'var(--color-primary)' }}>Booking Confirmed!</h3>
-            <p style={{ color: 'var(--text-muted)' }}>See you at the game.</p>
-            <button className="btn-primary" onClick={onClose} style={{ width: '100%', marginTop: '1rem' }}>
-              Done
+          <div className={styles.success}>
+            <span className={styles.successIcon}>🎉</span>
+            <h3 className={styles.successTitle}>Booking Confirmed!</h3>
+            <p className={styles.successText}>Your spot is reserved. We've sent a confirmation to your email.</p>
+            <button className={`btn-primary ${styles.fullWidthBtn}`} onClick={onClose}>
+              Awesome, thanks!
             </button>
           </div>
         )}

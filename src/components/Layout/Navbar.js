@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import styles from './navbar.module.css';
 
@@ -22,6 +22,20 @@ export default function Navbar() {
   const [filterType, setFilterType] = useState('All'); 
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+  
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const navItems = [
     { label: 'Venues', href: '/venues' },
@@ -120,21 +134,33 @@ export default function Navbar() {
 
             <div className={styles.authButtons}>
             {user ? (
-                <>
-                <Link 
-                    href="/profile" 
-                    className={`${styles.profileLink} ${pathname === '/profile' ? styles.activeLink : ''}`} 
-                    onClick={closeMobileMenu}
-                >
-                    <img src={user.avatar} alt="Profile" className={styles.avatar} />
-                </Link>
-                <button 
-                    onClick={() => { handleLogout(); closeMobileMenu(); }}
-                    className={styles.logoutButton}
-                >
-                    Log Out
-                </button>
-                </>
+                <div className={styles.profileMenuContainer} ref={profileMenuRef}>
+                    <button 
+                        className={styles.profileTrigger}
+                        onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                        aria-label="User menu"
+                    >
+                        <img src={user.avatar} alt="Profile" className={styles.avatar} />
+                    </button>
+                    
+                    {isProfileMenuOpen && (
+                        <div className={`glass-panel ${styles.profileDropdown}`}>
+                            <Link 
+                                href="/profile" 
+                                className={styles.dropdownItem}
+                                onClick={() => setIsProfileMenuOpen(false)}
+                            >
+                                <span className={styles.dropdownIcon}>👤</span> Profile
+                            </Link>
+                            <button 
+                                onClick={() => { handleLogout(); setIsProfileMenuOpen(false); }}
+                                className={styles.dropdownItem}
+                            >
+                                <span className={styles.dropdownIcon}>🚪</span> Log Out
+                            </button>
+                        </div>
+                    )}
+                </div>
             ) : (
                 <Link href="/login" onClick={closeMobileMenu}>
                 <button className={`btn-primary ${styles.getStartedButton}`}>

@@ -4,7 +4,7 @@
 }
 
 .container {
-  padding-top: 140px;
+  padding-top: clamp(100px, 15vh, 140px);
 }
 
 .profileGrid {
@@ -14,6 +14,13 @@
   align-items: start;
 }
 
+@media (max-width: 1024px) {
+  .profileGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
 .leftColumn {
   display: flex;
   flex-direction: column;
@@ -21,7 +28,7 @@
 }
 
 .glassPanel {
-  padding: 2rem;
+  padding: clamp(1.25rem, 5vw, 2rem);
 }
 
 .identityCard {
@@ -29,8 +36,8 @@
 }
 
 .avatarContainer {
-  width: 120px;
-  height: 120px;
+  width: clamp(100px, 20vw, 140px);
+  height: clamp(100px, 20vw, 140px);
   border-radius: 50%;
   overflow: hidden;
   margin: 0 auto 1.5rem;
@@ -47,37 +54,50 @@
 .uploadLabel {
   color: var(--color-primary);
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-transform: uppercase;
 }
 
 .editForm {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   text-align: left;
 }
 
 .input, .textarea {
-  padding: 10px;
-  background: #333;
-  border: 1px solid #444;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
   color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   width: 100%;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.input:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .textarea {
-  min-height: 80px;
+  min-height: 100px;
 }
 
 .userName {
   margin: 0 0 0.5rem;
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 900;
 }
 
 .userBio {
   color: var(--text-muted);
   margin: 0 0 1.5rem;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .statsHeader {
@@ -86,34 +106,39 @@
   align-items: center;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--border-glass);
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
 }
 
 .statsHeader h3 {
   margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .toggleContainer {
   display: flex;
   background: rgba(255,255,255,0.05);
   border-radius: 20px;
-  padding: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-glass);
 }
 
 .toggleButton {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 18px;
   border: none;
   background: transparent;
   color: #888;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  transition: all 0.2s;
 }
 
 .toggleButtonActive {
   background: var(--color-primary);
   color: white;
+  box-shadow: 0 2px 10px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .statsGridEdit {
@@ -128,14 +153,25 @@
   gap: 1.5rem 1rem;
 }
 
+@media (max-width: 480px) {
+  .statsGridEdit, .statsGridDisplay {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
 .label {
-  font-size: 0.8rem;
-  color: #888;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
 }
 
 .value {
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
 }
 
 .valueHighlight {
@@ -144,6 +180,7 @@
 
 .separator {
   color: #666;
+  margin: 0 2px;
 }
 
 .actions {
@@ -155,30 +192,46 @@
   gap: 1rem;
 }
 
+@media (max-width: 480px) {
+  .buttonGroup {
+    flex-direction: column-reverse;
+  }
+}
+
 .button {
-  padding: 10px;
+  padding: 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.2s;
 }
 
 .buttonCancel {
   flex: 1;
-  background: #333;
+  background: rgba(255,255,255,0.05);
   color: #ccc;
+  border: 1px solid var(--border-glass);
+}
+
+.buttonCancel:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
 }
 
 .buttonSave {
   flex: 1;
   background: var(--color-primary);
   color: white;
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .buttonEdit {
   width: 100%;
   background: var(--color-primary);
   color: white;
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .rightColumn {
@@ -192,49 +245,64 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 800;
 }
 
 .winCount {
-  font-size: 1rem;
-  background: #333;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.1);
   padding: 4px 12px;
   border-radius: 20px;
+  font-weight: 700;
 }
 
 .emptyState {
   text-align: center;
-  padding: 3rem;
+  padding: 4rem 2rem;
   border: 2px dashed var(--border-glass);
-  border-radius: 12px;
-  color: #666;
+  border-radius: 24px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .historyList {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .historyItem {
-  padding: 1.2rem;
-  border-radius: 0 8px 8px 0;
+  padding: 1.5rem;
+  border-radius: 0 16px 16px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1.5rem;
+  transition: transform 0.2s;
+}
+
+.historyItem:hover {
+  transform: translateX(6px);
 }
 
 .tournamentItem {
-  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.03));
   border-left: 4px solid #FFD700;
 }
 
 .matchItem {
-  background: rgba(255,255,255,0.03);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
   border-left: 4px solid #fff;
 }
 
+.historyInfo {
+  flex-grow: 1;
+}
+
 .historyTitle {
-  font-weight: bold;
-  font-size: 1.1rem;
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin-bottom: 4px;
 }
 
 .tournamentText {
@@ -246,51 +314,65 @@
 }
 
 .historySubtitle {
-  font-size: 0.9rem;
-  color: #aaa;
-  margin-top: 4px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
 }
 
 .teamName {
-  color: white;
+  color: #fff;
+  font-weight: 600;
 }
 
 .historyMeta {
   text-align: right;
+  flex-shrink: 0;
 }
 
 .metaCategory {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .metaDate {
   font-size: 0.8rem;
   color: #666;
+  margin-top: 4px;
 }
 
 .teamsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
 }
 
 .teamCard {
-  padding: 1rem;
-  background: rgba(255,255,255,0.05);
-  border-radius: 8px;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
+  border: 1px solid var(--border-glass);
+}
+
+.teamCard:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px);
 }
 
 .teamCardName {
-  font-weight: bold;
-  margin-bottom: 4px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+  color: #fff;
 }
 
 .teamCardSport {
-  font-size: 0.8rem;
-  color: #aaa;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 /* Utilities */
@@ -302,6 +384,12 @@
 }
 .span2 {
   grid-column: span 2;
+}
+
+@media (max-width: 480px) {
+  .span2 {
+    grid-column: span 1;
+  }
 }
 
 /* ================= THEME OVERRIDES ================= */

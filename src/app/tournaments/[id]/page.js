@@ -5,6 +5,7 @@ import BracketView from "@/components/Tournament/BracketView";
 import { tournamentService } from "@/services/tournamentService";
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from 'next/navigation';
+import styles from './tournaments.module.css';
 
 export default function TournamentDetails() {
   const params = useParams();
@@ -33,26 +34,27 @@ export default function TournamentDetails() {
   const isAdmin = user && user.id === tournament.creatorId;
 
   return (
-    <main style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
+    <main className={styles.main}>
       <Navbar />
-      <div className="container" style={{ paddingTop: '140px' }}>
-         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-           <h1 style={{ fontSize: '3rem', margin: 0 }}>{tournament.name}</h1>
-           <div style={{ fontSize: '1.2rem', color: 'var(--color-primary)' }}>{tournament.sport} Championship</div>
+      <div className="container">
+         <div className={styles.header}>
+           <h1 className={styles.title}>{tournament.name}</h1>
+           <div className={styles.subtitle}>{tournament.sport} Championship</div>
            {tournament.winner && (
-             <div className="glass-panel" style={{ display: 'inline-block', padding: '1rem 2rem', marginTop: '2rem', border: '2px solid gold' }}>
-               🏆 WINNER: <span style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>{tournament.winner.name}</span> 🏆
+             <div className={`glass-panel ${styles.winnerCard}`}>
+               🏆 <span style={{ color: '#888' }}>WINNER:</span> 
+                <span className={styles.winnerName}>{tournament.winner.name}</span> 🏆
              </div>
            )}
          </div>
          
-         <div className="glass-panel" style={{ overflowX: 'auto' }}>
+         <div className={`glass-panel ${styles.bracketContainer}`}>
            <BracketView tournament={tournament} isAdmin={isAdmin} onUpdateResult={handleUpdate} />
          </div>
          
          {isAdmin && !tournament.winner && (
-           <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>
-             Admin Controls: Click a team in the bracket to advance them to the next round.
+           <p className={styles.adminTip}>
+             <strong>Admin Controls:</strong> Click a team in the bracket to advance them to the next round.
            </p>
          )}
       </div>
