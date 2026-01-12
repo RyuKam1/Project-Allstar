@@ -676,3 +676,70 @@ select:focus-visible {
 [data-theme='pro'] {
   --text-muted: #555555; /* Improved from #444444 */
 }
+/* ================= SHARED UI COMPONENTS ================= */
+
+/* Pills Filter Bar */
+.filter-group {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 2.5rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+.filter-group::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 8px 20px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
+  font-family: var(--font-header);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.filter-pill:hover {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.filter-pill-active {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.4);
+}
+
+[data-theme='pro'] .filter-pill-active {
+  background: black !important;
+  border-color: black !important;
+  box-shadow: 4px 4px 0 var(--color-primary);
+}
+
+[data-theme='minimal'] .filter-pill-active {
+  box-shadow: none;
+  background: white !important;
+  color: black !important;
+}
+
+[data-theme='street'] .filter-pill-active {
+  box-shadow: 4px 4px 0 #000;
+}

@@ -152,16 +152,16 @@ export default function EventsAndTournamentsPage() {
         </div>
 
         {/* Sport Filters */}
-        <div className={styles.filters}>
-            {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness'].map(sport => (
-                <button 
-                    key={sport} 
-                    onClick={() => setFilterSport(sport)}
-                    className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
-                >
-                    {sport}
-                </button>
-            ))}
+        <div className="filter-group">
+          {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'].map((sport) => (
+             <button 
+               key={sport} 
+               onClick={() => setFilterSport(sport)}
+               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+             >
+               {sport}
+             </button>
+          ))}
         </div>
 
         {/* Grid Listing */}

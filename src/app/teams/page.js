@@ -78,18 +78,18 @@ export default function TeamsPage() {
           </button>
         </div>
 
-        {/* Sport Filters */}
-        <div className={styles.filters}>
-          {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Baseball'].map(sport => (
-            <button 
-              key={sport} 
-              onClick={() => setFilterSport(sport)}
-              className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
-            >
-              {sport}
-            </button>
-          ))}
-        </div>
+         {/* Sport Filters */}
+         <div className="filter-group">
+           {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball'].map(sport => (
+             <button 
+               key={sport} 
+               onClick={() => setFilterSport(sport)}
+               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+             >
+               {sport}
+             </button>
+           ))}
+         </div>
 
         {loading ? (
              <div className={styles.loading}>Loading teams...</div>

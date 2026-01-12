@@ -75,12 +75,12 @@ export default function TournamentsPage() {
          </div>
 
          {/* Sport Filters */}
-         <div className={styles.filters}>
+         <div className="filter-group">
            {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball'].map(sport => (
              <button 
                key={sport} 
                onClick={() => setFilterSport(sport)}
-               className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
+               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
              >
                {sport}
              </button>

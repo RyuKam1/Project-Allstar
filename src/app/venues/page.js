@@ -43,12 +43,12 @@ export default function VenuesPage() {
         <Map venues={activeVenues} onUserLocationFound={handleUserLocationFound} />
 
         {/* Sport Filters */}
-        <div className={styles.filters}>
+        <div className="filter-group">
           {['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'].map((sport) => (
              <button 
                key={sport} 
                onClick={() => setFilterSport(sport)}
-               className={`${styles.filterButton} ${filterSport === sport ? styles.filterButtonActive : ''}`}
+               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
              >
                {sport}
              </button>
