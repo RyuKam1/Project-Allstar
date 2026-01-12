@@ -146,7 +146,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading || !user) return <div className={styles.main} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading...</div>;
+  if (authLoading || isLoadingProfile) return <div className={styles.main} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading...</div>;
 
   return (
     <main className={styles.main}>
