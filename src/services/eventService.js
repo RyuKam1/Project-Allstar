@@ -20,6 +20,7 @@ export const eventService = {
     // Map to frontend structure
     return events.map(e => ({
         ...e,
+        maxSpots: e.max_spots, // Align with frontend
         attendees: e.attendees ? e.attendees.map(a => ({
             id: a.user_id,
             name: a.profile?.name,
@@ -45,6 +46,7 @@ export const eventService = {
 
     return {
         ...event,
+        maxSpots: event.max_spots, // Align with frontend
         attendees: event.attendees ? event.attendees.map(a => ({
             id: a.user_id,
             name: a.profile?.name,
@@ -81,7 +83,9 @@ export const eventService = {
   registerForEvent: async (eventId, user) => {
     // Check Status first
     const currentEvent = await eventService.getEventById(eventId);
-    if (currentEvent.attendees.length >= currentEvent.max_spots) {
+    if (!currentEvent) throw new Error("Event not found");
+    
+    if (currentEvent.attendees.length >= currentEvent.maxSpots) {
         throw new Error("Event is full");
     }
     if (currentEvent.attendees.some(a => a.id === user.id)) {
@@ -96,6 +100,8 @@ export const eventService = {
         });
     
     if (error) throw new Error(error.message);
-    return true; // Reloading UI will fetch fresh
+    
+    // Return fresh data
+    return await eventService.getEventById(eventId);
   }
 };
