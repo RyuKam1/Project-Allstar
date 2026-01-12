@@ -11,7 +11,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: clamp(1.5rem, 5vw, 3rem);
+  margin-bottom: 3rem;
   gap: 1.5rem;
 }
 
@@ -27,34 +27,6 @@
   font-size: clamp(2rem, 8vw, 3.5rem);
   margin: 0;
   font-weight: 800;
-  line-height: 1.1;
-}
-
-.subtitle {
-  color: var(--text-muted);
-  margin-top: 0.5rem;
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-}
-
-.loading {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 4rem 0;
-}
-
-.emptyState {
-  padding: clamp(2rem, 8vw, 4rem);
-  text-align: center;
-}
-
-.emptyState h2 {
-  font-size: clamp(1.5rem, 5vw, 2.5rem);
-  margin-bottom: 1rem;
-}
-
-.emptyState p {
-  color: var(--text-muted);
-  margin-bottom: 2rem;
 }
 
 /* Modal */
@@ -73,7 +45,7 @@
 .modalPanel {
   padding: clamp(1.5rem, 5vw, 2.5rem);
   width: 100%;
-  max-width: 500px;
+  max-width: 600px;
   background: #0a0a0b;
   border: 1px solid var(--border-glass);
   border-radius: 24px;
@@ -88,10 +60,8 @@
   font-weight: 800;
 }
 
-.modalForm {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.formGroup {
+  margin-bottom: 1.5rem;
 }
 
 .label {
@@ -102,7 +72,7 @@
   font-weight: 500;
 }
 
-.input, .textarea, .select {
+.input, .select {
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
@@ -113,72 +83,44 @@
   transition: all 0.2s;
 }
 
-.input:focus, .textarea:focus, .select:focus {
+.input:focus, .select:focus {
   outline: none;
   border-color: var(--color-primary);
   background: rgba(255, 255, 255, 0.08);
 }
 
-.textarea {
-  min-height: 100px;
-  resize: vertical;
-}
-
-.select {
-  background: #1a1a2e; /* Support for dark themed select */
-}
-
-.logoUploadSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.logoPreviewContainer {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.logoPlaceholder, .logoPreview {
-  width: 64px;
-  height: 64px;
+.teamListContainer {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-glass);
+  padding: 10px;
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.05);
-  border: 1px dashed var(--border-glass);
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  object-fit: cover;
+  background: rgba(0,0,0,0.2);
 }
 
-.fileInput {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+.teamItem {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-glass);
+  transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.teamItem:last-child {
+  border-bottom: none;
+}
+
+.teamItemActive {
+  background: var(--color-primary);
+  color: white !important;
 }
 
 .modalActions {
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
-}
-
-@media (max-width: 480px) {
-  .modalActions {
-    flex-direction: column-reverse;
-  }
-  
-  .modalActions button {
-    width: 100%;
-  }
-
-  .logoPreviewContainer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  margin-top: 2rem;
 }
 
 .cancelButton {
@@ -193,9 +135,9 @@
   transition: all 0.2s;
 }
 
-.submitButton {
-  flex: 1;
-  padding: 12px;
+.cancelButton:hover {
+  color: white;
+  border-color: #666;
 }
 
 /* Filters */
@@ -239,6 +181,29 @@
   box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
 
-.hidden {
-  display: none;
+.tournamentCard {
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.tournamentCard:hover {
+  transform: translateY(-4px);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cardMeta {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.winnerLabel {
+  color: var(--color-primary);
+  font-weight: 700;
 }

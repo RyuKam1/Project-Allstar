@@ -1,5 +1,6 @@
 .main {
   min-height: 100vh;
+  padding-top: clamp(100px, 15vh, 140px);
   padding-bottom: 4rem;
 }
 
@@ -600,4 +601,8 @@
   .titleFlex {
     justify-content: center;
   }
+}
+
+.hidden {
+  display: none;
 }
