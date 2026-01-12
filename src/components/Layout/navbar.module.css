@@ -23,7 +23,7 @@
 }
 
 .navLinks {
-  display: flex;
+  display: none;
   gap: 2rem;
 }
 
@@ -124,6 +124,7 @@
   }
   
   .navLinks {
+    display: flex;
     position: fixed;
     top: 0;
     right: -100%;

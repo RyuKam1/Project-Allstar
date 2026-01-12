@@ -219,6 +219,7 @@ export default function Navbar() {
         onClick={closeMobileMenu}
       />
 
+      {/* Mobile Menu Sidebar */}
       <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.open : ''}`}>
           {navItems.map((item) => (
             <Link 
