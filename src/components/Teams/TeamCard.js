@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import styles from './team-card.module.css';
 
@@ -15,7 +16,21 @@ export default function TeamCard({ team, user, onJoin }) {
       {/* Logo Section */}
       <div className={styles.logoContainer}>
         {team.logo ? (
-          <img src={team.logo} alt={team.name} className={styles.logoImage} />
+          <>
+            {/* Dynamic Glow Layer */}
+            <img 
+              src={team.logo} 
+              alt="" 
+              className={styles.logoGlow} 
+              aria-hidden="true"
+            />
+            {/* Main Logo */}
+            <img 
+              src={team.logo} 
+              alt={team.name} 
+              className={styles.logoImage} 
+            />
+          </>
         ) : (
           <div className={styles.fallbackLogo}>
             {fallbackInitial}

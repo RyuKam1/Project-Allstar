@@ -65,9 +65,14 @@
   white-space: nowrap;
 }
 
+.tab:hover {
+  color: var(--text-main);
+  background: var(--bg-card);
+}
+
 .tabActive {
   background: var(--color-primary);
-  color: white;
+  color: white !important;
 }
 
 .postComposer {

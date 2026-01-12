@@ -6,8 +6,10 @@
   --font-header: 'Inter', sans-serif;
   
   --color-primary: #6366f1;
+  --color-primary-rgb: 99, 102, 241;
   --color-primary-dim: #4f46e5;
   --color-accent: #ec4899;
+  --color-accent-rgb: 236, 72, 153;
   
   --bg-deep: #050507;
   --bg-card: rgba(255, 255, 255, 0.03);
@@ -35,8 +37,10 @@
   --font-header: 'Share Tech Mono', monospace;
   
   --color-primary: #00ff9d;
+  --color-primary-rgb: 0, 255, 157;
   --color-primary-dim: #00cc7d;
   --color-accent: #ffae00;
+  --color-accent-rgb: 255, 174, 0;
   
   --bg-deep: #0a0a0c;
   --bg-card: rgba(0, 25, 10, 0.6);
@@ -63,8 +67,10 @@
   --font-header: 'Cinzel', serif;
   
   --color-primary: #d4af37;
+  --color-primary-rgb: 212, 175, 55;
   --color-primary-dim: #8a7020;
   --color-accent: #4a0404;
+  --color-accent-rgb: 74, 4, 4;
   
   --bg-deep: #050505;
   --bg-card: #0f1012;
@@ -85,8 +91,10 @@
   --font-header: 'Barlow Condensed', sans-serif;
   
   --color-primary: #3b82f6;
+  --color-primary-rgb: 59, 130, 246;
   --color-primary-dim: #1d4ed8;
   --color-accent: #8b5cf6;
+  --color-accent-rgb: 139, 92, 246;
   
   --bg-deep: #0f172a;
   --bg-card: rgba(30, 41, 59, 0.7);
@@ -106,8 +114,10 @@
   --font-header: 'Teko', sans-serif; /* Tall, athletic font */
   
   --color-primary: #ff4400; /* Nike Orange */
+  --color-primary-rgb: 255, 68, 0;
   --color-primary-dim: #cc3700;
   --color-accent: #000000;
+  --color-accent-rgb: 0, 0, 0;
   
   --bg-deep: #eef2f6; /* LIGHT MODE! Or very light grey */
   --bg-card: #ffffff;
@@ -138,8 +148,10 @@
   --font-header: 'Orbitron', sans-serif;
   
   --color-primary: #ff00ff; /* Magenta */
+  --color-primary-rgb: 255, 0, 255;
   --color-primary-dim: #cc00cc;
   --color-accent: #00ffff; /* Cyan */
+  --color-accent-rgb: 0, 255, 255;
   
   --bg-deep: #1a001a;
   --bg-card: rgba(40, 0, 40, 0.6);
@@ -162,8 +174,10 @@
   --font-header: 'Inter', sans-serif; /* Uncomplicated */
   
   --color-primary: #f8fafc; /* Near White */
+  --color-primary-rgb: 248, 250, 252;
   --color-primary-dim: #e2e8f0;
   --color-accent: #94a3b8;
+  --color-accent-rgb: 148, 163, 184;
   
   --bg-deep: #000000; /* Pure Black */
   --bg-card: #111111; /* Dark Gray */
@@ -186,8 +200,10 @@
   --font-header: 'Teko', sans-serif; /* Bold, Compressed */
   
   --color-primary: #fbbf24; /* Amber/Signal Yellow */
+  --color-primary-rgb: 251, 191, 36;
   --color-primary-dim: #d97706;
   --color-accent: #111111;
+  --color-accent-rgb: 17, 17, 17;
   
   --bg-deep: #1c1917; /* Warm Dark Concrete */
   --bg-card: #292524;

@@ -53,8 +53,8 @@
 .filterBtn {
   padding: 8px 20px;
   border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  background: var(--bg-card);
   color: var(--text-muted);
   font-size: 0.95rem;
   font-weight: 500;
@@ -65,17 +65,17 @@
 }
 
 .filterBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: white;
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   transform: translateY(-1px);
 }
 
 .filterBtnActive {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: white;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); /* Assuming primary is indigo-ish */
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.4);
 }
 
 /* Secondary Type Filters (Pills) */
@@ -84,7 +84,7 @@
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -92,14 +92,14 @@
 }
 
 .typeBtn:hover {
-  color: white;
-  background: rgba(255,255,255,0.05);
+  color: var(--text-main);
+  background: var(--bg-card);
 }
 
 .typeBtnActive {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-accent); /* e.g. Cyan/Green */
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }
 
 /* Event Cards */
