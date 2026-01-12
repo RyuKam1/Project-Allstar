@@ -6,10 +6,19 @@ import { useState } from 'react';
 
 import styles from './navbar.module.css';
 
+import { supabase } from "@/lib/supabaseClient";
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [filterType, setFilterType] = useState('All'); 
 
   const handleLogout = () => {
     logout();
@@ -24,6 +33,37 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   };
 
+  // Search Handler
+  const handleSearch = async (query, filter) => {
+      setSearchQuery(query);
+      if (query.trim().length === 0) {
+          setSearchResults([]);
+          setShowResults(false);
+          return;
+      }
+
+      setIsSearching(true);
+      setShowResults(true);
+
+      try {
+          const { data, error } = await supabase
+              .rpc('search_all', { query: query, filter_type: filter || filterType });
+          
+          if (error) throw error;
+          setSearchResults(data || []);
+      } catch (err) {
+          console.error("Search error:", err);
+      } finally {
+          setIsSearching(false);
+      }
+  };
+
+  const handleFilterChange = (e) => {
+      const newFilter = e.target.value;
+      setFilterType(newFilter);
+      handleSearch(searchQuery, newFilter);
+  };
+
   return (
     <>
       <nav className={`glass-panel ${styles.nav}`}>
@@ -31,6 +71,67 @@ export default function Navbar() {
           <Link href="/" className={`primary-gradient-text ${styles.logoLink}`}>
             AllStar
           </Link>
+        </div>
+
+        {/* Global Search Bar */}
+        <div className={styles.searchContainer}>
+            <div className={styles.inputWrapper}>
+                <select 
+                    value={filterType} 
+                    onChange={handleFilterChange}
+                    className={styles.filterSelect}
+                >
+                    <option value="All">All</option>
+                    <option value="Players">Players</option>
+                    <option value="Teams">Teams</option>
+                    <option value="Events">Events</option>
+                    <option value="Tournaments">Tournaments</option>
+                </select>
+                <input 
+                    type="text" 
+                    placeholder="Search..." 
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onFocus={() => { if(searchResults.length > 0) setShowResults(true); }}
+                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                    className={styles.searchInput}
+                />
+                <span className={styles.searchIcon}>🔍</span>
+            </div>
+
+            {/* Results Dropdown */}
+            {showResults && searchQuery && (
+                <div className={styles.resultsDropdown}>
+                    {isSearching ? (
+                        <div className={styles.resultItem}>Searching...</div>
+                    ) : searchResults.length > 0 ? (
+                        searchResults.map((result) => (
+                            <Link 
+                                key={result.id} 
+                                href={result.url_path}
+                                className={styles.resultItemLink}
+                                onClick={() => { setShowResults(false); setSearchQuery(''); }}
+                            >
+                                <div className={styles.resultItem}>
+                                    {result.image ? (
+                                        <img src={result.image} alt="" className={styles.resultImage} />
+                                    ) : (
+                                        <div className={styles.resultPlaceholder}>{result.title[0]}</div>
+                                    )}
+                                    <div className={styles.resultInfo}>
+                                        <div className={styles.resultTitle}>{result.title}</div>
+                                        <div className={styles.resultSubtitle}>
+                                            <span className={styles.resultType}>{result.type}</span> • {result.subtitle}
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
+                        ))
+                    ) : (
+                        <div className={styles.resultItem}>No results found</div>
+                    )}
+                </div>
+            )}
         </div>
 
         <button 

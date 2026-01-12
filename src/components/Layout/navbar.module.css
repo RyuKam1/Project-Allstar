@@ -166,3 +166,133 @@
 .overlay.open {
   display: block;
 }
+
+/* Search Bar Styles */
+.searchContainer {
+  position: relative;
+  flex: 1;
+  max-width: 500px;
+  margin: 0 2rem;
+}
+
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 0.25rem;
+}
+
+.filterSelect {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  outline: none;
+  cursor: pointer;
+}
+
+.filterSelect option {
+  background: #222;
+  color: white;
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  outline: none;
+}
+
+.searchIcon {
+  padding-right: 0.8rem;
+  opacity: 0.5;
+}
+
+.resultsDropdown {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  z-index: 2000;
+}
+
+.resultItemLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.resultItem {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.2s;
+}
+
+.resultItem:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.resultImage {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 1rem;
+}
+
+.resultPlaceholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 1rem;
+  color: white;
+}
+
+.resultInfo {
+  flex: 1;
+}
+
+.resultTitle {
+  font-weight: bold;
+  font-size: 0.95rem;
+  color: white;
+}
+
+.resultSubtitle {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 2px;
+}
+
+.resultType {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+  .searchContainer {
+    display: none; /* Hide on mobile for now or move to separate row */
+  }
+}

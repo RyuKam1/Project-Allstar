@@ -390,17 +390,28 @@ export default function TeamDetails() {
             </button>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <img 
-                src={selectedPlayer.avatar} 
-                alt={selectedPlayer.name} 
-                style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px solid var(--color-primary)', objectFit: 'cover', marginBottom: '1rem' }} 
-              />
-              <h2 style={{ margin: 0, fontSize: '2rem' }}>{selectedPlayer.name}</h2>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem' }}>
+              <div 
+                onClick={() => window.location.href = `/profile?id=${selectedPlayer.id}`}
+                style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                title="View Full Profile"
+              >
+                <img 
+                  src={selectedPlayer.avatar} 
+                  alt={selectedPlayer.name} 
+                  style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px solid var(--color-primary)', objectFit: 'cover', marginBottom: '1rem', transition: 'transform 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} 
+                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                />
+                <h2 style={{ margin: 0, fontSize: '2rem', textDecoration: 'underline', textUnderlineOffset: '4px' }}>
+                    {selectedPlayer.name}
+                </h2>
+              </div>
+
+              <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem', marginTop: '0.5rem' }}>
                  {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || selectedPlayer.role || 'Member'}
               </div>
               <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
-                {selectedPlayer.bio || `Representing ${team.name}`}
+                "{selectedPlayer.bio || `Representing ${team.name}`}"
               </p>
 
               {/* Physical Stats Grid */}
