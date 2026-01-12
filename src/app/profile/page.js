@@ -73,18 +73,27 @@ export default function ProfilePage() {
 
     // Upload new avatar if selected
     if (avatarFile) {
+        console.log("Starting upload...");
         const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
         if (url) {
+            console.log("Upload successful:", url);
             finalAvatarUrl = url;
         } else {
+            console.error("Upload returned null");
             alert("Failed to upload image. Saving other changes.");
         }
     }
 
-    await updateUser({ ...formData, avatar: finalAvatarUrl });
-    setIsEditing(false);
+    const result = await updateUser({ ...formData, avatar: finalAvatarUrl });
+    
+    if (result.success) {
+        setIsEditing(false);
+        setAvatarFile(null);
+    } else {
+        alert("Failed to save profile: " + result.error);
+    }
+    
     setIsSaving(false);
-    setAvatarFile(null);
   };
 
   const handleImageUpload = (e) => {

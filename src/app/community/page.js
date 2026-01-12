@@ -4,6 +4,8 @@ import Navbar from "@/components/Layout/Navbar";
 import { communityService } from "@/services/communityService";
 import { teamService } from "@/services/teamService";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
+import Link from 'next/link';
 import styles from './community.module.css';
 
 export default function CommunityPage() {

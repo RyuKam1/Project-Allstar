@@ -7,7 +7,7 @@ export const communityService = {
       .from('community_posts')
       .select(`
         *,
-        author:profiles(name, avatar),
+        author:profiles!community_posts_user_id_fkey(name, avatar),
         likes:post_likes(user_id)
       `)
       .order('created_at', { ascending: false });
