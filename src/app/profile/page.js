@@ -22,19 +22,21 @@ export default function ProfilePage() {
   // --- Conversion Helpers ---
   const convertHeight = (val, toMetric) => {
     if (!val) return '-';
-    // Assume input is like "6'2" or "6ft 2in" or just "188"
     if (toMetric) {
-        if (val.includes("'")) {
+        // Try parsing X'Y" format
+        if (typeof val === 'string' && val.includes("'")) {
             const parts = val.split("'");
             const ft = parseInt(parts[0]) || 0;
             const inch = parseInt(parts[1]) || 0;
             return Math.round((ft * 30.48) + (inch * 2.54)) + ' cm';
         }
-        // If already numeric, assume it's cm? or assume it's inches? 
-        // Let's assume stored as Imperial usually.
-        return val; 
+        // Fallback: assume plain number is inches
+        const num = parseFloat(val);
+        if (!isNaN(num)) {
+             return Math.round(num * 2.54) + ' cm';
+        }
     }
-    return val; // Display raw (Imperial)
+    return val; 
   };
 
   const convertWeight = (val, toMetric) => {
