@@ -110,5 +110,17 @@ export const authService = {
 
     if (error) throw new Error(error.message);
     return data;
+  },
+
+  // Get User Public Profile by ID
+  getUserProfile: async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) return null;
+    return data;
   }
 };

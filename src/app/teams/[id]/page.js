@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import FieldLayout from "@/components/Tournament/FieldLayout";
 import { teamService } from "@/services/teamService";
+import { authService } from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from 'next/navigation';
 import styles from './team-details.module.css';
@@ -104,11 +105,11 @@ export default function TeamDetails() {
         careerWins: []
       });
     } else {
-      // Platform user - get full data from authService or users db
-      const allUsers = await teamService.getAllTeams(); // Placeholder for a real user fetch if needed
-      // Actually let's use the local db from localStorage directly or via service
-      const storedUsers = JSON.parse(localStorage.getItem('allstar_users_db') || '[]');
-      const fullProfile = storedUsers.find(u => u.id === member.id) || member;
+      // Platform user - get full data from authService
+      // Fetch fresh profile data (height, weight, etc.)
+      const fullProfile = await authService.getUserProfile(member.id);
+      
+      const displayProfile = fullProfile || member; // Fallback to basic member info if fetch fails
       
       // Fetch career wins across all teams
       const allUserTeams = await teamService.getUserTeams(member.id);
@@ -120,7 +121,8 @@ export default function TeamDetails() {
       });
 
       setSelectedPlayer({
-        ...fullProfile,
+        ...displayProfile,
+        role: member.role, // Keep team-specific role
         careerWins: wins.sort((a,b) => new Date(b.date) - new Date(a.date))
       });
     }
