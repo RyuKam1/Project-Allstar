@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { teamService } from "@/services/teamService";
-import styles from './profile.module.css';
+import { uploadCompressedImage } from '@/lib/imageOptimizer';
 
 export default function ProfilePage() {
   const { user, loading, updateUser } = useAuth();
@@ -13,6 +11,7 @@ export default function ProfilePage() {
   const [userTeams, setUserTeams] = useState([]);
   const [careerWins, setCareerWins] = useState([]);
   const [isMetric, setIsMetric] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Local state for editing
   const [formData, setFormData] = useState({
@@ -26,6 +25,9 @@ export default function ProfilePage() {
     vertical: '',
     avatar: ''
   });
+  
+  // Store raw file for upload
+  const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,18 +68,31 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    await updateUser(formData);
+    setIsSaving(true);
+    let finalAvatarUrl = formData.avatar;
+
+    // Upload new avatar if selected
+    if (avatarFile) {
+        const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
+        if (url) {
+            finalAvatarUrl = url;
+        } else {
+            alert("Failed to upload image. Saving other changes.");
+        }
+    }
+
+    await updateUser({ ...formData, avatar: finalAvatarUrl });
     setIsEditing(false);
+    setIsSaving(false);
+    setAvatarFile(null);
   };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5000000) { // 5MB limit
-        alert("File is too large. Max 5MB.");
-        return;
-      }
+      setAvatarFile(file); // Store for upload
       
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, avatar: reader.result }));
@@ -244,12 +259,14 @@ export default function ProfilePage() {
                )}
                
                <div className={styles.actions}>
-                 {isEditing ? (
-                    <div className={styles.buttonGroup}>
-                      <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`}>Cancel</button>
-                      <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`}>Save Changes</button>
-                    </div>
-                 ) : (
+                  {isEditing ? (
+                     <div className={styles.buttonGroup}>
+                       <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`} disabled={isSaving}>Cancel</button>
+                       <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`} disabled={isSaving}>
+                         {isSaving ? 'Saving...' : 'Save Changes'}
+                       </button>
+                     </div>
+                  ) : (
                     <button onClick={() => setIsEditing(true)} className={`${styles.button} ${styles.buttonEdit}`}>Edit Attributes</button>
                  )}
                </div>
