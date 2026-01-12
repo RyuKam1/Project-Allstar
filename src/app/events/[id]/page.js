@@ -59,9 +59,13 @@ export default function EventDetails() {
     setShowPlayerModal(true);
   };
 
-  const getFirstName = (fullName) => {
-    if (!fullName) return "Athlete";
-    return fullName.split(' ')[0];
+  const getEventImagePath = (title) => {
+    if (!title) return null;
+    return `/events/${title}.webp`;
+  };
+
+  const handleImageError = (e) => {
+    e.target.style.display = 'none';
   };
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '100px' }}>Loading...</div>;
@@ -82,9 +86,25 @@ export default function EventDetails() {
         position: 'relative',
         display: 'flex',
         alignItems: 'flex-end',
-        paddingBottom: '3rem'
+        paddingBottom: '3rem',
+        overflow: 'hidden'
       }}>
-         <div className="container">
+         {/* Background Image with Fallback */}
+         <img 
+            src={getEventImagePath(event.title)} 
+            alt="" 
+            style={{ 
+                position: 'absolute', 
+                inset: 0, 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover',
+                opacity: 0.4
+            }}
+            onError={handleImageError}
+         />
+
+         <div className="container" style={{ position: 'relative', zIndex: 2 }}>
             <span className="tag" style={{ background: 'white', color: 'black', marginBottom: '1rem', display: 'inline-block' }}>
                 {event.type}
             </span>
