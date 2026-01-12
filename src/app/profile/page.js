@@ -3,19 +3,27 @@ import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import { useAuth } from '@/context/AuthContext';
 import { uploadCompressedImage } from '@/lib/imageOptimizer';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { teamService } from "@/services/teamService";
+import { authService } from "@/services/authService";
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
-  const { user, loading, updateUser } = useAuth();
+  const { user: authUser, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileId = searchParams.get('id');
+
   const [isEditing, setIsEditing] = useState(false);
   const [userTeams, setUserTeams] = useState([]);
   const [careerWins, setCareerWins] = useState([]);
   const [isMetric, setIsMetric] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Profile Data State (Separated from Auth User)
+  const [profileUser, setProfileUser] = useState(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
   // Local state for editing
   const [formData, setFormData] = useState({
     name: '',
@@ -32,45 +40,68 @@ export default function ProfilePage() {
   // Store raw file for upload
   const [avatarFile, setAvatarFile] = useState(null);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    } else if (user) {
-      setFormData({
-        name: user.name,
-        bio: user.bio || '',
-        sport: user.sport || '',
-        positions: user.positions || '',
-        height: user.height || '',
-        weight: user.weight || '',
-        speed: user.speed || '',
-        vertical: user.vertical || '',
-        avatar: user.avatar
-      });
-      loadUserHistory();
-    }
-  }, [user, loading, router]);
+  // Determine if viewing own profile
+  const isOwnProfile = !profileId || (authUser && authUser.id === profileId);
 
-  const loadUserHistory = async () => {
-    if (!user) return;
-    const teams = await teamService.getUserTeams(user.id);
-    setUserTeams(teams);
-    
-    // Aggregate wins
-    const wins = [];
-    teams.forEach(t => {
-      if (t.wins) {
-        t.wins.forEach(w => {
-          wins.push({ ...w, teamName: t.name, teamSport: t.sport });
-        });
+  useEffect(() => {
+    // Wait for auth to load before deciding to redirect
+    if (authLoading) return;
+
+    const loadData = async () => {
+      setIsLoadingProfile(true);
+      
+      let targetUser = null;
+
+      if (isOwnProfile) {
+        if (!authUser) {
+           // Not logged in and no ID -> Redirect Login
+           router.push('/login');
+           return;
+        }
+        targetUser = authUser;
+      } else {
+        // Fetch public profile
+        targetUser = await authService.getUserProfile(profileId);
       }
-    });
-    // Sort by date desc
-    wins.sort((a,b) => new Date(b.date) - new Date(a.date));
-    setCareerWins(wins);
-  };
+
+      if (targetUser) {
+        setProfileUser(targetUser);
+        setFormData({
+            name: targetUser.name,
+            bio: targetUser.bio || '',
+            sport: targetUser.sport || '',
+            positions: targetUser.positions || '',
+            height: targetUser.height || '',
+            weight: targetUser.weight || '',
+            speed: targetUser.speed || '',
+            vertical: targetUser.vertical || '',
+            avatar: targetUser.avatar
+        });
+        
+        // Load History
+        const teams = await teamService.getUserTeams(targetUser.id);
+        setUserTeams(teams);
+        
+        const wins = [];
+        teams.forEach(t => {
+          if (t.wins) {
+            t.wins.forEach(w => {
+              wins.push({ ...w, teamName: t.name, teamSport: t.sport });
+            });
+          }
+        });
+        wins.sort((a,b) => new Date(b.date) - new Date(a.date));
+        setCareerWins(wins);
+      }
+      setIsLoadingProfile(false);
+    };
+
+    loadData();
+  }, [authUser, authLoading, profileId, isOwnProfile, router]);
 
   const handleSave = async () => {
+    if (!isOwnProfile) return; // Security check
+
     setIsSaving(true);
     let finalAvatarUrl = formData.avatar;
 
@@ -92,6 +123,8 @@ export default function ProfilePage() {
     if (result.success) {
         setIsEditing(false);
         setAvatarFile(null);
+        // Update local display immediately
+        setProfileUser(prev => ({ ...prev, ...formData, avatar: finalAvatarUrl }));
     } else {
         alert("Failed to save profile: " + result.error);
     }
@@ -130,20 +163,20 @@ export default function ProfilePage() {
             <div className={`glass-panel ${styles.glassPanel} ${styles.identityCard}`}>
               <div className={styles.avatarContainer}>
                 <img 
-                  src={isEditing && formData.avatar ? formData.avatar : user.avatar} 
+                  src={isEditing && formData.avatar ? formData.avatar : profileUser.avatar} 
                   alt="Profile" 
                   className={styles.avatarImage}
                 />
               </div>
 
-              {isEditing ? (
+              {isEditing && isOwnProfile ? (
                   <div style={{ marginBottom: '1rem' }}>
                      <label htmlFor="avatar-upload" className={styles.uploadLabel}>Change Photo</label>
                      <input id="avatar-upload" type="file" accept="image/*" onChange={handleImageUpload} className={styles.hidden} />
                   </div>
               ) : null}
 
-              {isEditing ? (
+              {isEditing && isOwnProfile ? (
                  <div className={styles.editForm}>
                     <input 
                       placeholder="Name"
@@ -160,8 +193,8 @@ export default function ProfilePage() {
                  </div>
               ) : (
                 <>
-                  <h1 className={styles.userName}>{user.name}</h1>
-                  <p className={styles.userBio}>{user.bio || 'Top Athlete'}</p>
+                  <h1 className={styles.userName}>{profileUser.name}</h1>
+                  <p className={styles.userBio}>{profileUser.bio || 'Top Athlete'}</p>
                 </>
               )}
             </div>
@@ -186,7 +219,7 @@ export default function ProfilePage() {
                   </div>
                </div>
                
-               {isEditing ? (
+               {isEditing && isOwnProfile ? (
                  <div className={styles.statsGridEdit}>
                     <div>
                       <label className={styles.label}>{isMetric ? 'Height (cm)' : 'Height (ft/in)'}</label>
@@ -247,40 +280,42 @@ export default function ProfilePage() {
                  <div className={styles.statsGridDisplay}>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Height (cm)' : 'Height'}</div>
-                       <div className={styles.value}>{user.height || '-'}</div>
+                       <div className={styles.value}>{profileUser.height || '-'}</div>
                     </div>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight'}</div>
-                       <div className={styles.value}>{user.weight || '-'}</div>
+                       <div className={styles.value}>{profileUser.weight || '-'}</div>
                     </div>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed'}</div>
-                       <div className={styles.value}>{user.speed || '-'}</div>
+                       <div className={styles.value}>{profileUser.speed || '-'}</div>
                     </div>
                     <div>
                        <div className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical'}</div>
-                       <div className={styles.value}>{user.vertical || '-'}</div>
+                       <div className={styles.value}>{profileUser.vertical || '-'}</div>
                     </div>
                     <div className={styles.span2}>
                        <div className={styles.label}>Sport & Positions</div>
                        <div className={`${styles.value} ${styles.highlight}`}>
-                         {user.sport} <span className={styles.separator}>|</span> {user.positions || 'Any'}
+                         {profileUser.sport} <span className={styles.separator}>|</span> {profileUser.positions || 'Any'}
                        </div>
                     </div>
                  </div>
                )}
                
                <div className={styles.actions}>
-                  {isEditing ? (
-                     <div className={styles.buttonGroup}>
-                       <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`} disabled={isSaving}>Cancel</button>
-                       <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`} disabled={isSaving}>
-                         {isSaving ? 'Saving...' : 'Save Changes'}
-                       </button>
-                     </div>
-                  ) : (
-                    <button onClick={() => setIsEditing(true)} className={`${styles.button} ${styles.buttonEdit}`}>Edit Attributes</button>
-                 )}
+                  {isOwnProfile && (
+                    isEditing ? (
+                       <div className={styles.buttonGroup}>
+                         <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`} disabled={isSaving}>Cancel</button>
+                         <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`} disabled={isSaving}>
+                           {isSaving ? 'Saving...' : 'Save Changes'}
+                         </button>
+                       </div>
+                    ) : (
+                      <button onClick={() => setIsEditing(true)} className={`${styles.button} ${styles.buttonEdit}`}>Edit Attributes</button>
+                   )
+                  )}
                </div>
             </div>
 
