@@ -39,9 +39,11 @@ export default function TeamCard({ team, user, onJoin }) {
           {!isMember && (
              <button 
                onClick={() => onJoin(team.id)}
-               className={styles.joinButton}
+               disabled={team.requests?.some(r => r.id === user?.id)}
+               className={team.requests?.some(r => r.id === user?.id) ? styles.pendingButton : styles.joinButton}
+               style={team.requests?.some(r => r.id === user?.id) ? { opacity: 0.7, cursor: 'not-allowed', background: '#555' } : {}}
              >
-               Join Squad
+               {team.requests?.some(r => r.id === user?.id) ? 'Request Sent' : 'Request Access'}
              </button>
           )}
         </div>
