@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import { useAuth } from '@/context/AuthContext';
+import { uploadCompressedImage } from '@/lib/imageOptimizer';
 import { useRouter } from 'next/navigation';
 import { teamService } from "@/services/teamService";
 import styles from './profile.module.css';
@@ -13,6 +14,7 @@ export default function ProfilePage() {
   const [userTeams, setUserTeams] = useState([]);
   const [careerWins, setCareerWins] = useState([]);
   const [isMetric, setIsMetric] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Local state for editing
   const [formData, setFormData] = useState({
@@ -26,6 +28,9 @@ export default function ProfilePage() {
     vertical: '',
     avatar: ''
   });
+  
+  // Store raw file for upload
+  const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,18 +71,40 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    await updateUser(formData);
-    setIsEditing(false);
+    setIsSaving(true);
+    let finalAvatarUrl = formData.avatar;
+
+    // Upload new avatar if selected
+    if (avatarFile) {
+        console.log("Starting upload...");
+        const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
+        if (url) {
+            console.log("Upload successful:", url);
+            finalAvatarUrl = url;
+        } else {
+            console.error("Upload returned null");
+            alert("Failed to upload image. Saving other changes.");
+        }
+    }
+
+    const result = await updateUser({ ...formData, avatar: finalAvatarUrl });
+    
+    if (result.success) {
+        setIsEditing(false);
+        setAvatarFile(null);
+    } else {
+        alert("Failed to save profile: " + result.error);
+    }
+    
+    setIsSaving(false);
   };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5000000) { // 5MB limit
-        alert("File is too large. Max 5MB.");
-        return;
-      }
+      setAvatarFile(file); // Store for upload
       
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, avatar: reader.result }));
@@ -244,12 +271,14 @@ export default function ProfilePage() {
                )}
                
                <div className={styles.actions}>
-                 {isEditing ? (
-                    <div className={styles.buttonGroup}>
-                      <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`}>Cancel</button>
-                      <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`}>Save Changes</button>
-                    </div>
-                 ) : (
+                  {isEditing ? (
+                     <div className={styles.buttonGroup}>
+                       <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`} disabled={isSaving}>Cancel</button>
+                       <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`} disabled={isSaving}>
+                         {isSaving ? 'Saving...' : 'Save Changes'}
+                       </button>
+                     </div>
+                  ) : (
                     <button onClick={() => setIsEditing(true)} className={`${styles.button} ${styles.buttonEdit}`}>Edit Attributes</button>
                  )}
                </div>

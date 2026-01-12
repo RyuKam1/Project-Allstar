@@ -69,7 +69,7 @@ export const teamService = {
   // Create a new team
   createTeam: async (teamData, owner) => {
     // 1. Upload Logo if it's a base64 string (from FileReader)
-    let logoUrl = null;
+    let logoUrl = teamData.logo;
     if (teamData.logo && teamData.logo.startsWith('data:image')) {
         logoUrl = await uploadImage(teamData.logo, 'team-logos');
     }

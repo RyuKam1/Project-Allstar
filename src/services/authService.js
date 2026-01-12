@@ -40,42 +40,15 @@ export const authService = {
       email,
       password,
       options: {
-        data: { name }, // Metadata for initial auth user
+        data: { name }, // Important: This metadata is read by the Trigger!
       },
     });
 
     if (error) return { success: false, error: error.message };
 
-    // 2. Create Profile (Trigger usually handles this, but we'll do manual for safety/completeness)
-    // Note: If you set up a Postgres Trigger to auto-create profiles, this might fail with duplicate key,
-    // which is fine, we just ignore it.
-    
-    // Check if profile exists
-    const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single();
-
-    if (!existingProfile) {
-        const newProfile = {
-            id: data.user.id,
-            email: email,
-            name: name,
-            bio: 'Ready to play!',
-            sport: 'Any',
-            avatar: `https://ui-avatars.com/api/?name=${name}&background=6366f1&color=fff`,
-        };
-
-        const { error: insertError } = await supabase
-            .from('profiles')
-            .insert(newProfile);
-
-        if (insertError) {
-             console.error("Error creating profile:", insertError);
-             // Verify if it was just created by trigger
-        }
-    }
+    // 2. Profile Creation is now handled by Postgres Trigger (supabase_triggers.sql)
+    // We wait a brief moment for the trigger to fire before returning, just in case user logs in immediately.
+    await new Promise(r => setTimeout(r, 1000));
 
     return { success: true, user: data.user };
   },
@@ -88,17 +61,28 @@ export const authService = {
 
   // Get Current User (Session)
   getCurrentUser: async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return null;
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) return null;
 
     // Get fresh profile data
-    const { data: profile } = await supabase
+    let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
+    
+    // Fallback: If profile missing (Trigger delay?), return session info
+    if (profileError || !profile) {
+        return {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || 'User',
+            avatar: `https://ui-avatars.com/api/?name=${session.user.user_metadata?.name || 'User'}&background=random`,
+            sport: 'Any'
+        };
+    }
         
-    return profile || session.user;
+    return profile;
   },
 
   // Update Profile
