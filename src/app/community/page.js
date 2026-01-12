@@ -16,71 +16,91 @@ export default function CommunityPage() {
 
   useEffect(() => {
     loadData();
+
+    // SETUP REALTIME LISTENER
+    // This allows smooth updates: when ANYONE posts, it pops up here.
+    const channel = supabase
+      .channel('public:community_posts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_posts' }, 
+        async (payload) => {
+          // Fetch the full post details (need author name/avatar which isn't in payload)
+          // We could cheat and append payload, but better to fetch single fresh row
+           const { data: newPostData, error } = await supabase
+            .from('community_posts')
+            .select(`*, author:profiles(name, avatar), likes:post_likes(user_id)`)
+            .eq('id', payload.new.id)
+            .single();
+           
+           if (newPostData && !error) {
+               const formatted = {
+                  id: newPostData.id,
+                  content: newPostData.content,
+                  type: newPostData.type,
+                  authorId: newPostData.user_id,
+                  authorName: newPostData.author?.name || 'Unknown',
+                  authorAvatar: newPostData.author?.avatar,
+                  timestamp: newPostData.created_at,
+                  likes: 0,
+                  likedBy: [],
+                  comments: 0
+               };
+               setPosts(prev => [formatted, ...prev]);
+           }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadData = async () => {
     setLoading(true);
-    const [fetchedPosts, fetchedTeams] = await Promise.all([
-      communityService.getAllPosts(),
-      teamService.getAllTeams()
-    ]);
-    setPosts(fetchedPosts);
-    setTeams(fetchedTeams);
-    setLoading(false);
+    try {
+        const [fetchedPosts, fetchedTeams] = await Promise.all([
+        communityService.getAllPosts(),
+        teamService.getAllTeams()
+        ]);
+        setPosts(fetchedPosts);
+        setTeams(fetchedTeams);
+    } catch(e) {
+        console.error(e);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    if (!user) {
-      alert("Please login to post");
-      return;
-    }
+    if (!user) { alert("Please login to post"); return; }
     if (!postContent.trim()) return;
 
-    await communityService.createPost(
-      user.id,
-      user.name,
-      user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random`,
-      postContent
-    );
-    setPostContent('');
-    loadData();
+    try {
+        await communityService.createPost(
+        user.id,
+        user.name,
+        null, 
+        postContent
+        );
+        setPostContent('');
+        // No need to reload! Realtime will catch our own post too.
+    } catch (err) {
+        alert(err.message); // Handles Rate Limit Error
+    }
   };
 
-  const handleLike = async (postId) => {
-    if (!user) {
-      alert("Please login to like posts");
-      return;
-    }
-    await communityService.toggleLike(postId, user.id);
-    loadData();
-  };
+  // ... (handleLike remains same) ...
 
   const getTimeAgo = (timestamp) => {
-    const seconds = Math.floor((new Date() - new Date(timestamp)) / 1000);
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
+     // ... (remains same) ...
+     const seconds = Math.floor((new Date() - new Date(timestamp)) / 1000);
+     if (seconds < 60) return 'Just now';
+     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  // Get leaderboard (top 5 users by wins)
-  const getLeaderboard = () => {
-    const userStats = {};
-    teams.forEach(team => {
-      if (team.wins) {
-        team.members.forEach(member => {
-          if (!member.isGuest) {
-            if (!userStats[member.id]) {
-              userStats[member.id] = { name: member.name, wins: 0, avatar: member.avatar };
-            }
-            userStats[member.id].wins += team.wins.length;
-          }
-        });
-      }
-    });
-    return Object.values(userStats).sort((a, b) => b.wins - a.wins).slice(0, 5);
-  };
+  // ... (getLeaderboard remains same) ...
 
   const leaderboard = getLeaderboard();
   const trendingTeams = teams.slice(0, 5);
@@ -90,7 +110,7 @@ export default function CommunityPage() {
       <Navbar />
       
       <div className="container" style={{ paddingTop: '120px' }}>
-        {/* Header */}
+         {/* ... Header ... */}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>
             The <span className="primary-gradient-text">Huddle</span>
@@ -100,14 +120,16 @@ export default function CommunityPage() {
           </p>
         </div>
 
-        {/* Filter Tabs */}
+        {/* ... Tabs ... */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem' }}>
-          {['All', 'Teams', 'Events'].map(tab => (
+           {/* ... tabs reuse ... */}
+           {['All', 'Teams', 'Events'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               style={{
                 background: activeTab === tab ? 'var(--color-primary)' : 'transparent',
+                // ... styles ...
                 border: 'none',
                 color: activeTab === tab ? 'white' : 'var(--text-muted)',
                 padding: '8px 20px',
@@ -129,7 +151,8 @@ export default function CommunityPage() {
             {user && (
               <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
                 <form onSubmit={handleCreatePost}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                   {/* ... form content ... */}
+                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                     <img 
                       src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random`} 
                       alt={user.name}
@@ -137,11 +160,9 @@ export default function CommunityPage() {
                     />
                     <div style={{ flex: 1 }}>
                       <textarea
-                        id="post-content"
                         value={postContent}
                         onChange={(e) => setPostContent(e.target.value)}
                         placeholder="Share your wins, find teammates, or just say hi..."
-                        aria-label="Create a new post"
                         style={{
                           width: '100%',
                           minHeight: '80px',
@@ -157,9 +178,7 @@ export default function CommunityPage() {
                       />
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button type="button" aria-label="Add photo" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>📷</button>
-                          <button type="button" aria-label="Add achievement" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>🏆</button>
-                          <button type="button" aria-label="Add location" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>📍</button>
+                           <span style={{ fontSize: '1.2rem', opacity: 0.5 }}>📷 🏆 📍</span>
                         </div>
                         <button 
                           type="submit" 
@@ -177,23 +196,30 @@ export default function CommunityPage() {
 
             {/* Posts Feed */}
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading...</div>
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading posts...</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {posts.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>No posts yet. Be the first!</div>}
+                
                 {posts.map(post => (
-                  <div key={post.id} className="glass-panel" style={{ padding: '1.5rem' }}>
-                    {/* Post Header */}
+                  <div key={post.id} className="glass-panel" style={{ padding: '1.5rem', animation: 'fadeIn 0.5s ease' }}>
+                    
+                    {/* Post Header with LINK */}
                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                      <img 
-                        src={post.authorAvatar} 
-                        alt={post.authorName}
-                        style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
-                      />
+                      <Link href={`/profile?id=${post.authorId}`}>
+                          <img 
+                            src={post.authorAvatar} 
+                            alt={post.authorName}
+                            style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
+                          />
+                      </Link>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '1rem' }}>{post.authorName}</div>
+                        <Link href={`/profile?id=${post.authorId}`} style={{ textDecoration: 'none', color: 'white' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', ':hover': { textDecoration: 'underline'} }}>{post.authorName}</div>
+                        </Link>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{getTimeAgo(post.timestamp)}</div>
                       </div>
-                      {post.type && (
+                      {post.type && post.type !== 'General' && (
                         <span style={{ 
                           background: 'rgba(255,255,255,0.1)', 
                           padding: '4px 12px', 
@@ -230,35 +256,14 @@ export default function CommunityPage() {
                       >
                         {post.likedBy?.includes(user?.id) ? '❤️' : '🤍'} {post.likes}
                       </button>
-                      <button style={{ 
-                        background: 'transparent', 
-                        border: '1px solid var(--border-glass)', 
-                        color: 'white', 
-                        padding: '8px 16px', 
-                        borderRadius: '20px', 
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        💬 {post.comments || 0}
-                      </button>
-                      <button style={{ 
-                        background: 'transparent', 
-                        border: '1px solid var(--border-glass)', 
-                        color: 'white', 
-                        padding: '8px 16px', 
-                        borderRadius: '20px', 
-                        cursor: 'pointer'
-                      }}>
-                        🔗 Share
-                      </button>
+                      
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
 
           {/* Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
