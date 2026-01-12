@@ -11,7 +11,7 @@
 }
 
 .hero {
-  height: 50vh;
+  height: clamp(300px, 50vh, 500px);
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -43,32 +43,58 @@
   padding: 4px 12px;
   border-radius: 4px;
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
 }
 
 .title {
-  font-size: 4rem;
+  font-size: clamp(2rem, 10vw, 4rem);
   margin: 1rem 0;
-  line-height: 1;
+  line-height: 1.1;
+  font-weight: 900;
 }
 
 .meta {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  font-size: 1.1rem;
+  gap: 1.5rem;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  flex-wrap: wrap;
 }
 
 .contentGrid {
-  margin-top: 3rem;
+  margin-top: clamp(1.5rem, 5vw, 3rem);
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 4rem;
+  gap: clamp(1.5rem, 5vw, 4rem);
+}
+
+@media (max-width: 1024px) {
+  .contentGrid {
+    grid-template-columns: 1.5fr 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero {
+    height: auto;
+    padding: 100px 0 3rem;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .bookingCard {
+    position: static;
+    margin-top: 1rem;
+    order: -1; /* Keep booking info high? or keep natural flow? usually natural flow is better if it's long */
+  }
 }
 
 .section {
-  margin-bottom: 3rem;
+  margin-bottom: clamp(2rem, 6vw, 3rem);
 }
 
 .sectionHeader {
@@ -79,40 +105,45 @@
 }
 
 .sectionTitle {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   margin-bottom: 1.5rem;
 }
 
 .sectionTitleNoMargin {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   margin: 0;
 }
 
 .description {
   line-height: 1.8;
   color: var(--text-muted);
+  font-size: 1rem;
 }
 
 .uploadLabel {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   padding: 8px 16px;
   cursor: pointer;
 }
 
 .emptyGallery {
-  padding: 2rem;
+  padding: 2.5rem;
   text-align: center;
   color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-glass);
+  border-radius: 16px;
 }
 
 .galleryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 45vw, 220px), 1fr));
   gap: 1rem;
 }
 
 .galleryItem {
-  height: 200px;
+  aspect-ratio: 4/3;
+  height: auto;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border-glass);
@@ -128,59 +159,76 @@
 .loginPrompt {
   font-size: 0.9rem;
   color: var(--text-muted);
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+  text-align: center;
 }
 
 .loginLink {
   color: var(--color-primary);
+  font-weight: 600;
 }
 
 .amenities {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .amenityItem {
   padding: 10px 20px;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
 }
 
 .bookingCard {
   padding: 2rem;
   position: sticky;
-  top: 120px;
+  top: 100px;
+  background: rgba(20, 20, 31, 0.8);
+  backdrop-filter: blur(10px);
 }
 
 .bookingTitle {
   margin-top: 0;
   margin-bottom: 0.5rem;
+  font-weight: 800;
 }
 
 .bookingSubtitle {
   color: var(--text-muted);
   margin-bottom: 2rem;
+  font-size: 0.95rem;
 }
 
 .priceBox {
-  margin-bottom: 1rem;
-  padding: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
   background: rgba(255,255,255,0.05);
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
 }
 
 .priceLabel {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
 }
 
 .priceValue {
-  font-size: 1.5rem;
-  font-weight: bold;
+  font-size: clamp(1.5rem, 4vw, 1.8rem);
+  font-weight: 800;
+  color: #fff;
 }
 
 .bookButton {
   width: 100%;
-  padding: 16px;
+  padding: 18px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  box-shadow: 0 4px 20px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .hidden {

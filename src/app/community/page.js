@@ -141,34 +141,23 @@ export default function CommunityPage() {
       <Navbar />
       
       <div className="container" style={{ paddingTop: '120px' }}>
-         {/* ... Header ... */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+         {/* Header */}
+        <div className={styles.header}>
+          <h1>
             The <span className="primary-gradient-text">Huddle</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>
+          <p>
             Connect with athletes, share victories, and find your next teammate.
           </p>
         </div>
 
-        {/* ... Tabs ... */}
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem' }}>
-           {/* ... tabs reuse ... */}
+        {/* Tabs */}
+        <div className={styles.tabs}>
            {['All', 'Teams', 'Events'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              style={{
-                background: activeTab === tab ? 'var(--color-primary)' : 'transparent',
-                // ... styles ...
-                border: 'none',
-                color: activeTab === tab ? 'white' : 'var(--text-muted)',
-                padding: '8px 20px',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                transition: 'all 0.3s ease'
-              }}
+              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
             >
               {tab}
             </button>
@@ -180,34 +169,23 @@ export default function CommunityPage() {
           <div>
             {/* Post Composer */}
             {user && (
-              <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+              <div className={`glass-panel ${styles.postComposer}`}>
                 <form onSubmit={handleCreatePost}>
-                   {/* ... form content ... */}
-                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                   <div className={styles.composerContent}>
                     <img 
                       src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random`} 
                       alt={user.name}
                       style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
+                      className={styles.composerAvatar}
                     />
                     <div style={{ flex: 1 }}>
                       <textarea
                         value={postContent}
                         onChange={(e) => setPostContent(e.target.value)}
                         placeholder="Share your wins, find teammates, or just say hi..."
-                        style={{
-                          width: '100%',
-                          minHeight: '80px',
-                          padding: '12px',
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid var(--border-glass)',
-                          borderRadius: '12px',
-                          color: 'white',
-                          resize: 'vertical',
-                          fontFamily: 'inherit',
-                          fontSize: '0.95rem'
-                        }}
+                        className={styles.composerTextarea}
                       />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                      <div className={styles.composerActions}>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                            <span style={{ fontSize: '1.2rem', opacity: 0.5 }}>📷 🏆 📍</span>
                         </div>
@@ -229,65 +207,47 @@ export default function CommunityPage() {
             {loading ? (
               <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading posts...</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className={styles.feed}>
                 {posts.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>No posts yet. Be the first!</div>}
                 
                 {posts.map(post => (
-                  <div key={post.id} className="glass-panel" style={{ padding: '1.5rem', animation: 'fadeIn 0.5s ease' }}>
+                  <div key={post.id} className={`glass-panel ${styles.post}`}>
                     
                     {/* Post Header with LINK */}
-                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                    <div className={styles.postHeader}>
                       <Link href={`/profile?id=${post.authorId}`}>
                           <img 
                             src={post.authorAvatar} 
                             alt={post.authorName}
-                            style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
+                            className={styles.postAuthorAvatar}
                           />
                       </Link>
                       <div style={{ flex: 1 }}>
-                        <Link href={`/profile?id=${post.authorId}`} style={{ textDecoration: 'none', color: 'white' }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', ':hover': { textDecoration: 'underline'} }}>{post.authorName}</div>
+                        <Link href={`/profile?id=${post.authorId}`} style={{ textDecoration: 'none' }}>
+                            <div className={styles.postAuthorName}>{post.authorName}</div>
                         </Link>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{getTimeAgo(post.timestamp)}</div>
+                        <div className={styles.postTime}>{getTimeAgo(post.timestamp)}</div>
                       </div>
                       {post.type && post.type !== 'General' && (
-                        <span style={{ 
-                          background: 'rgba(255,255,255,0.1)', 
-                          padding: '4px 12px', 
-                          borderRadius: '12px', 
-                          fontSize: '0.75rem',
-                          color: 'var(--color-accent)'
-                        }}>
+                        <span className={styles.postTag}>
                           {post.type}
                         </span>
                       )}
                     </div>
 
                     {/* Post Content */}
-                    <p style={{ lineHeight: '1.6', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+                    <p className={styles.postContent}>
                       {post.content}
                     </p>
 
                     {/* Post Actions */}
-                    <div style={{ display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-glass)' }}>
+                    <div className={styles.postActions}>
                       <button 
                         onClick={() => handleLike(post.id)}
-                        style={{ 
-                          background: post.likedBy?.includes(user?.id) ? 'rgba(255,100,100,0.2)' : 'transparent', 
-                          border: '1px solid var(--border-glass)', 
-                          color: post.likedBy?.includes(user?.id) ? '#ff6b6b' : 'white', 
-                          padding: '8px 16px', 
-                          borderRadius: '20px', 
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          transition: 'all 0.3s ease'
-                        }}
+                        className={`${styles.likeButton} ${post.likedBy?.includes(user?.id) ? styles.likeButtonActive : ''}`}
                       >
                         {post.likedBy?.includes(user?.id) ? '❤️' : '🤍'} {post.likes}
                       </button>
-                      
                     </div>
                   </div>
                 ))}
@@ -297,32 +257,19 @@ export default function CommunityPage() {
 
 
           {/* Sidebar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div className={styles.sidebar}>
             {/* Global Leaderboard */}
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className={`glass-panel ${styles.sidebarCard}`}>
+              <h3 className={styles.sidebarTitle}>
                 🏆 Top Athletes
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className={styles.leaderboardList}>
                 {leaderboard.map((athlete, index) => (
-                  <div key={athlete.name} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.75rem',
-                    padding: '0.5rem',
-                    background: index === 0 ? 'rgba(255,215,0,0.1)' : 'transparent',
-                    borderRadius: '8px'
+                  <div key={athlete.name} className={styles.leaderboardItem} style={{ 
+                    background: index === 0 ? 'rgba(255,215,0,0.05)' : 'transparent'
                   }}>
-                    <div style={{ 
-                      width: '24px', 
-                      height: '24px', 
-                      borderRadius: '50%', 
-                      background: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#444',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
+                    <div className={styles.rankBadge} style={{ 
+                      background: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : 'rgba(255,255,255,0.1)',
                       color: index < 3 ? '#000' : '#fff'
                     }}>
                       {index + 1}
@@ -342,17 +289,11 @@ export default function CommunityPage() {
             </div>
 
             {/* Trending Teams */}
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>🔥 Trending Teams</h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <div className={`glass-panel ${styles.sidebarCard}`}>
+              <h3 className={styles.sidebarTitle}>🔥 Trending Teams</h3>
+              <ul className={styles.trendingList}>
                 {trendingTeams.map(team => (
-                  <li key={team.id} style={{ 
-                    padding: '12px 0', 
-                    borderBottom: '1px solid var(--border-glass)', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center' 
-                  }}>
+                  <li key={team.id} className={styles.trendingItem}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <img 
                         src={team.logo || `https://ui-avatars.com/api/?name=${team.name}&background=random`}
@@ -373,7 +314,9 @@ export default function CommunityPage() {
                       cursor: 'pointer', 
                       fontSize: '0.8rem',
                       fontWeight: '600'
-                    }}>
+                    }}
+                    onClick={() => router.push(`/teams/${team.id}`)}
+                    >
                       View
                     </button>
                   </li>
@@ -382,18 +325,18 @@ export default function CommunityPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>📊 Community Stats</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div className={`glass-panel ${styles.sidebarCard}`}>
+              <h3 className={styles.sidebarTitle}>📊 Community Stats</h3>
+              <div className={styles.statsGrid}>
+                <div className={styles.statRow}>
                   <span style={{ color: 'var(--text-muted)' }}>Active Teams</span>
                   <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{teams.length}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div className={styles.statRow}>
                   <span style={{ color: 'var(--text-muted)' }}>Total Posts</span>
                   <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{posts.length}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div className={styles.statRow}>
                   <span style={{ color: 'var(--text-muted)' }}>Active Athletes</span>
                   <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{leaderboard.length}</span>
                 </div>

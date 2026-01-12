@@ -17,7 +17,7 @@ export default function Home() {
         </h1>
         
         <p className={styles.subtitle}>
-          Discover top-rated stadiums, fields, and gyms near you. 
+          Discover top-rated stadiums, fields and gyms near you. 
           Book instantly and join the biggest sports community.
         </p>
 

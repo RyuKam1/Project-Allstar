@@ -4,32 +4,56 @@
 }
 
 .container {
-  padding-top: 140px;
+  padding-top: clamp(100px, 15vh, 140px);
 }
 
 .header {
-  margin-bottom: 3rem;
+  margin-bottom: clamp(1.5rem, 5vw, 3rem);
   text-align: center;
 }
 
 .title {
-  font-size: 3rem;
+  font-size: clamp(2rem, 8vw, 3.5rem);
   margin-bottom: 1rem;
+  font-weight: 800;
 }
 
 .subtitle {
   color: var(--text-muted);
   max-width: 600px;
   margin: 0 auto;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  line-height: 1.6;
 }
 
 .filters {
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 0.8rem;
   margin-bottom: 3rem;
   margin-top: 2.3rem;
   flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .filters {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  .filters::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  .filterButton {
+    white-space: nowrap;
+    padding: 8px 20px;
+  }
 }
 
 .filterButton {
@@ -43,6 +67,14 @@
   transition: all 0.2s;
 }
 
+.filterButton:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--color-primary);
+}
+
 .filterButtonActive {
   background: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
 }
