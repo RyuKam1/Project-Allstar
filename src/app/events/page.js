@@ -197,17 +197,22 @@ export default function EventsAndTournamentsPage() {
                     >
                           {/* Card Header Image/Gradient */}
                           <div className={styles.cardHeader} style={{ background: item.imageGradient }}>
-                              {item.image ? (
-                                  <img 
-                                    src={item.image} 
-                                    alt={item.title} 
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                  />
-                              ) : (
+                              {/* Content Image with Fallback */}
+                              <img 
+                                src={`/events/${item.title}.webp`} 
+                                alt="" 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                onError={(e) => {
+                                    // If local image fails, hide it and show emoji/kind specific placeholder
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div className={styles.fallbackPlaceholder} style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                                   <span className={styles.cardEmoji}>
                                      {item.sport === 'Basketball' ? '🏀' : item.sport === 'Soccer' ? '⚽' : '🏆'}
                                   </span>
-                              )}
+                              </div>
                               <span className={styles.cardTag}>
                                  {item.displayType}
                               </span>
