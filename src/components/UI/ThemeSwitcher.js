@@ -12,6 +12,7 @@ const themes = [
   { id: 'minimal', name: 'Minimal Tech', color: '#e2e8f0' },
   { id: 'street', name: 'Street Sport', color: '#fbbf24' },
   { id: 'utility', name: 'Urban Utility', color: '#a3e635' },
+  { id: 'maximalist', name: 'Maximalist', color: '#ccff00' },
 ];
 
 export default function ThemeSwitcher() {
