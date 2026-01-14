@@ -247,6 +247,38 @@
   --background-image: none;
 }
 
+/* ================= MAXIMALIST (Art & Sport) ================= */
+[data-theme='maximalist'] {
+  --font-main: 'Montserrat', sans-serif;
+  --font-header: 'Teko', sans-serif; /* Tall, athletic, loud */
+  
+  --color-primary: #ccff00; /* Electric Volt */
+  --color-primary-rgb: 204, 255, 0;
+  --color-primary-dim: #a3cc00;
+  --color-accent: #ff0099; /* Hot Pink */
+  --color-accent-rgb: 255, 0, 153;
+  
+  --bg-deep: #120a2e; /* Deep Violet */
+  --bg-card: rgba(255, 255, 255, 0.03); /* Glassy */
+  
+  --border-glass: #ccff00;
+  --border-radius: 0px 16px 0px 16px; /* Sculptural */
+  --btn-radius: 4px;
+  
+  --text-main: #ffffff;
+  --text-muted: #d4d4dc;
+  
+  --btn-shadow: 6px 6px 0px #ff0099; /* Pop Art Shadow */
+  --panel-backdrop: blur(10px);
+  
+  /* Abstract Sports Theory Pattern */
+  --background-image: 
+    radial-gradient(circle at 10% 20%, rgba(204, 255, 0, 0.1), transparent 20%),
+    radial-gradient(circle at 90% 80%, rgba(255, 0, 153, 0.1), transparent 20%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 2px, transparent 2px, transparent 10px);
+  --background-size: 100% 100%, 100% 100%, 20px 20px;
+}
+
 /* ================= THEME SPECIFIC OVERRIDES ================= */
 :root {
   /* Default Blue Glow */
@@ -267,6 +299,10 @@
 
 [data-theme='retro'] {
   --hero-glow: radial-gradient(circle, rgba(255, 0, 255, 0.2) 0%, rgba(0,0,0,0) 70%);
+}
+
+[data-theme='maximalist'] {
+  --hero-glow: radial-gradient(circle, rgba(204, 255, 0, 0.2) 0%, rgba(0,0,0,0) 70%);
 }
 
 /* Themes with NO Glow */
@@ -448,6 +484,26 @@ h1, h2, h3, h4 {
   font-weight: 600;
 }
 
+[data-theme='maximalist'] .btn-primary {
+  background: var(--color-primary);
+  color: black;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  box-shadow: 6px 6px 0 var(--color-accent);
+  border: 2px solid transparent;
+  transform: skew(-5deg);
+}
+[data-theme='maximalist'] .btn-primary:hover {
+  transform: skew(-5deg) translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--color-accent);
+  background: white;
+}
+[data-theme='maximalist'] .glass-panel {
+  border: 1px solid var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-accent); /* Double border effect */
+}
+
 .primary-gradient-text {
   color: var(--color-primary);
 }
@@ -531,8 +587,16 @@ h1, h2, h3, h4 {
 
 /* Utility: Clear & Functional */
 [data-theme='utility'] .leaflet-tile-pane {
-    /* Maximum clarity. Neutral. */
     filter: grayscale(0.8) brightness(1.3) contrast(1.0);
+}
+
+/* Maximalist: High Energy Pop */
+[data-theme='maximalist'] .leaflet-tile-pane {
+    /* Deep purple/blue tint with high contrast */
+    filter: sepia(1) hue-rotate(200deg) saturate(3) brightness(1.2) contrast(0.9);
+}
+[data-theme='maximalist'] .leaflet-container {
+    background: #120a2e !important;
 }
 
 /* ================= RESPONSIVE DESIGN ================= */
@@ -785,4 +849,21 @@ select:focus-visible {
 
 [data-theme='retro'] .filter-pill-active {
   box-shadow: 5px 5px 0 var(--color-accent);
+}
+
+[data-theme='maximalist'] .filter-pill {
+  border-radius: 99px; /* Pill shape but extreme */
+  border: 2px solid var(--color-primary);
+  background: transparent;
+  text-transform: uppercase;
+  font-family: 'Teko', sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+}
+
+[data-theme='maximalist'] .filter-pill-active {
+  background: var(--color-primary) !important;
+  color: black !important;
+  box-shadow: 4px 4px 0 var(--color-accent);
+  transform: rotate(-2deg) scale(1.1);
 }
