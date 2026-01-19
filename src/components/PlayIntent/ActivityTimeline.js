@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 import { playIntentService } from '@/services/playIntentService';
 import ParticipantList from './ParticipantList';
 import styles from './activity-timeline.module.css';
@@ -19,9 +20,27 @@ export default function ActivityTimeline({ locationId, locationType, onJoinBlock
     useEffect(() => {
         loadTimeline();
 
-        // Refresh every 30 seconds
-        const interval = setInterval(loadTimeline, 30000);
-        return () => clearInterval(interval);
+        // Real-time subscription
+        const channel = supabase
+            .channel(`play_intents_${locationId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'play_intents',
+                    filter: `location_id=eq.${locationId}`
+                },
+                () => {
+                    // Reload timeline on any change for this location
+                    loadTimeline();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [locationId, locationType]);
 
     const loadTimeline = async () => {

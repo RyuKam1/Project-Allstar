@@ -11,7 +11,10 @@ export default function Map({
   initialCenter = [40.7300, -74.0000],
   initialZoom = 12,
   style = {},
-  className = ''
+  className = '',
+  center = null, // New prop for external control
+  zoom = 14, // New prop for dynamic zoom control
+  isGlobalView = false // New prop for global view styling
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -169,11 +172,17 @@ export default function Map({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLocating, minimal]); // Removed initCenter/initialZoom to prevent re-init loops
+  }, [isLocating, minimal]);
 
-  // 2.5 Handle Center Updates (Fly to new center if map exists)
+  // 2.5 Handle Center & Zoom Updates (Fly to new center if map exists)
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && initCenter) {
+    if (mapReady && mapInstanceRef.current && center) {
+      mapInstanceRef.current.flyTo(center, zoom);
+    }
+  }, [mapReady, center, zoom]);
+
+  useEffect(() => {
+    if (mapReady && mapInstanceRef.current && initCenter && !center) { // Only use initCenter if no external center provided
       mapInstanceRef.current.flyTo(initCenter, initialZoom);
     }
   }, [mapReady, initCenter, initialZoom]);
@@ -183,9 +192,18 @@ export default function Map({
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current || minimal || !userLocation) return;
 
+    // Hide user location if in global view
+    const map = mapInstanceRef.current;
+    if (isGlobalView) {
+      if (userMarkerRef.current) {
+        map.removeLayer(userMarkerRef.current);
+        userMarkerRef.current = null;
+      }
+      return;
+    }
+
     const renderUserMarker = async () => {
       const L = (await import('leaflet')).default;
-      const map = mapInstanceRef.current;
 
       if (userMarkerRef.current) map.removeLayer(userMarkerRef.current);
 
@@ -200,14 +218,26 @@ export default function Map({
       userMarkerRef.current.bindPopup("You are here");
     };
     renderUserMarker();
-  }, [mapReady, minimal, userLocation]);
+  }, [mapReady, minimal, userLocation, isGlobalView]);
 
 
   // 4. Handle Venue Markers (Smart Diffing - ONLY renders changes)
   const venueMarkersRef = useRef({}); // Store markers by venue ID: { [id]: marker }
+  // Keep track of the view mode used for the current markers to force update on change
+  const lastViewModeRef = useRef(isGlobalView);
 
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
+
+    // Check if view mode changed, if so we might need to clear all to force re-render style
+    const viewModeChanged = lastViewModeRef.current !== isGlobalView;
+    if (viewModeChanged) {
+      // Clear all markers to force full re-render with new style
+      const map = mapInstanceRef.current;
+      Object.values(venueMarkersRef.current).forEach(marker => map.removeLayer(marker));
+      venueMarkersRef.current = {};
+      lastViewModeRef.current = isGlobalView;
+    }
 
     const renderVenues = async () => {
       const L = (await import('leaflet')).default;
@@ -239,6 +269,8 @@ export default function Map({
         if (lat && lng) {
           // If marker already exists...
           if (currentMarkers[venue.id]) {
+            // Since we clear on viewMode change, existence here means it's valid for current mode
+            // Just check position
             const existingMarker = currentMarkers[venue.id];
             const existingLatLng = existingMarker.getLatLng();
 
@@ -247,9 +279,8 @@ export default function Map({
               Math.abs(existingLatLng.lng - lng) < 0.0001;
 
             if (isSamePos) {
-              return; // Same ID, Same Spot -> Do nothing (Stable)
+              return; // Same ID, Same Spot, Same Mode -> Do nothing
             } else {
-              // Same ID, New Spot -> Remove old, let it re-create (Animation!)
               map.removeLayer(existingMarker);
               delete currentMarkers[venue.id];
             }
@@ -281,29 +312,54 @@ export default function Map({
           // Optimized delay: Cap it so large lists don't wait forever. Waves of 15.
           const delay = (index % 15) * 0.05;
 
-          const customIcon = L.divIcon({
-            className: 'custom-venue-marker',
-            html: `<div class="marker-pin" style="
-                    background-color: ${config.color};
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: 2px solid ${borderColor};
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                    font-size: 18px;
-                    animation-delay: ${delay}s;
-                  ">${config.emoji}</div>`,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-            popupAnchor: [0, -20]
-          });
+          // GLOBAL VIEW SMALL MARKER
+          let customIcon;
+          if (isGlobalView) {
+            customIcon = L.divIcon({
+              className: 'custom-venue-marker-global',
+              html: `<div class="marker-pin-global" style="
+                      background-color: ${config.color};
+                      width: 8px;
+                      height: 8px;
+                      border-radius: 50%;
+                      border: 1px solid rgba(255,255,255,0.8);
+                      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                    "></div>`,
+              iconSize: [8, 8],
+              iconAnchor: [4, 4],
+              popupAnchor: [0, -5]
+            });
+          } else {
+            // NORMAL MARKER
+            customIcon = L.divIcon({
+              className: 'custom-venue-marker',
+              html: `<div class="marker-pin" style="
+                      background-color: ${config.color};
+                      width: 32px;
+                      height: 32px;
+                      border-radius: 50%;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      border: 2px solid ${borderColor};
+                      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                      font-size: 18px;
+                      animation-delay: ${delay}s;
+                    ">${config.emoji}</div>`,
+              iconSize: [32, 32],
+              iconAnchor: [16, 16],
+              popupAnchor: [0, -20]
+            });
+          }
+
 
           const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
 
-          if (!minimal) {
+          if (!minimal && !isGlobalView) { // Disable popups in global view to keep it clean? Or keep them?
+            // User didn't ask to disable popups, but "reduce pins" implies simpler view.
+            // Let's keep popups but maybe cleaner.
+            // For now, attaching popup is fine.
+
             const detailUrl = `/locations/${venue.id}${isCommunity ? '?type=community' : '?type=business'}`;
             const sportsDisplay = sportsList.length > 1
               ? `${sportsList.length} Sports: ${sportsList.slice(0, 2).join(', ')}${sportsList.length > 2 ? '...' : ''}`
@@ -339,7 +395,7 @@ export default function Map({
     }, 100); // Small delay to allow overlay to start fading
 
     return () => clearTimeout(timer);
-  }, [mapReady, venues, minimal, router]);
+  }, [mapReady, venues, minimal, router, isGlobalView]);
 
   // Click Handler - Same as before
   useEffect(() => {
@@ -419,6 +475,13 @@ export default function Map({
       navigator.geolocation.getCurrentPosition((position) => {
         const { latitude, longitude } = position.coords;
         setUserLocation([latitude, longitude]);
+
+        // Notify parent if prop provided
+        if (onUserLocationFound) {
+          onUserLocationFound(latitude, longitude);
+        }
+
+        // Parent will update center/zoom via props, but we can also fly locally to be responsive
         if (mapInstanceRef.current) {
           mapInstanceRef.current.flyTo([latitude, longitude], 14);
         }
@@ -485,6 +548,7 @@ export default function Map({
                 placeholder="Search places..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                suppressHydrationWarning
                 style={{
                   border: 'none',
                   padding: '10px 14px',
@@ -495,6 +559,7 @@ export default function Map({
               />
               <button
                 type="submit"
+                suppressHydrationWarning
                 style={{
                   background: 'var(--color-primary, #3b82f6)',
                   color: 'white',
@@ -510,6 +575,7 @@ export default function Map({
 
             <button
               onClick={handleLocateMe}
+              suppressHydrationWarning
               style={{
                 position: 'absolute',
                 bottom: '20px',

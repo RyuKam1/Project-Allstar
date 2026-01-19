@@ -197,7 +197,8 @@ export const playIntentService = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return [];
 
-        const { data, error } = await supabase
+        // 1. Get raw intents
+        const { data: intents, error } = await supabase
             .from('play_intents')
             .select('*')
             .eq('user_id', user.id)
@@ -209,7 +210,55 @@ export const playIntentService = {
             return [];
         }
 
-        return data || [];
+        if (!intents || intents.length === 0) return [];
+
+        // 2. Enrich with location details (Name, Image)
+        // Since we have two tables (venues and community_locations), we handle them separately.
+        const enrichedIntents = await Promise.all(intents.map(async (intent) => {
+            try {
+                let locationName = 'Unknown Location';
+                let locationImage = null;
+
+                if (intent.location_type === 'community') {
+                    // Fetch from community_locations
+                    const { data: loc } = await supabase
+                        .from('community_locations')
+                        .select('name, images')
+                        .eq('id', intent.location_id)
+                        .single();
+
+                    if (loc) {
+                        locationName = loc.name;
+                        locationImage = loc.images?.[0]?.image_url || null;
+                    }
+                } else {
+                    // Fetch from venues (business)
+                    // Assuming 'venues' table. If using a service, we might need to be careful about circular deps or just use direct DB call for speed.
+                    // Let's use direct DB call for performance.
+                    const { data: loc } = await supabase
+                        .from('venues')
+                        .select('name, image, image_url')
+                        .eq('id', intent.location_id)
+                        .single();
+
+                    if (loc) {
+                        locationName = loc.name;
+                        locationImage = loc.image_url || loc.image || null;
+                    }
+                }
+
+                return {
+                    ...intent,
+                    location_name: locationName,
+                    location_image: locationImage
+                };
+            } catch (err) {
+                console.warn(`Failed to fetch details for location ${intent.location_id}`, err);
+                return { ...intent, location_name: 'Unknown Location' };
+            }
+        }));
+
+        return enrichedIntents;
     },
 
     /**
@@ -239,6 +288,70 @@ export const playIntentService = {
             .single();
 
         return data;
+    },
+
+    /**
+     * Get user's past play history
+     * @returns {Promise<Array>} User's past intents
+     */
+    getUserHistory: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        const { data: intents, error } = await supabase
+            .from('play_intents')
+            .select('*')
+            .eq('user_id', user.id)
+            .lt('intent_time', new Date().toISOString())
+            .order('intent_time', { ascending: false }); // Newest past item first
+
+        if (error) {
+            console.error('Error fetching user history:', error);
+            return [];
+        }
+
+        if (!intents || intents.length === 0) return [];
+
+        // Enrich with location details (Name, Image)
+        const enrichedIntents = await Promise.all(intents.map(async (intent) => {
+            try {
+                let locationName = 'Unknown Location';
+                let locationImage = null;
+
+                if (intent.location_type === 'community') {
+                    const { data: loc } = await supabase
+                        .from('community_locations')
+                        .select('name, images')
+                        .eq('id', intent.location_id)
+                        .single();
+                    if (loc) {
+                        locationName = loc.name;
+                        locationImage = loc.images?.[0]?.image_url || null;
+                    }
+                } else {
+                    const { data: loc } = await supabase
+                        .from('venues')
+                        .select('name, image, image_url')
+                        .eq('id', intent.location_id)
+                        .single();
+                    if (loc) {
+                        locationName = loc.name;
+                        locationImage = loc.image_url || loc.image || null;
+                    }
+                }
+
+                return {
+                    ...intent,
+                    location_name: locationName,
+                    location_image: locationImage
+                };
+            } catch (err) {
+                console.warn(`Failed to fetch details for location ${intent.location_id}`, err);
+                return { ...intent, location_name: 'Unknown Location' };
+            }
+        }));
+
+        return enrichedIntents;
     },
 
     /**

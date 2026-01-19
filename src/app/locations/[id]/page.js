@@ -7,6 +7,7 @@ import { communityLocationService } from '@/services/communityLocationService';
 import { venueService } from '@/services/venueService';
 import { playIntentService } from '@/services/playIntentService';
 import { interactionTrackingService } from '@/services/interactionTrackingService';
+import { supabase } from '@/lib/supabaseClient';
 import PlayIntentForm from '@/components/PlayIntent/PlayIntentForm';
 import EditLocationForm from '@/components/Community/EditLocationForm'; // Import Edit Form
 import ActivityTimeline from '@/components/PlayIntent/ActivityTimeline';
@@ -58,6 +59,30 @@ export default function LocationDetailPage() {
         if (location && locationType) {
             interactionTrackingService.trackVisit(id, locationType);
         }
+
+        // Real-time Player Count Subscription
+        const channel = supabase
+            .channel(`location_header_${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'play_intents',
+                    filter: `location_id=eq.${id}`
+                },
+                () => {
+                    // Update just the count
+                    playIntentService.getActivePlayerCount(id, locationType)
+                        .then(count => setActivePlayerCount(count))
+                        .catch(err => console.error(err));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [id, locationType]);
 
     // Auto-fetch address if missing

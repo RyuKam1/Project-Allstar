@@ -332,7 +332,13 @@ const DashboardContent = () => {
                                                         {v.status === 'verified' ? '✅ Verified' : '⏳ Pending'}
                                                     </div>
                                                 </div>
-                                                <button className="btn-secondary" style={{ fontSize: '0.9rem' }}>Manage</button>
+                                                <button
+                                                    className="btn-secondary"
+                                                    style={{ fontSize: '0.9rem' }}
+                                                    onClick={() => router.push(`/business/dashboard/venues/${v.venue_id}`)}
+                                                >
+                                                    Manage
+                                                </button>
                                             </div>
                                         ))}
                                     </div>

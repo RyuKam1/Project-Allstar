@@ -6,6 +6,7 @@ import { uploadCompressedImage } from '@/lib/imageOptimizer';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { teamService } from "@/services/teamService";
 import { authService } from "@/services/authService";
+import { playIntentService } from "@/services/playIntentService";
 import styles from './profile.module.css';
 
 function ProfileContent() {
@@ -16,56 +17,58 @@ function ProfileContent() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [userTeams, setUserTeams] = useState([]);
+  const [upcomingGames, setUpcomingGames] = useState([]);
+  const [history, setHistory] = useState([]);
   const [careerWins, setCareerWins] = useState([]);
   const [isMetric, setIsMetric] = useState(false);
-  
+
   // --- Conversion Helpers ---
   const convertHeight = (val, toMetric) => {
     if (!val) return '-';
     if (toMetric) {
-        // Try parsing X'Y" format
-        if (typeof val === 'string' && val.includes("'")) {
-            const parts = val.split("'");
-            const ft = parseInt(parts[0]) || 0;
-            const inch = parseInt(parts[1]) || 0;
-            return Math.round((ft * 30.48) + (inch * 2.54)) + ' cm';
-        }
-        // Fallback: assume plain number is inches
-        const num = parseFloat(val);
-        if (!isNaN(num)) {
-             return Math.round(num * 2.54) + ' cm';
-        }
+      // Try parsing X'Y" format
+      if (typeof val === 'string' && val.includes("'")) {
+        const parts = val.split("'");
+        const ft = parseInt(parts[0]) || 0;
+        const inch = parseInt(parts[1]) || 0;
+        return Math.round((ft * 30.48) + (inch * 2.54)) + ' cm';
+      }
+      // Fallback: assume plain number is inches
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        return Math.round(num * 2.54) + ' cm';
+      }
     }
-    return val; 
+    return val;
   };
 
   const convertWeight = (val, toMetric) => {
-      if (!val) return '-';
-      const num = parseFloat(val);
-      if (isNaN(num)) return val;
-      if (toMetric) return Math.round(num * 0.453592) + ' kg';
-      return val + ' lbs';
+    if (!val) return '-';
+    const num = parseFloat(val);
+    if (isNaN(num)) return val;
+    if (toMetric) return Math.round(num * 0.453592) + ' kg';
+    return val + ' lbs';
   };
 
   const convertSpeed = (val, toMetric) => {
-      if (!val) return '-';
-      const num = parseFloat(val);
-      if (isNaN(num)) return val;
-      if (toMetric) return (num * 1.60934).toFixed(1) + ' km/h';
-      return val + ' mph';
+    if (!val) return '-';
+    const num = parseFloat(val);
+    if (isNaN(num)) return val;
+    if (toMetric) return (num * 1.60934).toFixed(1) + ' km/h';
+    return val + ' mph';
   };
 
   const convertVertical = (val, toMetric) => {
-      if (!val) return '-';
-      const num = parseFloat(val);
-      if (isNaN(num)) return val;
-      if (toMetric) return Math.round(num * 2.54) + ' cm';
-      return val + ' in';
+    if (!val) return '-';
+    const num = parseFloat(val);
+    if (isNaN(num)) return val;
+    if (toMetric) return Math.round(num * 2.54) + ' cm';
+    return val + ' in';
   };
   // --------------------------
 
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Profile Data State (Separated from Auth User)
   const [profileUser, setProfileUser] = useState(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -82,7 +85,7 @@ function ProfileContent() {
     vertical: '',
     avatar: ''
   });
-  
+
   // Store raw file for upload
   const [avatarFile, setAvatarFile] = useState(null);
 
@@ -95,14 +98,14 @@ function ProfileContent() {
 
     const loadData = async () => {
       setIsLoadingProfile(true);
-      
+
       let targetUser = null;
 
       if (isOwnProfile) {
         if (!authUser) {
-           // Not logged in and no ID -> Redirect Login
-           router.push('/login');
-           return;
+          // Not logged in and no ID -> Redirect Login
+          router.push('/login');
+          return;
         }
         targetUser = authUser;
       } else {
@@ -113,21 +116,21 @@ function ProfileContent() {
       if (targetUser) {
         setProfileUser(targetUser);
         setFormData({
-            name: targetUser.name,
-            bio: targetUser.bio || '',
-            sport: targetUser.sport || '',
-            positions: targetUser.positions || '',
-            height: targetUser.height || '',
-            weight: targetUser.weight || '',
-            speed: targetUser.speed || '',
-            vertical: targetUser.vertical || '',
-            avatar: targetUser.avatar
+          name: targetUser.name,
+          bio: targetUser.bio || '',
+          sport: targetUser.sport || '',
+          positions: targetUser.positions || '',
+          height: targetUser.height || '',
+          weight: targetUser.weight || '',
+          speed: targetUser.speed || '',
+          vertical: targetUser.vertical || '',
+          avatar: targetUser.avatar
         });
-        
+
         // Load History
         const teams = await teamService.getUserTeams(targetUser.id);
         setUserTeams(teams);
-        
+
         const wins = [];
         teams.forEach(t => {
           if (t.wins) {
@@ -136,8 +139,22 @@ function ProfileContent() {
             });
           }
         });
-        wins.sort((a,b) => new Date(b.date) - new Date(a.date));
+        wins.sort((a, b) => new Date(b.date) - new Date(a.date));
         setCareerWins(wins);
+
+        // Load Upcoming Games & History (only if own profile for now)
+        if (isOwnProfile) {
+          try {
+            const [games, pastGames] = await Promise.all([
+              playIntentService.getUserIntents(),
+              playIntentService.getUserHistory()
+            ]);
+            setUpcomingGames(games);
+            setHistory(pastGames);
+          } catch (err) {
+            console.error("Failed to load games/history", err);
+          }
+        }
       }
       setIsLoadingProfile(false);
     };
@@ -153,28 +170,28 @@ function ProfileContent() {
 
     // Upload new avatar if selected
     if (avatarFile) {
-        console.log("Starting upload...");
-        const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
-        if (url) {
-            console.log("Upload successful:", url);
-            finalAvatarUrl = url;
-        } else {
-            console.error("Upload returned null");
-            alert("Failed to upload image. Saving other changes.");
-        }
+      console.log("Starting upload...");
+      const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
+      if (url) {
+        console.log("Upload successful:", url);
+        finalAvatarUrl = url;
+      } else {
+        console.error("Upload returned null");
+        alert("Failed to upload image. Saving other changes.");
+      }
     }
 
     const result = await updateUser({ ...formData, avatar: finalAvatarUrl });
-    
+
     if (result.success) {
-        setIsEditing(false);
-        setAvatarFile(null);
-        // Update local display immediately
-        setProfileUser(prev => ({ ...prev, ...formData, avatar: finalAvatarUrl }));
+      setIsEditing(false);
+      setAvatarFile(null);
+      // Update local display immediately
+      setProfileUser(prev => ({ ...prev, ...formData, avatar: finalAvatarUrl }));
     } else {
-        alert("Failed to save profile: " + result.error);
+      alert("Failed to save profile: " + result.error);
     }
-    
+
     setIsSaving(false);
   };
 
@@ -182,7 +199,7 @@ function ProfileContent() {
     const file = e.target.files[0];
     if (file) {
       setAvatarFile(file); // Store for upload
-      
+
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -197,46 +214,46 @@ function ProfileContent() {
   return (
     <main className={styles.main}>
       <Navbar />
-      
+
       <div className={`container ${styles.container}`}>
-        
+
         <div className={styles.profileGrid}>
-          
+
           {/* Left Column: Profile Card & Stats */}
           <div className={styles.leftColumn}>
-            
+
             {/* Identity Card */}
             <div className={`glass-panel ${styles.glassPanel} ${styles.identityCard}`}>
               <div className={styles.avatarContainer}>
-                <img 
-                  src={isEditing && formData.avatar ? formData.avatar : profileUser.avatar} 
-                  alt="Profile" 
+                <img
+                  src={isEditing && formData.avatar ? formData.avatar : profileUser.avatar}
+                  alt="Profile"
                   className={styles.avatarImage}
                 />
               </div>
 
               {isEditing && isOwnProfile ? (
-                  <div style={{ marginBottom: '1rem' }}>
-                     <label htmlFor="avatar-upload" className={styles.uploadLabel}>Change Photo</label>
-                     <input id="avatar-upload" type="file" accept="image/*" onChange={handleImageUpload} className={styles.hidden} />
-                  </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="avatar-upload" className={styles.uploadLabel}>Change Photo</label>
+                  <input id="avatar-upload" type="file" accept="image/*" onChange={handleImageUpload} className={styles.hidden} />
+                </div>
               ) : null}
 
               {isEditing && isOwnProfile ? (
-                 <div className={styles.editForm}>
-                    <input 
-                      placeholder="Name"
-                      value={formData.name} 
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      className={styles.input}
-                    />
-                     <textarea 
-                      placeholder="Bio"
-                      value={formData.bio} 
-                      onChange={e => setFormData({...formData, bio: e.target.value})}
-                      className={styles.textarea}
-                    />
-                 </div>
+                <div className={styles.editForm}>
+                  <input
+                    placeholder="Name"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className={styles.input}
+                  />
+                  <textarea
+                    placeholder="Bio"
+                    value={formData.bio}
+                    onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                    className={styles.textarea}
+                  />
+                </div>
               ) : (
                 <>
                   <h1 className={styles.userName}>{profileUser.name}</h1>
@@ -245,184 +262,225 @@ function ProfileContent() {
               )}
             </div>
 
-   {/* Physical Stats */}
+            {/* Physical Stats */}
             <div className={`glass-panel ${styles.glassPanel}`}>
-               <div className={styles.statsHeader}>
-                  <h3>Attributes</h3>
-                  <div className={styles.toggleContainer}>
-                    <button 
-                      onClick={() => setIsMetric(false)}
-                      className={`${styles.toggleButton} ${!isMetric ? styles.toggleButtonActive : ''}`}
-                    >
-                      Imperial
-                    </button>
-                    <button 
-                      onClick={() => setIsMetric(true)}
-                       className={`${styles.toggleButton} ${isMetric ? styles.toggleButtonActive : ''}`}
-                    >
-                      Metric
-                    </button>
+              <div className={styles.statsHeader}>
+                <h3>Attributes</h3>
+                <div className={styles.toggleContainer}>
+                  <button
+                    onClick={() => setIsMetric(false)}
+                    className={`${styles.toggleButton} ${!isMetric ? styles.toggleButtonActive : ''}`}
+                  >
+                    Imperial
+                  </button>
+                  <button
+                    onClick={() => setIsMetric(true)}
+                    className={`${styles.toggleButton} ${isMetric ? styles.toggleButtonActive : ''}`}
+                  >
+                    Metric
+                  </button>
+                </div>
+              </div>
+
+              {isEditing && isOwnProfile ? (
+                <div className={styles.statsGridEdit}>
+                  <div>
+                    <label className={styles.label}>{isMetric ? 'Height (cm)' : 'Height (ft/in)'}</label>
+                    <input
+                      placeholder={isMetric ? "e.g. 188" : "e.g. 6'2"}
+                      value={formData.height}
+                      onChange={e => setFormData({ ...formData, height: e.target.value })}
+                      className={styles.input}
+                    />
                   </div>
-               </div>
-               
-               {isEditing && isOwnProfile ? (
-                 <div className={styles.statsGridEdit}>
-                    <div>
-                      <label className={styles.label}>{isMetric ? 'Height (cm)' : 'Height (ft/in)'}</label>
-                      <input 
-                        placeholder={isMetric ? "e.g. 188" : "e.g. 6'2"}
-                        value={formData.height} 
-                        onChange={e => setFormData({...formData, height: e.target.value})}
-                        className={styles.input}
-                      />
+                  <div>
+                    <label className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight (lbs)'}</label>
+                    <input
+                      placeholder={isMetric ? "e.g. 85" : "e.g. 190"}
+                      value={formData.weight}
+                      onChange={e => setFormData({ ...formData, weight: e.target.value })}
+                      className={styles.input}
+                    />
+                  </div>
+                  <div>
+                    <label className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed (mph)'}</label>
+                    <input
+                      placeholder={isMetric ? "e.g. 30" : "e.g. 20"}
+                      value={formData.speed}
+                      onChange={e => setFormData({ ...formData, speed: e.target.value })}
+                      className={styles.input}
+                    />
+                  </div>
+                  <div>
+                    <label className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical (in)'}</label>
+                    <input
+                      placeholder={isMetric ? "e.g. 75" : "e.g. 30"}
+                      value={formData.vertical}
+                      onChange={e => setFormData({ ...formData, vertical: e.target.value })}
+                      className={styles.input}
+                    />
+                  </div>
+                  <div className={styles.span2}>
+                    <label className={styles.label}>Primary Sport</label>
+                    <input
+                      placeholder="e.g. Basketball"
+                      value={formData.sport}
+                      onChange={e => setFormData({ ...formData, sport: e.target.value })}
+                      className={styles.input}
+                    />
+                  </div>
+                  <div className={styles.span2}>
+                    <label className={styles.label}>Positions (comma sep)</label>
+                    <input
+                      placeholder="e.g. PG, SG"
+                      value={formData.positions}
+                      onChange={e => setFormData({ ...formData, positions: e.target.value })}
+                      className={styles.input}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.statsGridDisplay}>
+                  <div>
+                    <div className={styles.label}>{isMetric ? 'Height (cm)' : 'Height'}</div>
+                    <div className={styles.value}>{convertHeight(profileUser.height, isMetric)}</div>
+                  </div>
+                  <div>
+                    <div className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight'}</div>
+                    <div className={styles.value}>{convertWeight(profileUser.weight, isMetric)}</div>
+                  </div>
+                  <div>
+                    <div className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed'}</div>
+                    <div className={styles.value}>{convertSpeed(profileUser.speed, isMetric)}</div>
+                  </div>
+                  <div>
+                    <div className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical'}</div>
+                    <div className={styles.value}>{convertVertical(profileUser.vertical, isMetric)}</div>
+                  </div>
+                  <div className={styles.span2}>
+                    <div className={styles.label}>Sport & Positions</div>
+                    <div className={`${styles.value} ${styles.highlight}`}>
+                      {profileUser.sport} <span className={styles.separator}>|</span> {profileUser.positions || 'Any'}
                     </div>
-                    <div>
-                      <label className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight (lbs)'}</label>
-                      <input 
-                        placeholder={isMetric ? "e.g. 85" : "e.g. 190"}
-                        value={formData.weight} 
-                        onChange={e => setFormData({...formData, weight: e.target.value})}
-                        className={styles.input}
-                      />
+                  </div>
+                </div>
+              )}
+
+              <div className={styles.actions}>
+                {isOwnProfile && (
+                  isEditing ? (
+                    <div className={styles.buttonGroup}>
+                      <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`} disabled={isSaving}>Cancel</button>
+                      <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`} disabled={isSaving}>
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
                     </div>
-                    <div>
-                      <label className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed (mph)'}</label>
-                      <input 
-                        placeholder={isMetric ? "e.g. 30" : "e.g. 20"}
-                        value={formData.speed} 
-                        onChange={e => setFormData({...formData, speed: e.target.value})}
-                        className={styles.input}
-                      />
-                    </div>
-                     <div>
-                      <label className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical (in)'}</label>
-                      <input 
-                        placeholder={isMetric ? "e.g. 75" : "e.g. 30"}
-                        value={formData.vertical} 
-                        onChange={e => setFormData({...formData, vertical: e.target.value})}
-                        className={styles.input}
-                      />
-                    </div>
-                     <div className={styles.span2}>
-                      <label className={styles.label}>Primary Sport</label>
-                      <input 
-                        placeholder="e.g. Basketball"
-                        value={formData.sport} 
-                        onChange={e => setFormData({...formData, sport: e.target.value})}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.span2}>
-                      <label className={styles.label}>Positions (comma sep)</label>
-                      <input 
-                        placeholder="e.g. PG, SG"
-                        value={formData.positions} 
-                        onChange={e => setFormData({...formData, positions: e.target.value})}
-                        className={styles.input}
-                      />
-                    </div>
-                 </div>
-               ) : (
-                 <div className={styles.statsGridDisplay}>
-                    <div>
-                       <div className={styles.label}>{isMetric ? 'Height (cm)' : 'Height'}</div>
-                       <div className={styles.value}>{convertHeight(profileUser.height, isMetric)}</div>
-                    </div>
-                    <div>
-                       <div className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight'}</div>
-                       <div className={styles.value}>{convertWeight(profileUser.weight, isMetric)}</div>
-                    </div>
-                    <div>
-                       <div className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed'}</div>
-                       <div className={styles.value}>{convertSpeed(profileUser.speed, isMetric)}</div>
-                    </div>
-                    <div>
-                       <div className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical'}</div>
-                       <div className={styles.value}>{convertVertical(profileUser.vertical, isMetric)}</div>
-                    </div>
-                    <div className={styles.span2}>
-                       <div className={styles.label}>Sport & Positions</div>
-                       <div className={`${styles.value} ${styles.highlight}`}>
-                         {profileUser.sport} <span className={styles.separator}>|</span> {profileUser.positions || 'Any'}
-                       </div>
-                    </div>
-                 </div>
-               )}
-               
-               <div className={styles.actions}>
-                  {isOwnProfile && (
-                    isEditing ? (
-                       <div className={styles.buttonGroup}>
-                         <button onClick={() => setIsEditing(false)} className={`${styles.button} ${styles.buttonCancel}`} disabled={isSaving}>Cancel</button>
-                         <button onClick={handleSave} className={`${styles.button} ${styles.buttonSave}`} disabled={isSaving}>
-                           {isSaving ? 'Saving...' : 'Save Changes'}
-                         </button>
-                       </div>
-                    ) : (
-                      <button onClick={() => setIsEditing(true)} className={`${styles.button} ${styles.buttonEdit}`}>Edit Attributes</button>
-                   )
-                  )}
-               </div>
+                  ) : (
+                    <button onClick={() => setIsEditing(true)} className={`${styles.button} ${styles.buttonEdit}`}>Edit Attributes</button>
+                  )
+                )}
+              </div>
             </div>
 
           </div>
 
           {/* Right Column: Career History */}
           <div className={styles.rightColumn}>
-             
-             {/* Career Highlights */}
-             <div className={`glass-panel ${styles.glassPanel}`}>
-               <h2 className={styles.sectionTitle}>
-                 🏆 Career History 
-                 <span className={styles.winCount}>{careerWins.length} Wins</span>
-               </h2>
 
-               {careerWins.length === 0 ? (
-                 <div className={styles.emptyState}>
-                   No wins recorded yet. Join a team and start competing!
-                 </div>
-               ) : (
-                 <div className={styles.historyList}>
-                   {careerWins.map(win => (
-                     <div key={win.id} className={`${styles.historyItem} ${win.category === 'Tournament' ? styles.tournamentItem : styles.matchItem}`}>
+            {/* Upcoming Games */}
+            <div className={`glass-panel ${styles.glassPanel}`}>
+              <h2 className={styles.sectionTitle}>📅 Upcoming Games</h2>
+              {upcomingGames.length === 0 ? (
+                <div className={styles.emptyState}>
+                  No upcoming games scheduled.
+                </div>
+              ) : (
+                <div className={styles.historyList}>
+                  {upcomingGames.map(game => (
+                    <div
+                      key={game.id}
+                      className={styles.historyItem}
+                      onClick={() => router.push(`/locations/${game.location_id}?type=${game.location_type}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {/* Thumbnail */}
+                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', overflow: 'hidden', background: '#333' }}>
+                          {game.location_image ? (
+                            <img src={game.location_image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🏀</div>
+                          )}
+                        </div>
                         <div>
-                          <div className={`${styles.historyTitle} ${win.category === 'Tournament' ? styles.tournamentText : styles.matchText}`}>
-                            {win.description}
-                          </div>
+                          <div className={styles.historyTitle}>{game.location_name}</div>
                           <div className={styles.historySubtitle}>
-                            with <span className={styles.teamName}>{win.teamName}</span> ({win.teamSport})
+                            {new Date(game.intent_time).toLocaleDateString()} @ {new Date(game.intent_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
-                        <div className={styles.historyMeta}>
-                           <div className={styles.metaCategory}>{win.category}</div>
-                           <div className={styles.metaDate}>{new Date(win.date).toLocaleDateString()}</div>
-                        </div>
-                     </div>
-                   ))}
-                 </div>
-               )}
-             </div>
+                      </div>
+                      <div className={styles.historyMeta}>
+                        {game.sport && <div className={styles.metaCategory}>{game.sport}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-             {/* Active Teams */}
-             <div className={`glass-panel ${styles.glassPanel}`}>
-               <h3 style={{ margin: '0 0 1.5rem' }}>Current Teams</h3>
-               {userTeams.length === 0 ? (
-                 <p style={{ color: '#666' }}>Not a member of any teams yet.</p>
-               ) : (
-                 <div className={styles.teamsGrid}>
-                   {userTeams.map(t => (
-                     <div 
-                        key={t.id} 
-                        onClick={() => router.push(`/teams/${t.id}`)}
-                        className={styles.teamCard}
-                     >
-                       <div className={styles.teamCardName}>{t.name}</div>
-                       <div className={styles.teamCardSport}>{t.sport}</div>
-                     </div>
-                   ))}
-                 </div>
-               )}
-             </div>
+            {/* Career Highlights */}
+            <div className={`glass-panel ${styles.glassPanel}`}>
+              <h2 className={styles.sectionTitle}>
+                🏆 Career History
+                <span className={styles.winCount}>{careerWins.length} Wins</span>
+              </h2>
+
+              {careerWins.length === 0 ? (
+                <div className={styles.emptyState}>
+                  No wins recorded yet. Join a team and start competing!
+                </div>
+              ) : (
+                <div className={styles.historyList}>
+                  {careerWins.map(win => (
+                    <div key={win.id} className={`${styles.historyItem} ${win.category === 'Tournament' ? styles.tournamentItem : styles.matchItem}`}>
+                      <div>
+                        <div className={`${styles.historyTitle} ${win.category === 'Tournament' ? styles.tournamentText : styles.matchText}`}>
+                          {win.description}
+                        </div>
+                        <div className={styles.historySubtitle}>
+                          with <span className={styles.teamName}>{win.teamName}</span> ({win.teamSport})
+                        </div>
+                      </div>
+                      <div className={styles.historyMeta}>
+                        <div className={styles.metaCategory}>{win.category}</div>
+                        <div className={styles.metaDate}>{new Date(win.date).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Active Teams */}
+            <div className={`glass-panel ${styles.glassPanel}`}>
+              <h3 style={{ margin: '0 0 1.5rem' }}>Current Teams</h3>
+              {userTeams.length === 0 ? (
+                <p style={{ color: '#666' }}>Not a member of any teams yet.</p>
+              ) : (
+                <div className={styles.teamsGrid}>
+                  {userTeams.map(t => (
+                    <div
+                      key={t.id}
+                      onClick={() => router.push(`/teams/${t.id}`)}
+                      className={styles.teamCard}
+                    >
+                      <div className={styles.teamCardName}>{t.name}</div>
+                      <div className={styles.teamCardSport}>{t.sport}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
           </div>
         </div>

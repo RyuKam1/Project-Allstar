@@ -41,7 +41,8 @@ export const communityLocationService = {
                 description: description?.trim() || null,
                 address: address?.trim() || null, // Save address
                 sports,
-                created_by: user.id
+                created_by: user.id,
+                status: 'active' // Explicitly set active so it shows up
             })
             .select()
             .single();
@@ -115,6 +116,44 @@ export const communityLocationService = {
         if (error) throw new Error(error.message);
 
         // Map location_images to images property for consistency
+        return data?.map(loc => ({
+            ...loc,
+            images: loc.location_images
+        })) || [];
+        return data?.map(loc => ({
+            ...loc,
+            images: loc.location_images
+        })) || [];
+    },
+
+    /**
+     * Get locations by city name (Address search)
+     * @param {string} cityName - Name of the city (can contain special chars)
+     * @returns {Promise<Array>} Locations in that city
+     */
+    getLocationsByCity: async (cityName) => {
+        // Prepare variations: 
+        // 1. Exact input (e.g. "Akhmet'a")
+        // 2. Normalized (e.g. "akhmeta")
+        const rawName = cityName.trim();
+        const normalizedName = rawName.toLowerCase().replace(/['’]/g, "");
+
+        console.log(`Searching locations for: "${rawName}" OR "${normalizedName}"`);
+
+        const { data, error } = await supabase
+            .from('community_locations')
+            .select(`
+                *,
+                location_images (
+                    image_url
+                )
+            `)
+            // Search for EITHER the raw name OR the normalized name in the address
+            .or(`address.ilike.%${rawName}%,address.ilike.%${normalizedName}%`)
+            .eq('status', 'active');
+
+        if (error) throw new Error(error.message);
+
         return data?.map(loc => ({
             ...loc,
             images: loc.location_images

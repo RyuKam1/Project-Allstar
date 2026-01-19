@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from "@/context/ThemeContext";
 
 const themes = [
@@ -18,63 +18,70 @@ const themes = [
 export default function ThemeSwitcher() {
   const { theme, changeTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
     <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 9999 }}>
-      
+
       {isOpen && (
-        <div className="glass-panel" style={{ 
-            marginBottom: '15px', 
-            padding: '10px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '8px',
-            minWidth: '200px'
+        <div className="glass-panel" style={{
+          marginBottom: '15px',
+          padding: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          minWidth: '200px'
         }}>
-            <h4 style={{ margin: '0 0 5px 0', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Select Theme</h4>
-            {themes.map(t => (
-                <button
-                    key={t.id}
-                    onClick={() => { changeTheme(t.id); setIsOpen(false); }}
-                    style={{
-                        background: theme === t.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        border: '1px solid transparent',
-                        padding: '8px 12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        color: 'var(--text-main)',
-                        cursor: 'pointer',
-                        borderRadius: '6px',
-                        fontFamily: 'var(--font-main)',
-                        textAlign: 'left'
-                    }}
-                >
-                    <span style={{ 
-                        width: '12px', height: '12px', borderRadius: '50%', 
-                        background: t.color, 
-                        boxShadow: `0 0 8px ${t.color}` 
-                    }} />
-                    {t.name}
-                </button>
-            ))}
+          <h4 style={{ margin: '0 0 5px 0', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Select Theme</h4>
+          {themes.map(t => (
+            <button
+              key={t.id}
+              onClick={() => { changeTheme(t.id); setIsOpen(false); }}
+              style={{
+                background: theme === t.id ? 'rgba(255,255,255,0.1)' : 'transparent',
+                border: '1px solid transparent',
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+                borderRadius: '6px',
+                fontFamily: 'var(--font-main)',
+                textAlign: 'left'
+              }}
+            >
+              <span style={{
+                width: '12px', height: '12px', borderRadius: '50%',
+                background: t.color,
+                boxShadow: `0 0 8px ${t.color}`
+              }} />
+              {t.name}
+            </button>
+          ))}
         </div>
       )}
 
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
-            width: '50px', height: '50px',
-            borderRadius: '50%',
-            background: 'var(--bg-card)',
-            border: '2px solid var(--border-glass)',
-            color: 'var(--text-main)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+          width: '50px', height: '50px',
+          borderRadius: '50%',
+          background: 'var(--bg-card)',
+          border: '2px solid var(--border-glass)',
+          color: 'var(--text-main)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '1.5rem',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
         }}
         title="Change Theme"
       >
