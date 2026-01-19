@@ -10,7 +10,7 @@ import Navbar from '@/components/Layout/Navbar';
 import Map from '@/components/UI/Map'; // Map Integration
 import styles from './dashboard.module.css';
 
-export default function BusinessDashboard() {
+const DashboardContent = () => {
     const { user, loading, updateUser } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -516,5 +516,17 @@ export default function BusinessDashboard() {
                 </div>
             </div>
         </main>
+    );
+};
+
+export default function BusinessDashboard() {
+    return (
+        <React.Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0f0f', color: 'white' }}>
+                <p>Loading Dashboard...</p>
+            </div>
+        }>
+            <DashboardContent />
+        </React.Suspense>
     );
 }
