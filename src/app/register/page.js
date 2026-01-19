@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [accountType, setAccountType] = useState('player');
   const [error, setError] = useState('');
   const { register } = useAuth();
   const router = useRouter();
@@ -21,9 +22,13 @@ export default function RegisterPage() {
     setError('');
     setIsSubmitting(true);
 
-    const result = await register(name, email, password);
+    const result = await register(name, email, password, accountType);
     if (result.success) {
-      router.push('/profile');
+      if (accountType === 'business') {
+        router.push('/business/dashboard');
+      } else {
+        router.push('/profile');
+      }
     } else {
       setError(result.error || 'Registration failed');
       setIsSubmitting(false);
@@ -45,11 +50,46 @@ export default function RegisterPage() {
             </div>
           )}
 
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button
+              type="button"
+              onClick={() => setAccountType('player')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '8px',
+                border: accountType === 'player' ? '2px solid var(--color-primary)' : '1px solid var(--border-glass)',
+                background: accountType === 'player' ? 'rgba(var(--color-primary-rgb), 0.1)' : 'transparent',
+                color: 'white',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Player
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountType('business')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '8px',
+                border: accountType === 'business' ? '2px solid var(--color-primary)' : '1px solid var(--border-glass)',
+                background: accountType === 'business' ? 'rgba(var(--color-primary-rgb), 0.1)' : 'transparent',
+                color: 'white',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Business
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit}>
             <div className={styles.formGroup}>
               <label className={styles.label}>Full Name</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -60,8 +100,8 @@ export default function RegisterPage() {
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Email Address</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -69,11 +109,11 @@ export default function RegisterPage() {
                 placeholder="you@example.com"
               />
             </div>
-            
+
             <div className={styles.formGroup} style={{ marginBottom: '2.5rem' }}>
               <label className={styles.label}>Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -82,8 +122,8 @@ export default function RegisterPage() {
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className={`btn-primary ${styles.submitBtn}`}
               disabled={isSubmitting}
               style={{ opacity: isSubmitting ? 0.7 : 1 }}

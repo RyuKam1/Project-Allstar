@@ -1,0 +1,406 @@
+.container {
+    min-height: 100vh;
+    padding-bottom: 4rem;
+}
+
+.loading,
+.notFound {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    font-size: 1.25rem;
+    color: var(--text-muted);
+}
+
+/* Hero Section */
+.hero {
+    position: relative;
+    height: 400px;
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+}
+
+.heroImageContainer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.heroImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.heroOverlay {
+    position: absolute;
+    inset: 0;
+    /* 
+       Layer 1: Fade to bottom (background color)
+       Layer 2: Subtle theme tint overlay
+    */
+    background:
+        linear-gradient(to bottom, transparent 0%, var(--bg-deep) 100%),
+        linear-gradient(to bottom, rgba(var(--color-primary-rgb), 0.15), rgba(var(--color-primary-rgb), 0.05));
+    pointer-events: none;
+}
+
+.heroContent {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.badges {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.officialBadge,
+.communityBadge {
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.officialBadge {
+    background: rgba(var(--color-primary-rgb), 0.8);
+    border: 1px solid var(--color-primary);
+}
+
+.communityBadge {
+    background: rgba(var(--color-accent-rgb), 0.8);
+    border: 1px solid var(--color-accent);
+}
+
+.title {
+    font-size: 3rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 1rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    line-height: 1.1;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.rating {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sportTag {
+    padding: 0.35rem 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.activeIndicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(var(--color-primary-rgb), 0.9);
+    border-radius: 12px;
+    color: white;
+    font-weight: 700;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pulseDot {
+    width: 10px;
+    height: 10px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+}
+
+/* Content Grid */
+.contentGrid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.mainColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+.section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+.sectionTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 1.5rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border-glass);
+    padding-bottom: 1rem;
+}
+
+.description {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+}
+
+.playHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-glass);
+    padding-bottom: 1rem;
+}
+
+.playHeader .sectionTitle {
+    border-bottom: none;
+    margin: 0;
+    padding: 0;
+}
+
+.actionGroup {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.btnProfessional {
+    background: #1a1a1a;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: var(--btn-radius);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btnProfessional:hover {
+    background: #000;
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+}
+
+/* Sidebar */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: relative;
+}
+
+/* Make individual cards sticky so they stack */
+.sidebar>div {
+    position: sticky;
+    top: 100px;
+    z-index: 10;
+    padding-bottom: 10px;
+    /* Spacing for stacking */
+}
+
+/* If there are multiple cards, we might want to wrap them or sticky the last one?
+   For now, sticky each card stacks them.
+   Better: Wrap sidebar content in a sticky container if the design allows.
+*/
+.sidebarContainerInternal {
+    position: sticky;
+    top: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Scrollbar styling for sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.sidebarCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px;
+    padding: 1.5rem;
+    flex-shrink: 0;
+}
+
+.sidebarCard h3 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    color: var(--text-main);
+}
+
+.sidebarCard h3 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    color: var(--text-main);
+}
+
+.miniMap {
+    width: 100%;
+    height: 150px;
+    background: #333;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.address {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.directionsLink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    gap: 8px;
+    /* Gap handled by flex instead of margin on svg */
+}
+
+/* Remove manual margin from inline style if transferred to CSS, 
+   but since I put style={{marginRight: '8px'}} in JS, this gap is additive or ignored. 
+   Better to rely on gap here. I will instruct to remove inline style in next step or ignore. 
+   Actually, flex gap is cleaner. */
+
+.directionsLink:hover {
+    background: rgba(var(--color-primary-rgb), 0.15);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.directionsLink svg {
+    transition: transform 0.2s ease;
+}
+
+.directionsLink:hover svg {
+    transform: rotate(45deg);
+    /* Pointing animation */
+}
+
+.secondaryButton {
+    width: 100%;
+    padding: 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.secondaryButton:hover {
+    border-color: var(--text-main);
+    color: var(--text-main);
+}
+
+/* Reviews */
+.textLink {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+    .contentGrid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .hero {
+        height: 300px;
+    }
+
+    .title {
+        font-size: 2rem;
+    }
+
+    .section {
+        padding: 1.5rem;
+    }
+
+    .contentGrid {
+        padding: 0 1rem;
+    }
+}

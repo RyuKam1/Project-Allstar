@@ -62,6 +62,17 @@
   flex-wrap: wrap;
 }
 
+.ratingMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ratingText {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
 .contentGrid {
   margin-top: clamp(1.5rem, 5vw, 3rem);
   display: grid;
@@ -89,7 +100,8 @@
   .bookingCard {
     position: static;
     margin-top: 1rem;
-    order: -1; /* Keep booking info high? or keep natural flow? usually natural flow is better if it's long */
+    order: -1;
+    /* Keep booking info high? or keep natural flow? usually natural flow is better if it's long */
   }
 }
 
@@ -183,10 +195,9 @@
 
 .bookingCard {
   padding: 2rem;
-  position: sticky;
-  top: 100px;
   background: rgba(20, 20, 31, 0.8);
   backdrop-filter: blur(10px);
+  margin-bottom: 1.5rem;
 }
 
 .bookingTitle {
@@ -204,7 +215,7 @@
 .priceBox {
   margin-bottom: 1.5rem;
   padding: 1.25rem;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   border: 1px solid var(--border-glass);
 }
@@ -233,4 +244,83 @@
 
 .hidden {
   display: none;
+}
+
+/* Review Section Styles */
+.reviewsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.shareExperienceButton {
+  font-size: 0.9rem;
+  padding: 10px 20px;
+  white-space: nowrap;
+}
+
+.reviewFormContainer {
+  margin-bottom: 2rem;
+}
+
+.userReviewNotice {
+  padding: 1rem 1.5rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.userReviewNotice p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.editLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+  transition: color 0.2s ease;
+}
+
+.editLink:hover {
+  color: var(--accent-hover);
+}
+
+.loadingReviews {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.reviewStatsContainer {
+  background: rgba(20, 20, 31, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+/* Sticky sidebar container */
+.sidebarSticky {
+  position: sticky;
+  top: 100px;
+  align-self: flex-start;
+}
+
+@media (max-width: 768px) {
+  .reviewsHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .shareExperienceButton {
+    width: 100%;
+  }
 }

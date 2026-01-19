@@ -4,24 +4,24 @@
   /* ================= DEFAULT (Original) ================= */
   --font-main: 'Inter', sans-serif;
   --font-header: 'Inter', sans-serif;
-  
+
   --color-primary: #6366f1;
   --color-primary-rgb: 99, 102, 241;
   --color-primary-dim: #4f46e5;
   --color-accent: #ec4899;
   --color-accent-rgb: 236, 72, 153;
-  
+
   --bg-deep: #050507;
   --bg-card: rgba(255, 255, 255, 0.03);
   --bg-overlay: rgba(20, 20, 30, 0.4);
-  
+
   --border-glass: rgba(255, 255, 255, 0.1);
   --border-radius: 16px;
   --btn-radius: 99px;
-  
+
   --text-main: #ffffff;
   --text-muted: #a0a0b0;
-  
+
   --container-width: 1200px;
   --container-padding: 20px;
   --header-height: 80px;
@@ -35,27 +35,27 @@
 [data-theme='tactical'] {
   --font-main: 'Rajdhani', sans-serif;
   --font-header: 'Share Tech Mono', monospace;
-  
+
   --color-primary: #00ff9d;
   --color-primary-rgb: 0, 255, 157;
   --color-primary-dim: #00cc7d;
   --color-accent: #ffae00;
   --color-accent-rgb: 255, 174, 0;
-  
+
   --bg-deep: #0a0a0c;
   --bg-card: rgba(0, 25, 10, 0.6);
   --bg-overlay: rgba(0, 0, 0, 0.8);
-  
+
   --border-glass: #00ff9d;
   --border-radius: 2px;
   --btn-radius: 0;
 
   --text-main: #e0e0e0;
   --text-muted: #889988;
-  
+
   --btn-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
   --panel-backdrop: blur(4px);
-  --background-image: 
+  --background-image:
     linear-gradient(rgba(0, 255, 157, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 255, 157, 0.05) 1px, transparent 1px);
   --background-size: 40px 40px;
@@ -65,23 +65,23 @@
 [data-theme='kingdom'] {
   --font-main: 'Inter', sans-serif;
   --font-header: 'Cinzel', serif;
-  
+
   --color-primary: #d4af37;
   --color-primary-rgb: 212, 175, 55;
   --color-primary-dim: #8a7020;
   --color-accent: #4a0404;
   --color-accent-rgb: 74, 4, 4;
-  
+
   --bg-deep: #050505;
   --bg-card: #0f1012;
-  
+
   --border-glass: #8a7020;
   --border-radius: 4px;
   --btn-radius: 2px;
-  
+
   --text-main: #e2e8f0;
   --text-muted: #94a3b8;
-  
+
   --btn-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
 }
 
@@ -89,21 +89,21 @@
 [data-theme='nightcity'] {
   --font-main: 'Montserrat', sans-serif;
   --font-header: 'Barlow Condensed', sans-serif;
-  
+
   --color-primary: #3b82f6;
   --color-primary-rgb: 59, 130, 246;
   --color-primary-dim: #1d4ed8;
   --color-accent: #8b5cf6;
   --color-accent-rgb: 139, 92, 246;
-  
+
   --bg-deep: #0f172a;
   --bg-card: rgba(30, 41, 59, 0.7);
-  
+
   --border-glass: rgba(255, 255, 255, 0.1);
   --border-radius: 0 16px 0 16px;
   --btn-radius: 0 12px 0 12px;
-  
-  --background-image: 
+
+  --background-image:
     radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15), transparent 40%),
     radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15), transparent 40%);
 }
@@ -111,135 +111,158 @@
 /* ================= PRO LEAGUE (Cinematic Sports) ================= */
 [data-theme='pro'] {
   --font-main: 'Inter', sans-serif;
-  --font-header: 'Teko', sans-serif; /* Tall, athletic font */
-  
-  --color-primary: #ff4400; /* Nike Orange */
+  --font-header: 'Teko', sans-serif;
+  /* Tall, athletic font */
+
+  --color-primary: #ff4400;
+  /* Nike Orange */
   --color-primary-rgb: 255, 68, 0;
   --color-primary-dim: #cc3700;
   --color-accent: #000000;
   --color-accent-rgb: 0, 0, 0;
-  
-  --bg-deep: #eef2f6; /* LIGHT MODE! Or very light grey */
+
+  --bg-deep: #eef2f6;
+  /* LIGHT MODE! Or very light grey */
   --bg-card: #ffffff;
-  
+
   --border-glass: #e0e0e0;
-  --border-radius: 4px; /* Sharp but standard */
+  --border-radius: 4px;
+  /* Sharp but standard */
   --btn-radius: 0;
-  
+
   --text-main: #111111;
   --text-muted: #555555;
-  
-  --btn-shadow: 4px 4px 0px rgba(0,0,0,1); /* Hard shadow */
-  
+
+  --btn-shadow: 4px 4px 0px rgba(0, 0, 0, 1);
+  /* Hard shadow */
+
   /* Diagonal stripes background */
-  --background-image: repeating-linear-gradient(
-    45deg,
-    #ffffff,
-    #ffffff 10px,
-    #f0f0f0 10px,
-    #f0f0f0 20px
-  );
+  --background-image: repeating-linear-gradient(45deg,
+      #ffffff,
+      #ffffff 10px,
+      #f0f0f0 10px,
+      #f0f0f0 20px);
 }
+
 /* Override Dark/Light specifics for Pro League later in CSS */
 
 /* ================= SYNTHWAVE (Retro) ================= */
 [data-theme='retro'] {
   --font-main: 'Share Tech Mono', monospace;
   --font-header: 'Orbitron', sans-serif;
-  
-  --color-primary: #ff00ff; /* Magenta */
+
+  --color-primary: #ff00ff;
+  /* Magenta */
   --color-primary-rgb: 255, 0, 255;
   --color-primary-dim: #cc00cc;
-  --color-accent: #00ffff; /* Cyan */
+  --color-accent: #00ffff;
+  /* Cyan */
   --color-accent-rgb: 0, 255, 255;
-  
+
   --bg-deep: #1a001a;
   --bg-card: rgba(40, 0, 40, 0.6);
-  
+
   --border-glass: #ff00ff;
   --border-radius: 0;
   --btn-radius: 0;
-  
-  --background-image: 
+
+  --background-image:
     linear-gradient(rgba(255, 0, 255, 0.1) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
   --background-size: 50px 50px;
-  
+
   --btn-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
 }
 
 /* ================= MINIMAL PERFORMANCE TECH ================= */
 [data-theme='minimal'] {
   --font-main: 'Inter', sans-serif;
-  --font-header: 'Inter', sans-serif; /* Uncomplicated */
-  
-  --color-primary: #f8fafc; /* Near White */
+  --font-header: 'Inter', sans-serif;
+  /* Uncomplicated */
+
+  --color-primary: #f8fafc;
+  /* Near White */
   --color-primary-rgb: 248, 250, 252;
   --color-primary-dim: #e2e8f0;
   --color-accent: #94a3b8;
   --color-accent-rgb: 148, 163, 184;
-  
-  --bg-deep: #000000; /* Pure Black */
-  --bg-card: #111111; /* Dark Gray */
-  
+
+  --bg-deep: #000000;
+  /* Pure Black */
+  --bg-card: #111111;
+  /* Dark Gray */
+
   --border-glass: #333333;
-  --border-radius: 4px; /* Precise */
+  --border-radius: 4px;
+  /* Precise */
   --btn-radius: 4px;
-  
+
   --text-main: #f8fafc;
   --text-muted: #64748b;
-  
-  --btn-shadow: none; /* Flat UI */
-  --panel-backdrop: none; /* No blur/glass, solid engineering */
-  --background-image: none; /* No decoration */
+
+  --btn-shadow: none;
+  /* Flat UI */
+  --panel-backdrop: none;
+  /* No blur/glass, solid engineering */
+  --background-image: none;
+  /* No decoration */
 }
 
 /* ================= STREET SPORT / PICKUP ================= */
 [data-theme='street'] {
   --font-main: 'Montserrat', sans-serif;
-  --font-header: 'Teko', sans-serif; /* Bold, Compressed */
-  
-  --color-primary: #fbbf24; /* Amber/Signal Yellow */
+  --font-header: 'Teko', sans-serif;
+  /* Bold, Compressed */
+
+  --color-primary: #fbbf24;
+  /* Amber/Signal Yellow */
   --color-primary-rgb: 251, 191, 36;
   --color-primary-dim: #d97706;
   --color-accent: #111111;
   --color-accent-rgb: 17, 17, 17;
-  
-  --bg-deep: #1c1917; /* Warm Dark Concrete */
+
+  --bg-deep: #1c1917;
+  /* Warm Dark Concrete */
   --bg-card: #292524;
-  
+
   --border-glass: #44403c;
   --border-radius: 0;
   --btn-radius: 0;
-  
+
   --text-main: #fafaf9;
   --text-muted: #a8a29e;
-  
-  --btn-shadow: 4px 4px 0 #000; /* Hard shadow */
-  
+
+  --btn-shadow: 4px 4px 0 #000;
+  /* Hard shadow */
+
   /* Subtle Grain Texture */
-  --background-image: scanning-line-gradient; /* Placeholder, CSS noise is hard without image */
+  --background-image: scanning-line-gradient;
+  /* Placeholder, CSS noise is hard without image */
 }
 
 /* ================= URBAN UTILITY ================= */
 [data-theme='utility'] {
   --font-main: 'Inter', sans-serif;
   --font-header: 'Inter', sans-serif;
-  
-  --color-primary: #a3e635; /* Neon Lime */
+
+  --color-primary: #a3e635;
+  /* Neon Lime */
   --color-primary-dim: #65a30d;
   --color-accent: #1e293b;
-  
-  --bg-deep: #18181b; /* Zinc 950 */
-  --bg-card: #27272a; /* Zinc 800 */
-  
+
+  --bg-deep: #18181b;
+  /* Zinc 950 */
+  --bg-card: #27272a;
+  /* Zinc 800 */
+
   --border-glass: #3f3f46;
-  --border-radius: 8px; /* Touch friendly */
+  --border-radius: 8px;
+  /* Touch friendly */
   --btn-radius: 8px;
-  
+
   --text-main: #ffffff;
   --text-muted: #a1a1aa;
-  
+
   --btn-shadow: none;
   --panel-backdrop: none;
   --btn-shadow: none;
@@ -250,29 +273,36 @@
 /* ================= MAXIMALIST (Art & Sport) ================= */
 [data-theme='maximalist'] {
   --font-main: 'Montserrat', sans-serif;
-  --font-header: 'Teko', sans-serif; /* Tall, athletic, loud */
-  
-  --color-primary: #ccff00; /* Electric Volt */
+  --font-header: 'Teko', sans-serif;
+  /* Tall, athletic, loud */
+
+  --color-primary: #ccff00;
+  /* Electric Volt */
   --color-primary-rgb: 204, 255, 0;
   --color-primary-dim: #a3cc00;
-  --color-accent: #ff0099; /* Hot Pink */
+  --color-accent: #ff0099;
+  /* Hot Pink */
   --color-accent-rgb: 255, 0, 153;
-  
-  --bg-deep: #120a2e; /* Deep Violet */
-  --bg-card: rgba(255, 255, 255, 0.03); /* Glassy */
-  
+
+  --bg-deep: #120a2e;
+  /* Deep Violet */
+  --bg-card: rgba(255, 255, 255, 0.03);
+  /* Glassy */
+
   --border-glass: #ccff00;
-  --border-radius: 0px 16px 0px 16px; /* Sculptural */
+  --border-radius: 0px 16px 0px 16px;
+  /* Sculptural */
   --btn-radius: 4px;
-  
+
   --text-main: #ffffff;
   --text-muted: #d4d4dc;
-  
-  --btn-shadow: 6px 6px 0px #ff0099; /* Pop Art Shadow */
+
+  --btn-shadow: 6px 6px 0px #ff0099;
+  /* Pop Art Shadow */
   --panel-backdrop: blur(10px);
-  
+
   /* Abstract Sports Theory Pattern */
-  --background-image: 
+  --background-image:
     radial-gradient(circle at 10% 20%, rgba(204, 255, 0, 0.1), transparent 20%),
     radial-gradient(circle at 90% 80%, rgba(255, 0, 153, 0.1), transparent 20%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 2px, transparent 2px, transparent 10px);
@@ -282,27 +312,27 @@
 /* ================= THEME SPECIFIC OVERRIDES ================= */
 :root {
   /* Default Blue Glow */
-  --hero-glow: radial-gradient(circle, rgba(99,102,241,0.2) 0%, rgba(0,0,0,0) 70%); 
-  
-  --btn-secondary-bg: rgba(255,255,255,0.05);
+  --hero-glow: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+
+  --btn-secondary-bg: rgba(255, 255, 255, 0.05);
   --btn-secondary-border: var(--border-glass);
   --btn-secondary-text: white;
 }
 
 [data-theme='tactical'] {
-  --hero-glow: radial-gradient(circle, rgba(0, 255, 157, 0.15) 0%, rgba(0,0,0,0) 70%);
+  --hero-glow: radial-gradient(circle, rgba(0, 255, 157, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 [data-theme='nightcity'] {
-  --hero-glow: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(0,0,0,0) 70%);
+  --hero-glow: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 [data-theme='retro'] {
-  --hero-glow: radial-gradient(circle, rgba(255, 0, 255, 0.2) 0%, rgba(0,0,0,0) 70%);
+  --hero-glow: radial-gradient(circle, rgba(255, 0, 255, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 [data-theme='maximalist'] {
-  --hero-glow: radial-gradient(circle, rgba(204, 255, 0, 0.2) 0%, rgba(0,0,0,0) 70%);
+  --hero-glow: radial-gradient(circle, rgba(204, 255, 0, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 /* Themes with NO Glow */
@@ -317,8 +347,8 @@
 /* Pro League Text Fixes */
 [data-theme='pro'] {
   --text-main: #111111;
-  --text-muted: #444444; 
-  --btn-secondary-bg: rgba(0,0,0,0.05);
+  --text-muted: #444444;
+  --btn-secondary-bg: rgba(0, 0, 0, 0.05);
   --btn-secondary-border: #999999;
   --btn-secondary-text: #111111;
 }
@@ -326,26 +356,26 @@
 [data-theme='pro'] a,
 [data-theme='pro'] p,
 [data-theme='pro'] span,
-[data-theme='pro'] h1, 
-[data-theme='pro'] h2, 
-[data-theme='pro'] h3, 
-[data-theme='pro'] h4, 
-[data-theme='pro'] h5, 
+[data-theme='pro'] h1,
+[data-theme='pro'] h2,
+[data-theme='pro'] h3,
+[data-theme='pro'] h4,
+[data-theme='pro'] h5,
 [data-theme='pro'] h6,
 [data-theme='pro'] button {
-    color: #111111;
+  color: #111111;
 }
 
 [data-theme='pro'] .primary-gradient-text {
-    /* Nike Orange Text for emphasis */
-    background: none;
-    -webkit-text-fill-color: initial;
-    color: var(--color-primary);
+  /* Nike Orange Text for emphasis */
+  background: none;
+  -webkit-text-fill-color: initial;
+  color: var(--color-primary);
 }
 
 /* Fix Navbar Links specifically which might be white */
 [data-theme='pro'] nav a {
-    color: #111111 !important;
+  color: #111111 !important;
 }
 
 /* Minimal Specifics */
@@ -358,7 +388,9 @@
 
 /* ================= GLOBAL STYLES Using Variables ================= */
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   color: var(--text-main);
@@ -372,7 +404,10 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-header);
 }
 
@@ -395,25 +430,39 @@ h1, h2, h3, h4 {
 /* Theme-Specific Panel Decorations */
 [data-theme='tactical'] .glass-panel::before,
 [data-theme='tactical'] .glass-panel::after {
-  content: ''; position: absolute; width: 10px; height: 10px;
-  border-color: var(--color-primary); border-style: solid;
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--color-primary);
+  border-style: solid;
 }
-[data-theme='tactical'] .glass-panel::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
-[data-theme='tactical'] .glass-panel::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+[data-theme='tactical'] .glass-panel::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+[data-theme='tactical'] .glass-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
 
 [data-theme='nightcity'] .glass-panel {
   border-left: 4px solid var(--color-primary);
 }
 
 [data-theme='pro'] .glass-panel {
-  box-shadow: 5px 5px 0px rgba(0,0,0,0.1);
+  box-shadow: 5px 5px 0px rgba(0, 0, 0, 0.1);
   border: 1px solid #ddd;
 }
 
 /* Buttons */
 .btn-primary {
   background: var(--color-primary);
-  color: white; 
+  color: white;
   border: none;
   padding: 12px 24px;
   border-radius: var(--btn-radius);
@@ -421,10 +470,60 @@ h1, h2, h3, h4 {
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: var(--btn-shadow);
   position: relative;
   overflow: hidden;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background: var(--btn-secondary-bg, rgba(255, 255, 255, 0.05));
+  color: var(--btn-secondary-text, white);
+  border: 2px solid var(--btn-secondary-border, var(--border-glass));
+  padding: 12px 24px;
+  border-radius: var(--btn-radius);
+  font-family: var(--font-header);
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+  background: rgba(var(--color-primary-rgb), 0.15);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 [data-theme='tactical'] .btn-primary {
@@ -432,6 +531,7 @@ h1, h2, h3, h4 {
   color: var(--color-primary);
   border: 1px solid var(--color-primary);
 }
+
 [data-theme='tactical'] .btn-primary:hover {
   background: var(--color-primary);
   color: black;
@@ -453,6 +553,7 @@ h1, h2, h3, h4 {
   border: 2px solid black;
   box-shadow: 4px 4px 0 var(--color-primary);
 }
+
 [data-theme='pro'] .btn-primary:hover {
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 var(--color-primary);
@@ -465,6 +566,7 @@ h1, h2, h3, h4 {
   font-weight: 600;
   letter-spacing: -0.5px;
 }
+
 [data-theme='minimal'] .btn-primary:hover {
   background: #e2e8f0;
 }
@@ -475,8 +577,9 @@ h1, h2, h3, h4 {
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+
 [data-theme='street'] .glass-panel {
-    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 2px, transparent 2px, transparent 4px);
+  background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.05) 0px, rgba(0, 0, 0, 0.05) 2px, transparent 2px, transparent 4px);
 }
 
 [data-theme='utility'] .btn-primary {
@@ -494,19 +597,23 @@ h1, h2, h3, h4 {
   border: 2px solid transparent;
   transform: skew(-5deg);
 }
+
 [data-theme='maximalist'] .btn-primary:hover {
   transform: skew(-5deg) translate(-2px, -2px);
   box-shadow: 8px 8px 0 var(--color-accent);
   background: white;
 }
+
 [data-theme='maximalist'] .glass-panel {
   border: 1px solid var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-accent); /* Double border effect */
+  box-shadow: 0 0 0 1px var(--color-accent);
+  /* Double border effect */
 }
 
 .primary-gradient-text {
   color: var(--color-primary);
 }
+
 /* Re-enable gradient for Default */
 [data-theme='default'] .primary-gradient-text {
   background: linear-gradient(135deg, #6366f1, #ec4899);
@@ -514,6 +621,7 @@ h1, h2, h3, h4 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
 /* Text Shadow for others */
 [data-theme='tactical'] .primary-gradient-text {
   text-shadow: 0 0 10px var(--color-primary);
@@ -528,7 +636,28 @@ h1, h2, h3, h4 {
 
 /* ================= MAP THEMING ================= */
 .leaflet-container {
-    background: var(--bg-deep) !important;
+  background: var(--bg-deep) !important;
+}
+
+@keyframes markerPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.7);
+  }
+
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(var(--color-primary-rgb), 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0);
+  }
+}
+
+.custom-venue-marker div {
+  animation: markerPulse 3s infinite;
 }
 
 /* Default: Neural Dark (No Filter) */
@@ -537,66 +666,69 @@ h1, h2, h3, h4 {
 
 /* Tactical: Green Night Vision */
 [data-theme='tactical'] .leaflet-tile-pane {
-    /* Lift brightness high to expose roads, then tint. Low contrast prevents crushing. */
-    filter: brightness(1.6) sepia(1) hue-rotate(80deg) saturate(2) contrast(0.9);
+  /* Lift brightness high to expose roads, then tint. Low contrast prevents crushing. */
+  filter: brightness(1.6) sepia(1) hue-rotate(80deg) saturate(2) contrast(0.9);
 }
+
 [data-theme='tactical'] .custom-venue-marker div {
-    background-color: var(--color-primary) !important;
-    border-color: black !important;
-    border-radius: 0 !important;
-    color: black !important;
+  background-color: var(--color-primary) !important;
+  border-color: black !important;
+  border-radius: 0 !important;
+  color: black !important;
 }
 
 /* Kingdom: Aged Parchment */
 [data-theme='kingdom'] .leaflet-tile-pane {
-    filter: sepia(0.6) brightness(1.1) contrast(0.9);
+  filter: sepia(0.6) brightness(1.1) contrast(0.9);
 }
+
 [data-theme='kingdom'] .leaflet-container {
-    border: 2px solid var(--border-glass);
+  border: 2px solid var(--border-glass);
 }
 
 /* Night City: Cyberpunk Blue */
 [data-theme='nightcity'] .leaflet-tile-pane {
-    filter: brightness(1.3) sepia(1) hue-rotate(190deg) saturate(2) contrast(1.0);
+  filter: brightness(1.3) sepia(1) hue-rotate(190deg) saturate(2) contrast(1.0);
 }
 
 /* Pro League: High Contrast Grayscale */
 [data-theme='pro'] .leaflet-tile-pane {
-    /* Pro uses Light Mode UI so lighter map is okay, but let's keep it legible */
-    filter: grayscale(1) brightness(1.4) contrast(1.0);
-    opacity: 0.9;
+  /* Pro uses Light Mode UI so lighter map is okay, but let's keep it legible */
+  filter: grayscale(1) brightness(1.4) contrast(1.0);
+  opacity: 0.9;
 }
 
 /* Retro: Synthwave Pink/Purple */
 [data-theme='retro'] .leaflet-tile-pane {
-    /* Brightness helps neons pop without hiding roads */
-    filter: brightness(1.4) sepia(1) hue-rotate(240deg) saturate(2.5) contrast(0.9);
+  /* Brightness helps neons pop without hiding roads */
+  filter: brightness(1.4) sepia(1) hue-rotate(240deg) saturate(2.5) contrast(0.9);
 }
 
 /* Minimal: Dark Tech (Precision) */
 [data-theme='minimal'] .leaflet-tile-pane {
-    /* Pure monochrome, lifted blacks for visibility */
-    filter: grayscale(100%) brightness(1.4) contrast(0.9);
+  /* Pure monochrome, lifted blacks for visibility */
+  filter: grayscale(100%) brightness(1.4) contrast(0.9);
 }
 
 /* Street: Gritty Warmth */
 [data-theme='street'] .leaflet-tile-pane {
-    /* Warm concrete, slightly faded for realism */
-    filter: sepia(0.2) brightness(1.3) contrast(0.95);
+  /* Warm concrete, slightly faded for realism */
+  filter: sepia(0.2) brightness(1.3) contrast(0.95);
 }
 
 /* Utility: Clear & Functional */
 [data-theme='utility'] .leaflet-tile-pane {
-    filter: grayscale(0.8) brightness(1.3) contrast(1.0);
+  filter: grayscale(0.8) brightness(1.3) contrast(1.0);
 }
 
 /* Maximalist: High Energy Pop */
 [data-theme='maximalist'] .leaflet-tile-pane {
-    /* Deep purple/blue tint with high contrast */
-    filter: sepia(1) hue-rotate(200deg) saturate(3) brightness(1.2) contrast(0.9);
+  /* Deep purple/blue tint with high contrast */
+  filter: sepia(1) hue-rotate(200deg) saturate(3) brightness(1.2) contrast(0.9);
 }
+
 [data-theme='maximalist'] .leaflet-container {
-    background: #120a2e !important;
+  background: #120a2e !important;
 }
 
 /* ================= RESPONSIVE DESIGN ================= */
@@ -614,9 +746,10 @@ h1, h2, h3, h4 {
     --container-padding: 16px;
     --header-height: 70px;
   }
-  
+
   html {
-    font-size: 15px; /* Slightly smaller base font for mobile */
+    font-size: 15px;
+    /* Slightly smaller base font for mobile */
   }
 }
 
@@ -643,23 +776,44 @@ h1, h2, h3, h4 {
 
 /* Touch-Friendly Buttons */
 @media (max-width: 768px) {
+
   .btn-primary,
   .btn-secondary,
   button {
-    min-height: 48px; /* Better for fat fingers */
+    min-height: 48px;
+    /* Better for fat fingers */
     padding: 12px 24px;
   }
 }
 
 /* Responsive Typography */
-h1 { font-size: clamp(2.5rem, 8vw, 4.5rem); line-height: 1.1; }
-h2 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.2; }
-h3 { font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.3; }
+h1 {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.2;
+}
+
+h3 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.3;
+}
 
 @media (max-width: 768px) {
-  h1 { font-size: clamp(2rem, 10vw, 3rem); }
-  h2 { font-size: clamp(1.75rem, 8vw, 2.5rem); }
-  h3 { font-size: clamp(1.25rem, 6vw, 1.75rem); }
+  h1 {
+    font-size: clamp(2rem, 10vw, 3rem);
+  }
+
+  h2 {
+    font-size: clamp(1.75rem, 8vw, 2.5rem);
+  }
+
+  h3 {
+    font-size: clamp(1.25rem, 6vw, 1.75rem);
+  }
 }
 
 /* Utility: Stack on Mobile */
@@ -734,12 +888,15 @@ select:focus-visible {
 
 /* Ensure sufficient color contrast */
 :root {
-  --text-muted: #b0b0c0; /* Improved from #a0a0b0 for better contrast */
+  --text-muted: #b0b0c0;
+  /* Improved from #a0a0b0 for better contrast */
 }
 
 [data-theme='pro'] {
-  --text-muted: #555555; /* Improved from #444444 */
+  --text-muted: #555555;
+  /* Improved from #444444 */
 }
+
 /* Pills Filter Bar - Redesigned */
 .filter-group {
   display: flex;
@@ -852,7 +1009,8 @@ select:focus-visible {
 }
 
 [data-theme='maximalist'] .filter-pill {
-  border-radius: 99px; /* Pill shape but extreme */
+  border-radius: 99px;
+  /* Pill shape but extreme */
   border: 2px solid var(--color-primary);
   background: transparent;
   text-transform: uppercase;

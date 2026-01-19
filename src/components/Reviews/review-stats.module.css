@@ -1,0 +1,109 @@
+.statsCard {
+    padding: 1.5rem;
+}
+
+.overallRating {
+    text-align: center;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.ratingNumber {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.ratingStars {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.totalReviews {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.distribution {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.distributionRow {
+    display: grid;
+    grid-template-columns: 50px 1fr 40px;
+    align-items: center;
+    gap: 1rem;
+}
+
+.starLabel {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.starIcon {
+    color: #fbbf24;
+    font-size: 1rem;
+}
+
+.barContainer {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.bar {
+    height: 100%;
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.count {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+/* No Reviews State */
+.noReviews {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.noReviewsIcon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.noReviewsText {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .statsCard {
+        padding: 1rem;
+    }
+
+    .ratingNumber {
+        font-size: 2.5rem;
+    }
+
+    .distributionRow {
+        grid-template-columns: 45px 1fr 35px;
+        gap: 0.75rem;
+    }
+}

@@ -22,7 +22,11 @@ export default function LoginPage() {
 
     const result = await login(email, password);
     if (result.success) {
-      router.push('/profile');
+      if (result.user?.account_type === 'business') {
+        router.push('/business/dashboard');
+      } else {
+        router.push('/profile');
+      }
     } else {
       setError(result.error || 'Login failed');
       setIsSubmitting(false);
@@ -47,8 +51,8 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit}>
             <div className={styles.formGroup}>
               <label className={styles.label}>Email Address</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -56,11 +60,11 @@ export default function LoginPage() {
                 placeholder="you@example.com"
               />
             </div>
-            
+
             <div className={styles.formGroup} style={{ marginBottom: '2.5rem' }}>
               <label className={styles.label}>Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -69,8 +73,8 @@ export default function LoginPage() {
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className={`btn-primary ${styles.submitBtn}`}
               disabled={isSubmitting}
               style={{ opacity: isSubmitting ? 0.7 : 1 }}

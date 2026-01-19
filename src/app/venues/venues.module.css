@@ -10,6 +10,10 @@
 .header {
   margin-bottom: clamp(1.5rem, 5vw, 3rem);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .title {
@@ -24,6 +28,40 @@
   margin: 0 auto;
   font-size: clamp(0.9rem, 2vw, 1.1rem);
   line-height: 1.6;
+}
+
+.addLocationBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  border-radius: 50px;
+  color: var(--color-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.addLocationBtn:hover {
+  transform: translateY(-2px);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  box-shadow: 0 6px 15px rgba(var(--color-primary-rgb), 0.2);
+}
+
+.addLocationBtn.active {
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.mapWrapper {
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .filters {
@@ -43,11 +81,13 @@
     padding-bottom: 1rem;
     margin-bottom: 2rem;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: none;
+    /* Firefox */
   }
-  
+
   .filters::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    display: none;
+    /* Chrome/Safari */
   }
 
   .filterButton {
@@ -77,7 +117,27 @@
 .filterButtonActive {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: white !important; /* Active state always white for contrast on colored bg */
+  color: white !important;
+  /* Active state always white for contrast on colored bg */
   font-weight: 700;
   box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animateCard {
+  opacity: 0;
+  /* Start hidden until anim starts */
+  animation: fadeInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }

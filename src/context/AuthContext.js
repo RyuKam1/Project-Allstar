@@ -11,16 +11,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Check for persisted user on mount
     const loadUser = async () => {
-        try {
-            const storedUser = await authService.getCurrentUser();
-            if (storedUser) {
-                setUser(storedUser);
-            }
-        } catch (e) {
-            console.error("Session restore failed", e);
-        } finally {
-            setLoading(false);
+      try {
+        const storedUser = await authService.getCurrentUser();
+        if (storedUser) {
+          setUser(storedUser);
         }
+      } catch (e) {
+        console.error("Session restore failed", e);
+      } finally {
+        setLoading(false);
+      }
     };
     loadUser();
   }, []);
@@ -29,17 +29,17 @@ export function AuthProvider({ children }) {
     try {
       const user = await authService.login(email, password);
       setUser(user);
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       return { success: false, error: error.message };
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, accountType) => {
     try {
-      const user = await authService.register(name, email, password);
+      const user = await authService.register(name, email, password, accountType);
       setUser(user);
-      return { success: true };
+      return { success: true, user };
     } catch (error) {
       return { success: false, error: error.message };
     }

@@ -1,0 +1,227 @@
+.timePicker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Quick Options */
+.quickOptions {
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.quickButton {
+    padding: 0.5rem 1rem;
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+    border-radius: 20px;
+    color: var(--color-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quickButton:hover {
+    background: rgba(var(--color-primary-rgb), 0.2);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+}
+
+/* Time Display */
+.timeDisplay {
+    text-align: center;
+    width: 100%;
+}
+
+.timeText {
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-family: var(--font-header);
+    color: var(--color-primary);
+    margin-bottom: 0.75rem;
+    letter-spacing: 2px;
+}
+
+.modeToggle {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.modeButton {
+    padding: 0.4rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modeButton.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+/* Circular Clock */
+.clock {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: rgba(var(--color-primary-rgb), 0.05);
+    border: 2px solid rgba(var(--color-primary-rgb), 0.2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.clockCenter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    background: var(--color-primary);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.clockHand {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    width: 2px;
+    height: 90px;
+    background: var(--color-primary);
+    transform-origin: bottom center;
+    /* Removed transition for instant tracking during drag - fixes 11->12 rotation glitch */
+    transition: none;
+    z-index: 1;
+    /* Behind numbers */
+    box-shadow: 0 0 4px rgba(var(--color-primary-rgb), 0.4);
+    pointer-events: none;
+    /* Let clicks pass through to container */
+}
+
+/* Removed ::before bubble tip to let the number itself be the "bubble" */
+
+.clockNumber {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: background-color 0.2s ease, color 0.2s ease;
+    /* Animate color only */
+    color: var(--text-main);
+    z-index: 3;
+    /* Above the hand */
+    cursor: pointer;
+}
+
+.clockNumber.selected {
+    background: var(--color-primary);
+    color: white;
+    /* Number stays visible on top of the color */
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.4);
+}
+
+.clockNumber:hover {
+    background: rgba(var(--color-primary-rgb), 0.15);
+}
+
+/* AM/PM Toggle */
+.ampmToggle {
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-glass);
+}
+
+.ampmButton {
+    padding: 0.5rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ampmButton.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+/* Confirm Button */
+.confirmButton {
+    width: 100%;
+    padding: 0.875rem;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--btn-radius);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.confirmButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.confirmButton:active {
+    transform: translateY(0);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .timePicker {
+        padding: 1rem;
+    }
+
+    .clock {
+        width: 240px;
+        height: 240px;
+    }
+
+    .clockHand {
+        height: 75px;
+    }
+
+    .timeText {
+        font-size: 2rem;
+    }
+
+    .clockNumber {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
+    }
+}

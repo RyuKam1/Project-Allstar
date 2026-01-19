@@ -1,4 +1,5 @@
 import { venues as staticVenues } from "@/lib/venues";
+import { userInteractionService } from "./userInteractionService";
 
 const STORAGE_KEY = 'allstar_venue_updates';
 
@@ -16,16 +17,17 @@ export const venueService = {
     return staticVenues.map(venue => {
       const venueUpdates = updates[venue.id] || {};
       const merged = { ...venue, ...venueUpdates };
-      
-      // Ensure the default image from the card is present in the gallery
-      const defaultImage = `/venues/${venue.name}.jpg`;
-      
+
+      // Ensure the default image (explicitly defined) is present in the gallery
+      // Fallback to name-based if 'image' is missing (which shouldn't happen with new data)
+      const defaultImage = venue.image || `/venues/${venue.name}.jpg`;
+
       if (!merged.gallery) {
         merged.gallery = [defaultImage];
       } else if (!merged.gallery.includes(defaultImage)) {
         merged.gallery = [defaultImage, ...merged.gallery];
       }
-      
+
       return merged;
     });
   },
@@ -42,10 +44,10 @@ export const venueService = {
 
     const storedUpdates = localStorage.getItem(STORAGE_KEY);
     const updates = storedUpdates ? JSON.parse(storedUpdates) : {};
-    
+
     // Initialize updates for this venue if not exists
     if (!updates[venueId]) updates[venueId] = {};
-    
+
     // Initialize gallery if not exists
     const currentGallery = updates[venueId].gallery || [];
     const newGallery = [...currentGallery, base64Image];
@@ -57,7 +59,10 @@ export const venueService = {
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updates));
-    
+
+    // Track image upload for review weighting
+    await userInteractionService.trackImageUpload(venueId);
+
     // Return updated venue details
     return venueService.getVenueById(venueId);
   }

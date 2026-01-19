@@ -7,7 +7,7 @@ export const venues = [
     location: "Downtown",
     rating: 4.8,
     price: "$50/hr",
-    imageGradient: "linear-gradient(45deg, #FF512F, #DD2476)",
+    image: "/venues/Thunderdome Arena.jpg",
     amenities: ["Lighting", "Seating", "Locker Rooms"],
     coordinates: [40.7128, -74.0060]
   },
@@ -19,7 +19,7 @@ export const venues = [
     location: "Westside",
     rating: 4.5,
     price: "$15/day",
-    imageGradient: "linear-gradient(45deg, #4776E6, #8E54E9)",
+    image: "/venues/Iron Pump Gym.jpg",
     amenities: ["Weights", "Cardio", "Sauna"],
     coordinates: [40.7300, -74.0200]
   },
@@ -31,7 +31,7 @@ export const venues = [
     location: "North Hills",
     rating: 4.9,
     price: "$80/match",
-    imageGradient: "linear-gradient(45deg, #11998e, #38ef7d)",
+    image: "/venues/Greenfield Soccer Park.jpg",
     amenities: ["Grass", "Parking", "Showers"],
     coordinates: [40.7500, -73.9800]
   },
@@ -43,7 +43,7 @@ export const venues = [
     location: "Skyline Heights",
     rating: 4.7,
     price: "$30/hr",
-    imageGradient: "linear-gradient(45deg, #f2994a, #f2c94c)",
+    image: "/venues/Sky Court Tennis.jpg",
     amenities: ["Hard Court", "Equipment Rental"],
     coordinates: [40.7600, -73.9500]
   },
@@ -55,7 +55,7 @@ export const venues = [
     location: "Urban District",
     rating: 4.2,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #FF416C, #FF4B2B)",
+    image: "/venues/City Hoop Park.jpg",
     amenities: ["Open Access", "Water Fountain"],
     coordinates: [40.7200, -73.9900]
   },
@@ -67,7 +67,7 @@ export const venues = [
     location: "River Bank",
     rating: 4.6,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #FDC830, #F37335)",
+    image: "/venues/Riverside Volleyball Sand.jpg",
     amenities: ["Sand Court", "Picnic Area"],
     coordinates: [40.7050, -74.0150]
   },
@@ -79,7 +79,7 @@ export const venues = [
     location: "Eastside",
     rating: 4.4,
     price: "$20/hr",
-    imageGradient: "linear-gradient(45deg, #3a1c71, #d76d77, #ffaf7b)",
+    image: "/venues/Grand Slam Batting Cages.jpg",
     amenities: ["Machine Pitch", "Gear Rental"],
     coordinates: [40.7400, -73.9200]
   },
@@ -91,7 +91,7 @@ export const venues = [
     location: "Midtown",
     rating: 4.9,
     price: "$10/visit",
-    imageGradient: "linear-gradient(45deg, #00c6ff, #0072ff)",
+    image: "/venues/AquaCenter Pool.jpg",
     amenities: ["Olympic Size", "Heated", "Lockers"],
     coordinates: [40.7550, -73.9950]
   },
@@ -104,9 +104,9 @@ export const venues = [
     location: "Maplewood",
     rating: 4.3,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #56ab2f, #a8e063)",
+    image: "/venues/Maplewood Community Park.jpg",
     amenities: ["Jogging Track", "Open Field"],
-    coordinates: [0, 0] // Placeholder
+    coordinates: [40.7800, -73.9600]
   },
   {
     id: 10,
@@ -116,9 +116,9 @@ export const venues = [
     location: "Sunset Bvld",
     rating: 4.1,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #cb2d3e, #ef473a)",
+    image: "/venues/Sunset Street Courts.jpg",
     amenities: ["Concrete Court", "Night Lights"],
-    coordinates: [0, 0]
+    coordinates: [40.6900, -73.9400]
   },
   {
     id: 11,
@@ -128,9 +128,9 @@ export const venues = [
     location: "Lakeside",
     rating: 4.8,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #1fa2ff, #12d8fa, #a6ffcb)",
+    image: "/venues/Lakeside Run Trail.jpg",
     amenities: ["Scenic View", "Trail"],
-    coordinates: [0, 0]
+    coordinates: [40.7700, -73.9700]
   },
   {
     id: 12,
@@ -140,9 +140,9 @@ export const venues = [
     location: "Old Town",
     rating: 4.0,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #add100, #7b920a)",
+    image: "/venues/Veteran's Memorial Field.jpg",
     amenities: ["Grass Field", "Seating"],
-    coordinates: [0, 0]
+    coordinates: [40.7100, -74.0500]
   },
   {
     id: 13,
@@ -152,8 +152,8 @@ export const venues = [
     location: "Eastside",
     rating: 4.7,
     price: "Free",
-    imageGradient: "linear-gradient(45deg, #232526, #414345)",
+    image: "/venues/Eastside Skate Park.jpg",
     amenities: ["Ramps", "Rails"],
-    coordinates: [0, 0]
+    coordinates: [40.7300, -73.9000]
   }
 ];

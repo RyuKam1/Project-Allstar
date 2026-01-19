@@ -20,19 +20,19 @@ export const authService = {
       .single();
 
     if (profileError) {
-        // Fallback if profile doesn't exist yet (rare race condition or migration issue)
-        return {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.name || 'User'
-        };
+      // Fallback if profile doesn't exist yet (rare race condition or migration issue)
+      return {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.user_metadata?.name || 'User'
+      };
     }
 
     return profile;
   },
 
   // Register with Supabase
-  register: async (name, email, password) => {
+  register: async (name, email, password, accountType = 'player') => {
     if (!name || !email || !password) throw new Error("All fields are required");
 
     // 1. Sign Up
@@ -40,7 +40,10 @@ export const authService = {
       email,
       password,
       options: {
-        data: { name }, // Important: This metadata is read by the Trigger!
+        data: {
+          name,
+          account_type: accountType // Important: This metadata is read by the Trigger!
+        },
       },
     });
 
@@ -66,22 +69,22 @@ export const authService = {
 
     // Get fresh profile data
     let { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-    
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
     // Fallback: If profile missing (Trigger delay?), return session info
     if (profileError || !profile) {
-        return {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata?.name || 'User',
-            avatar: `https://ui-avatars.com/api/?name=${session.user.user_metadata?.name || 'User'}&background=random`,
-            sport: 'Any'
-        };
+      return {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.user_metadata?.name || 'User',
+        avatar: `https://ui-avatars.com/api/?name=${session.user.user_metadata?.name || 'User'}&background=random`,
+        sport: 'Any'
+      };
     }
-        
+
     return profile;
   },
 
@@ -119,7 +122,7 @@ export const authService = {
       .select('*')
       .eq('id', userId)
       .single();
-    
+
     if (error) return null;
     return data;
   }
