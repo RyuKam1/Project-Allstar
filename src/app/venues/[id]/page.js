@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import BookingModal from "@/components/UI/BookingModal";
+import PlayIntentForm from "@/components/PlayIntent/PlayIntentForm";
 import ReviewForm from "@/components/Reviews/ReviewForm";
 import ReviewList from "@/components/Reviews/ReviewList";
 import ReviewStats from "@/components/Reviews/ReviewStats";
@@ -18,6 +19,8 @@ export default function VenueDetails() {
   const params = useParams();
   const { user } = useAuth();
   const [showBooking, setShowBooking] = useState(false);
+  const [showPlayIntentForm, setShowPlayIntentForm] = useState(false);
+  const [showPlayIntentButton, setShowPlayIntentButton] = useState(false);
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -43,12 +46,20 @@ export default function VenueDetails() {
   }, [params?.id, user]);
 
   useEffect(() => {
-    if (venue && venue.gallery && venue.gallery.length > 0) {
-      // Extract color from the first image
-      const imageSrc = venue.gallery[0];
-      extractDominantColor(imageSrc).then(color => {
-        setHeaderColor(color);
-      });
+    if (venue) {
+      // Check if user has initiated booking for this venue previously in this session
+      const hasBookingParams = typeof window !== 'undefined' && sessionStorage.getItem(`booking_initiated_${venue.id}`);
+      if (hasBookingParams) {
+        setShowPlayIntentButton(true);
+      }
+
+      if (venue.gallery && venue.gallery.length > 0) {
+        // Extract color from the first image
+        const imageSrc = venue.gallery[0];
+        extractDominantColor(imageSrc).then(color => {
+          setHeaderColor(color);
+        });
+      }
     }
   }, [venue]);
 
@@ -66,9 +77,9 @@ export default function VenueDetails() {
   const loadReviews = async () => {
     try {
       const [reviewsData, statsData, userReviewData] = await Promise.all([
-        reviewService.getReviewsForVenue(parseInt(params.id)),
-        reviewService.getReviewStats(parseInt(params.id)),
-        user ? reviewService.getUserReviewForVenue(parseInt(params.id)) : null
+        reviewService.getReviews(params.id, 'business'),
+        reviewService.getReviewStats(params.id, 'business'),
+        user ? reviewService.getUserReview(params.id, 'business') : null
       ]);
 
       setReviews(reviewsData);
@@ -106,10 +117,27 @@ export default function VenueDetails() {
   };
 
   const handleBooking = () => {
-    setShowBooking(true);
-    // Track booking for weighting
+    // Check booking mode
+    const config = venue.bookingConfig || {};
+    const isExternal = config.method === 'external_link' || (config.url && config.url.length > 0);
+
+    // Track booking interaction regardless of method
     if (user) {
       userInteractionService.trackBooking(venue.id);
+    }
+
+    if (isExternal && config.url) {
+      // Mark as initiated to show "I'm Going" on return
+      sessionStorage.setItem(`booking_initiated_${venue.id}`, 'true');
+      setShowPlayIntentButton(true); // Show immediately for better UX if they switch tabs back quickly
+
+      // Open external URL
+      let url = config.url;
+      if (!url.startsWith('http')) url = 'https://' + url;
+      window.open(url, '_blank');
+    } else {
+      // Internal booking (Legacy)
+      setShowBooking(true);
     }
   };
 
@@ -256,15 +284,28 @@ export default function VenueDetails() {
           </section>
 
           <section>
-            <h2 className={styles.sectionTitle}>Amenities</h2>
+            <h2 className={styles.sectionTitle}>Available Activities</h2>
             <div className={styles.amenities}>
-              {venue.amenities.map(item => (
-                <div key={item} className={`glass-panel ${styles.amenityItem}`}>
+              {venue.sports && venue.sports.map(item => (
+                <div key={item} className={`glass-panel ${styles.amenityItem}`} style={{ borderColor: 'var(--color-primary)' }}>
                   {item}
                 </div>
               ))}
             </div>
           </section>
+
+          {venue.amenities && venue.amenities.length > 0 && (
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Venue Features</h2>
+              <div className={styles.amenities}>
+                {venue.amenities.map(item => (
+                  <div key={item} className={`glass-panel ${styles.amenityItem}`}>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Reviews Section */}
           <section className={styles.section}>
@@ -329,12 +370,24 @@ export default function VenueDetails() {
               <div className={styles.priceValue}>{venue.price}</div>
             </div>
 
-            <button
-              className={`btn-primary ${styles.bookButton}`}
-              onClick={handleBooking}
-            >
-              Book Now
-            </button>
+            {(venue.bookingConfig?.isBookable ?? true) && (
+              <button
+                className={`btn-primary ${styles.bookButton}`}
+                onClick={handleBooking}
+              >
+                Book Now
+              </button>
+            )}
+
+            {showPlayIntentButton && (
+              <button
+                className={`btn-secondary ${styles.bookButton}`} // Reuse bookButton style for sizing
+                style={{ marginTop: '10px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                onClick={() => setShowPlayIntentForm(true)}
+              >
+                I'm Going
+              </button>
+            )}
           </div>
 
           {/* Review Stats */}
@@ -347,6 +400,20 @@ export default function VenueDetails() {
       </div>
 
       {showBooking && <BookingModal venue={venue} onClose={() => setShowBooking(false)} />}
+
+      {showPlayIntentForm && (
+        <PlayIntentForm
+          locationId={venue.id}
+          locationType="venue" // or infer
+          locationName={venue.name}
+          availableSports={venue.sports || []}
+          onSuccess={() => {
+            setShowPlayIntentForm(false);
+            alert("Awesome! See you there."); // or a toast
+          }}
+          onCancel={() => setShowPlayIntentForm(false)}
+        />
+      )}
     </main>
   );
 }

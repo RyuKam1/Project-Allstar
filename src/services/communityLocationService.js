@@ -99,7 +99,8 @@ export const communityLocationService = {
         const latDelta = radiusKm / 111; // 1 degree lat ≈ 111km
         const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180));
 
-        const { data, error } = await supabase
+        // 1. Fetch Locations
+        const { data: locations, error } = await supabase
             .from('community_locations')
             .select(`
                 *,
@@ -114,16 +115,53 @@ export const communityLocationService = {
             .eq('status', 'active');
 
         if (error) throw new Error(error.message);
+        if (!locations || locations.length === 0) return [];
 
-        // Map location_images to images property for consistency
-        return data?.map(loc => ({
-            ...loc,
-            images: loc.location_images
-        })) || [];
-        return data?.map(loc => ({
-            ...loc,
-            images: loc.location_images
-        })) || [];
+        // 2. Fetch Business Configs manually (to bypass potential Join/RLS issues)
+        // 2. Fetch Business Configs manually (via API to bypass RLS)
+        const locationIds = locations.map(l => l.id);
+        let businessConfigs = [];
+
+        try {
+            const response = await fetch('/api/venues/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ venueIds: locationIds })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                businessConfigs = result.data || [];
+            }
+        } catch (err) {
+            console.error("Error fetching configs:", err);
+        }
+
+        const configMap = new Map();
+        if (businessConfigs) {
+            businessConfigs.forEach(b => configMap.set(b.venue_id, b));
+        }
+
+        // 3. Merge
+        return locations.map(loc => {
+            const biz = configMap.get(loc.id);
+            const isBusiness = !!biz;
+
+            const bookingConfig = biz?.booking_config || {};
+
+            return {
+                ...loc,
+                images: loc.location_images,
+                // Unified card props
+                type: isBusiness ? 'business' : 'community',
+                isBusiness: isBusiness,
+                price: bookingConfig.paymentType === 'Paid'
+                    ? `${bookingConfig.price} ${bookingConfig.priceUnit || ''}`
+                    : (isBusiness ? 'Free' : 'Free / Public'),
+                amenities: bookingConfig.amenities || loc.sports || [],
+                venue_id: loc.id
+            };
+        });
     },
 
     /**
@@ -140,7 +178,8 @@ export const communityLocationService = {
 
         console.log(`Searching locations for: "${rawName}" OR "${normalizedName}"`);
 
-        const { data, error } = await supabase
+        // 1. Fetch Locations
+        const { data: locations, error } = await supabase
             .from('community_locations')
             .select(`
                 *,
@@ -153,11 +192,51 @@ export const communityLocationService = {
             .eq('status', 'active');
 
         if (error) throw new Error(error.message);
+        if (!locations || locations.length === 0) return [];
 
-        return data?.map(loc => ({
-            ...loc,
-            images: loc.location_images
-        })) || [];
+        // 2. Fetch Business Configs manually
+        // 2. Fetch Business Configs manually (via API)
+        const locationIds = locations.map(l => l.id);
+        let businessConfigs = [];
+
+        try {
+            const response = await fetch('/api/venues/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ venueIds: locationIds })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                businessConfigs = result.data || [];
+            }
+        } catch (err) {
+            console.error("Error fetching configs:", err);
+        }
+
+        const configMap = new Map();
+        if (businessConfigs) {
+            businessConfigs.forEach(b => configMap.set(b.venue_id, b));
+        }
+
+        // 3. Merge
+        return locations.map(loc => {
+            const biz = configMap.get(loc.id);
+            const isBusiness = !!biz;
+            const bookingConfig = biz?.booking_config || {};
+
+            return {
+                ...loc,
+                images: loc.location_images,
+                type: isBusiness ? 'business' : 'community',
+                isBusiness: isBusiness,
+                price: bookingConfig.paymentType === 'Paid'
+                    ? `${bookingConfig.price} ${bookingConfig.priceUnit || ''}`
+                    : (isBusiness ? 'Free' : 'Free / Public'),
+                amenities: bookingConfig.amenities || loc.sports || [],
+                venue_id: loc.id
+            };
+        });
     },
 
     /**

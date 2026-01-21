@@ -102,13 +102,23 @@ export default function LocationDetailPage() {
     const loadLocationData = async () => {
         setLoading(true);
         try {
+            // First: Check if this is actually a business user by trying to fetch as venue
+            // Use the API-enabled venueService
+            const venueData = await venueService.getVenueById(id);
+
+            // If it's a valid DB venue (has booking config, price etc), REDIRECT immediately
+            // We verify by checking if it returned an object and has 'isDbVenue' or distinct business props
+            if (venueData && (venueData.isDbVenue || venueData.bookingConfig?.price)) {
+                console.log("Redirecting to Venue Page...", venueData);
+                window.location.href = `/venues/${id}`; // Force hard redirect to be safe
+                return;
+            }
+
             let data = null;
             if (locationType === 'community') {
                 data = await communityLocationService.getLocationById(id);
             } else {
-                // Fetch business venue
-                data = await venueService.getVenueById(id);
-                // Normalize data structure if needed
+                data = venueData;
             }
             setLocation(data);
 

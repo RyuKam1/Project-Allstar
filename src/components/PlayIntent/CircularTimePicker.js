@@ -9,7 +9,7 @@ import styles from './circular-time-picker.module.css';
  * @param {function} onTimeSelect - Callback when time is selected
  * @param {function} onQuickSelect - Callback for quick options
  */
-export default function CircularTimePicker({ defaultTime, onTimeSelect, onQuickSelect }) {
+export default function CircularTimePicker({ defaultTime, baseDate, onTimeSelect, onQuickSelect }) {
     const [selectedHour, setSelectedHour] = useState(defaultTime ? defaultTime.getHours() % 12 || 12 : 12);
     const [selectedMinute, setSelectedMinute] = useState(defaultTime ? defaultTime.getMinutes() : 0);
     const [isPM, setIsPM] = useState(defaultTime ? defaultTime.getHours() >= 12 : true);
@@ -107,14 +107,14 @@ export default function CircularTimePicker({ defaultTime, onTimeSelect, onQuickS
     };
 
     const getSelectedTime = () => {
-        const now = new Date();
-        const hours = isPM ? (selectedHour === 12 ? 12 : selectedHour + 12) : (selectedHour === 12 ? 0 : selectedHour);
-        const time = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, selectedMinute);
+        // Use baseDate if provided, otherwise default to "today" logic or similar
+        // But honestly, the form now controls date, so we mainly rely on baseDate.
+        // Fallback to new Date() if baseDate missing.
+        const referenceParams = baseDate || new Date();
 
-        // If time is in the past, move to next day
-        if (time < now) {
-            time.setDate(time.getDate() + 1);
-        }
+        const hours = isPM ? (selectedHour === 12 ? 12 : selectedHour + 12) : (selectedHour === 12 ? 0 : selectedHour);
+        const time = new Date(referenceParams); // Clone date
+        time.setHours(hours, selectedMinute, 0, 0);
 
         return time;
     };
@@ -184,19 +184,7 @@ export default function CircularTimePicker({ defaultTime, onTimeSelect, onQuickS
 
     return (
         <div className={styles.timePicker}>
-            {/* Quick Options */}
-            <div className={styles.quickOptions}>
-                {quickOptions.map((option) => (
-                    <button
-                        key={option.label}
-                        onClick={() => handleQuickOption(option.minutes)}
-                        className={styles.quickButton}
-                        type="button"
-                    >
-                        {option.label}
-                    </button>
-                ))}
-            </div>
+            {/* Quick Options Removed as per design feedback */}
 
             {/* Selected Time Display */}
             <div className={styles.timeDisplay}>

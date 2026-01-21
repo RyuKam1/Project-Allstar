@@ -31,8 +31,17 @@ export default function VenueEditorPage() {
         images: [], // Array of { image_url: string } or similar
         hours: '',
         bookingUrl: '',
-        bookingPhone: ''
+        bookingPhone: '',
+        bookingUrl: '',
+        bookingPhone: '',
+        isBookable: true,
+        price: '',
+        priceUnit: 'per hour', // or 'per person', 'entry fee'
+        paymentType: 'Free', // Free, Paid
+        amenities: [] // Custom amenities list
     });
+
+    const PREDEFINED_AMENITIES = ["Lighting", "Parking", "Restrooms", "Water", "Equipment Rental", "Showers", "Seating", "Wifi"];
 
     const [analyticsData, setAnalyticsData] = useState({ activeCount: 0, totalIntents: 0 });
 
@@ -85,7 +94,14 @@ export default function VenueEditorPage() {
                 coverUrl: data.community_locations.image_url || '', // Load cover
                 hours: data.operating_hours || '',
                 bookingUrl: data.booking_config?.url || '',
-                bookingPhone: data.booking_config?.phone || ''
+                bookingPhone: data.booking_config?.phone || '',
+                bookingUrl: data.booking_config?.url || '',
+                bookingPhone: data.booking_config?.phone || '',
+                isBookable: data.booking_config?.isBookable ?? true,
+                price: data.booking_config?.price || '',
+                priceUnit: data.booking_config?.priceUnit || 'per hour',
+                paymentType: data.booking_config?.paymentType || 'Free',
+                amenities: data.booking_config?.amenities || []
             });
 
             // Load Analytics (Parallel)
@@ -140,6 +156,18 @@ export default function VenueEditorPage() {
                 ? prev.sports.filter(s => s !== sport)
                 : [...prev.sports, sport];
             return { ...prev, sports: newSports };
+        });
+        setHasChanges(true);
+    };
+
+    const toggleAmenity = (amenity) => {
+        setFormData(prev => {
+            const current = prev.amenities || [];
+            const exists = current.includes(amenity);
+            const newAmenities = exists
+                ? current.filter(a => a !== amenity)
+                : [...current, amenity];
+            return { ...prev, amenities: newAmenities };
         });
         setHasChanges(true);
     };
@@ -215,7 +243,7 @@ export default function VenueEditorPage() {
                     address: formData.address,
                     sports: formData.sports,
                     banner_image_url: formData.bannerUrl, // Save banner
-                    image_url: formData.coverUrl // Save cover
+                    // image_url: formData.coverUrl // Column missing in DB, disabling for now
                 })
                 .eq('id', venueId)
                 .select();
@@ -234,6 +262,11 @@ export default function VenueEditorPage() {
                 await businessService.updateVenueSettings(venueId, {
                     operating_hours: formData.hours,
                     booking_config: {
+                        isBookable: formData.isBookable,
+                        price: formData.price,
+                        priceUnit: formData.priceUnit,
+                        paymentType: formData.paymentType,
+                        amenities: formData.amenities,
                         method: 'external_link', // Default for now
                         url: formData.bookingUrl,
                         phone: formData.bookingPhone,
@@ -444,6 +477,21 @@ export default function VenueEditorPage() {
                     <div className={styles.panel}>
                         <h2 className={styles.sectionTitle}>Booking Configuration</h2>
                         <div className={styles.formGrid}>
+                            <div className={styles.fullWidth} style={{ marginBottom: '20px' }}>
+                                <label className={styles.label} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.isBookable}
+                                        onChange={e => handleInputChange('isBookable', e.target.checked)}
+                                        style={{ width: '20px', height: '20px' }}
+                                    />
+                                    <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Enable Booking for this Venue</span>
+                                </label>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '5px' }}>
+                                    If disabled, the "Book Now" button will be hidden from the public page.
+                                </p>
+                            </div>
+
                             <div className={styles.fullWidth}>
                                 <label className={styles.label}>Operating Hours (Text)</label>
                                 <input
@@ -454,25 +502,91 @@ export default function VenueEditorPage() {
                                 />
                             </div>
 
-                            <div>
-                                <label className={styles.label}>Booking / Website URL</label>
-                                <input
-                                    className={styles.input}
-                                    placeholder="https://..."
-                                    value={formData.bookingUrl}
-                                    onChange={e => handleInputChange('bookingUrl', e.target.value)}
-                                />
+                            <div className={styles.fullWidth} style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '20px', marginTop: '10px' }}>
+                                <h3 className={styles.label} style={{ fontSize: '1.2rem', marginBottom: '15px' }}>Pricing & Payment</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                    <div>
+                                        <label className={styles.label}>Payment Type</label>
+                                        <select
+                                            className={styles.input}
+                                            value={formData.paymentType}
+                                            onChange={e => handleInputChange('paymentType', e.target.value)}
+                                        >
+                                            <option value="Free">Free</option>
+                                            <option value="Paid">Paid</option>
+                                        </select>
+                                    </div>
+                                    {formData.paymentType === 'Paid' && (
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label className={styles.label}>Price</label>
+                                                <input
+                                                    className={styles.input}
+                                                    placeholder="25.00"
+                                                    value={formData.price}
+                                                    onChange={e => handleInputChange('price', e.target.value)}
+                                                />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label className={styles.label}>Unit</label>
+                                                <input
+                                                    className={styles.input}
+                                                    placeholder="per hour"
+                                                    value={formData.priceUnit}
+                                                    onChange={e => handleInputChange('priceUnit', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            <div>
-                                <label className={styles.label}>Public Phone Number</label>
-                                <input
-                                    className={styles.input}
-                                    placeholder="(555) ..."
-                                    value={formData.bookingPhone}
-                                    onChange={e => handleInputChange('bookingPhone', e.target.value)}
-                                />
+                            <div className={styles.fullWidth} style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '20px', marginTop: '10px' }}>
+                                <h3 className={styles.label} style={{ fontSize: '1.2rem', marginBottom: '15px' }}>Venue Features & Amenities</h3>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                    {PREDEFINED_AMENITIES.map(amenity => {
+                                        const isSelected = (formData.amenities || []).includes(amenity);
+                                        return (
+                                            <button
+                                                key={amenity}
+                                                onClick={() => toggleAmenity(amenity)}
+                                                className={isSelected ? 'btn-primary' : 'btn-secondary'}
+                                                style={{
+                                                    padding: '8px 16px',
+                                                    fontSize: '0.9rem',
+                                                    opacity: isSelected ? 1 : 0.7
+                                                }}
+                                            >
+                                                {amenity} {isSelected && '✓'}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
+
+                            {formData.isBookable && (
+                                <>
+                                    <div>
+                                        <label className={styles.label}>Booking / Website URL</label>
+                                        <input
+                                            className={styles.input}
+                                            placeholder="https://..."
+                                            value={formData.bookingUrl}
+                                            onChange={e => handleInputChange('bookingUrl', e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className={styles.label}>Public Phone Number</label>
+                                        <input
+                                            className={styles.input}
+                                            placeholder="(555) ..."
+                                            value={formData.bookingPhone}
+                                            onChange={e => handleInputChange('bookingPhone', e.target.value)}
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

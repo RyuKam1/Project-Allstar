@@ -26,6 +26,7 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
     const sportOptions = (availableSports && availableSports.length > 0) ? availableSports : defaultSports;
     const isSingleSport = sportOptions.length === 1;
 
+    const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedTime, setSelectedTime] = useState(() => {
         const now = new Date();
         return new Date(now.getTime() + 15 * 60000);
@@ -46,8 +47,29 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
         { value: 'advanced', label: 'Advanced' }
     ];
 
+    const handleDateSelect = (dateStr) => {
+        // dateStr can be 'today', 'tomorrow', or a specific date string
+        const today = new Date();
+        let newDate = new Date();
+
+        if (dateStr === 'today') {
+            newDate = today;
+        } else if (dateStr === 'tomorrow') {
+            newDate = new Date(today);
+            newDate.setDate(today.getDate() + 1);
+        } else {
+            newDate = new Date(dateStr);
+        }
+        setSelectedDate(newDate);
+    };
+
     const handleTimeConfirmed = (time) => {
-        setSelectedTime(time);
+        // Combine selectedDate (YMD) with time (HM)
+        const finalDate = new Date(selectedDate);
+        finalDate.setHours(time.getHours());
+        finalDate.setMinutes(time.getMinutes());
+
+        setSelectedTime(finalDate);
         // Smooth scroll to show the rest of the form
         if (optionalSectionRef.current) {
             optionalSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -88,23 +110,29 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
 
     const formatTimeDisplay = (date) => {
         const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
         const diff = date - now;
         const minutes = Math.round(diff / 60000);
 
-        if (minutes < 60) {
-            return `in ${minutes} minutes`;
-        } else if (minutes < 1440) {
-            const hours = Math.floor(minutes / 60);
-            return `in ${hours} hour${hours > 1 ? 's' : ''}`;
+        let timeString = "";
+
+        if (isToday) {
+            if (minutes < 60 && minutes > 0) {
+                timeString = `in ${minutes} minutes`;
+            } else if (minutes < 1440 && minutes > 0) {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                timeString = `in ${hours}h ${mins}m`;
+            } else {
+                timeString = "today at " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
         } else {
-            return date.toLocaleString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit'
-            });
+            // Future date
+            timeString = "on " + date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+                " at " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
+
+        return timeString;
     };
 
     return (
@@ -119,17 +147,34 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
                 </div>
 
                 <form onSubmit={handleSubmit} className={styles.form}>
+                    {/* Organic Date & Time Feedback */}
+                    <div className={styles.section} style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                        <div style={{ position: 'relative', display: 'inline-block', marginBottom: '10px' }}>
+                            <label htmlFor="organic-date-input" style={{ fontSize: '1.2rem', color: 'var(--color-primary)', cursor: 'pointer', borderBottom: '1px dashed rgba(255,255,255,0.3)', paddingBottom: '2px' }}>
+                                {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                            </label>
+                            <input
+                                id="organic-date-input"
+                                type="date"
+                                className={styles.hiddenInput} // Need to add this class or style inline
+                                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
+                                onChange={(e) => handleDateSelect(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]} // Disable past dates
+                            />
+                        </div>
+                        <p className={styles.timeHint}>
+                            You're going {formatTimeDisplay(selectedTime)}
+                        </p>
+                    </div>
+
                     {/* Time Picker */}
                     <div className={styles.section}>
                         <CircularTimePicker
                             defaultTime={selectedTime}
+                            baseDate={selectedDate} // Pass the selected date context
                             onTimeSelect={handleTimeConfirmed}
                             onQuickSelect={handleTimeConfirmed}
                         />
-                        <p className={styles.timeHint}>
-                            You're planning to play {formatTimeDisplay(selectedTime)}
-                            <span className={styles.scrollHintIcon}>↓</span>
-                        </p>
                     </div>
 
                     {/* Optional Inputs */}

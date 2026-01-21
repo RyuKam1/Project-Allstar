@@ -95,6 +95,7 @@ export const businessService = {
                 business_owner_id: user.id,
                 status: 'verified', // Auto-verify since they created it
                 booking_config: {
+                    isBookable: true,
                     method: 'external_link',
                     url: '',
                     label: 'Book Now',

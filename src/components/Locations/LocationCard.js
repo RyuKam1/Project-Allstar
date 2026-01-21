@@ -32,8 +32,12 @@ export default function LocationCard({ location, type, showActivity = true }) {
 
         // Navigate to unified location page
         // Using the UUID if available, otherwise fallback (legacy venues might need handling)
-        const id = location.id; // Expecting UUID for both types in the new system
-        router.push(`/locations/${id}?type=${type}`);
+        const id = location.id;
+        if (type === 'business') {
+            router.push(`/venues/${id}`);
+        } else {
+            router.push(`/locations/${id}?type=${type}`);
+        }
     };
 
     return (
