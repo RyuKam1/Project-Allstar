@@ -1,69 +1,93 @@
+import { supabase } from "@/lib/supabaseClient";
 import { venues as staticVenues } from "@/lib/venues";
 import { userInteractionService } from "./userInteractionService";
 
-const STORAGE_KEY = 'allstar_venue_updates';
-
 export const venueService = {
-  // Get all venues (merge static with local storage)
+  // Get all venues (now from Supabase)
   getAllVenues: async () => {
-    // Simulate network delay slightly
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // 1. Fetch from DB
+    const { data: venues, error } = await supabase
+      .from('venues')
+      .select('*')
+      .order('id', { ascending: true });
 
-    if (typeof window === 'undefined') return staticVenues;
+    if (error) {
+      console.error("Error fetching venues:", error);
+      return staticVenues; // Fallback only on error
+    }
 
-    const storedUpdates = localStorage.getItem(STORAGE_KEY);
-    const updates = storedUpdates ? JSON.parse(storedUpdates) : {};
+    // 2. Auto-Seed if empty (First run)
+    if (!venues || venues.length === 0) {
+      console.log("Seeding venues...");
+      await venueService.seedVenues();
+      return staticVenues; // Return static for now, next refresh will have DB data
+    }
 
-    return staticVenues.map(venue => {
-      const venueUpdates = updates[venue.id] || {};
-      const merged = { ...venue, ...venueUpdates };
-
-      // Ensure the default image (explicitly defined) is present in the gallery
-      // Fallback to name-based if 'image' is missing (which shouldn't happen with new data)
-      const defaultImage = venue.image || `/venues/${venue.name}.jpg`;
-
-      if (!merged.gallery) {
-        merged.gallery = [defaultImage];
-      } else if (!merged.gallery.includes(defaultImage)) {
-        merged.gallery = [defaultImage, ...merged.gallery];
-      }
-
-      return merged;
-    });
+    return venues;
   },
 
   // Get single venue
   getVenueById: async (id) => {
-    const venues = await venueService.getAllVenues();
-    return venues.find(v => v.id.toString() === id.toString()) || null;
+    const { data, error } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) return null;
+    return data;
   },
 
-  // Upload an image for a venue
+  // Upload/Update Venue Image
   uploadVenueImage: async (venueId, base64Image) => {
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate upload delay
+    // Note: In a real app, we'd upload to Storage bucket and get URL.
+    // For this migration, we'll assume we might store base64 or URL in 'gallery' array in DB?
+    // Storing base64 in TEXT/ARRAY column is bad practice but fits the 'quick' scope if small.
+    // BETTER: Use existing 'uploadImage' helper if we have one, or just update the record if it sends a URL.
+    
+    // For now, let's assume the frontend sends a URL (if uploaded elsewhere) or we skip the complex upload logic
+    // and just update the gallery array in the DB row.
+    
+    const { data: venue } = await supabase.from('venues').select('gallery').eq('id', venueId).single();
+    const currentGallery = venue?.gallery || [];
+    const newGallery = [...currentGallery, base64Image]; // Warn: Base64 might be too huge for DB column
 
-    const storedUpdates = localStorage.getItem(STORAGE_KEY);
-    const updates = storedUpdates ? JSON.parse(storedUpdates) : {};
+    const { data, error } = await supabase
+      .from('venues')
+      .update({ gallery: newGallery })
+      .eq('id', venueId)
+      .select()
+      .single();
 
-    // Initialize updates for this venue if not exists
-    if (!updates[venueId]) updates[venueId] = {};
+    if (error) throw new Error(error.message);
 
-    // Initialize gallery if not exists
-    const currentGallery = updates[venueId].gallery || [];
-    const newGallery = [...currentGallery, base64Image];
-
-    // Update local storage
-    updates[venueId] = {
-      ...updates[venueId],
-      gallery: newGallery
-    };
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updates));
-
-    // Track image upload for review weighting
+    // Track interaction
     await userInteractionService.trackImageUpload(venueId);
 
-    // Return updated venue details
-    return venueService.getVenueById(venueId);
+    return data;
+  },
+
+  // Seed Function
+  seedVenues: async () => {
+    // Transform static venues to match DB schema if needed
+    // Static venues have 'id' which is auto-generated in DB, so we might omit it or force it.
+    // We'll omit 'id' to let DB generate unique IDs, or force it if we want consistency.
+    const venuesToInsert = staticVenues.map(v => ({
+      name: v.name,
+      type: v.type,
+      sport: v.sport,
+      location: v.location,
+      rating: v.rating,
+      price: v.price,
+      image: v.image,
+      amenities: v.amenities,
+      coordinates: v.coordinates,
+      gallery: [v.image], // Initialize gallery
+      description: "Community venue ready for action.",
+      // owner_id: null // System owned
+    }));
+
+    const { error } = await supabase.from('venues').insert(venuesToInsert);
+    if (error) console.error("Seeding error:", error);
   }
 };

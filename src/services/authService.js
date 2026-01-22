@@ -32,7 +32,7 @@ export const authService = {
   },
 
   // Register with Supabase
-  register: async (name, email, password, accountType = 'player') => {
+  register: async (name, email, password, role = 'user') => {
     if (!name || !email || !password) throw new Error("All fields are required");
 
     // 1. Sign Up
@@ -42,7 +42,8 @@ export const authService = {
       options: {
         data: {
           name,
-          account_type: accountType // Important: This metadata is read by the Trigger!
+          role: role, // Used by trigger to set profile.role
+          account_type: role // Backward compatibility if needed
         },
       },
     });

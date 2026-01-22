@@ -343,10 +343,81 @@ export default function VenueDetails() {
               <ReviewStats stats={reviewStats} />
             </div>
           )}
+          
+          <PlayIntentWidget venueId={venue.id} user={user} />
         </div>
       </div>
 
       {showBooking && <BookingModal venue={venue} onClose={() => setShowBooking(false)} />}
     </main>
   );
+}
+
+// --- Local Component: Play Intent Widget ---
+function PlayIntentWidget({ venueId, user }) {
+    const [sending, setSending] = useState(false);
+    const [sent, setSent] = useState(false);
+    const [date, setDate] = useState(''); // YYYY-MM-DDThh:mm
+
+    const handleIntent = async () => {
+        if (!user) {
+            alert("Please log in to share your plans.");
+            return;
+        }
+        if (!date) {
+            alert("When are you playing?");
+            return;
+        }
+        setSending(true);
+        try {
+            const success = await userInteractionService.trackPlayIntent(venueId, new Date(date));
+            if (success) {
+                setSent(true);
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    setSent(false);
+                    setDate('');
+                }, 3000);
+            } else {
+                alert("Could not save intent. Try again.");
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <div className={`glass-panel ${styles.bookingCard}`} style={{ marginTop: '20px' }}>
+            <h3 className={styles.bookingTitle}>Who's Playing?</h3>
+            <p className={styles.bookingSubtitle}>
+                Let the community know you'll be here.
+            </p>
+            
+            {sent ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#4ade80', fontWeight: 'bold' }}>
+                    See you there! 🏀
+                </div>
+            ) : (
+                <div style={{ marginTop: '15px' }}>
+                    <input 
+                        type="datetime-local" 
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #333', background: '#111', color: 'white' }}
+                    />
+                    <button 
+                        className="btn-secondary" 
+                        onClick={handleIntent}
+                        disabled={sending}
+                        style={{ width: '100%' }}
+                    >
+                        {sending ? 'Joining...' : "I'm Playing Here"}
+                    </button>
+                    {!user && <p style={{fontSize: '0.8rem', opacity: 0.6, marginTop: '8px', textAlign: 'center'}}>Login required</p>}
+                </div>
+            )}
+        </div>
+    );
 }
