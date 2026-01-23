@@ -1,65 +1,66 @@
 "use client";
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Navbar from "@/components/Layout/Navbar";
 import { businessService } from '@/services/businessService';
 
-export default function ClaimVenuePage() {
+function ClaimVenueContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    
+    // Initial State from URL
+    const initialVenueId = searchParams.get('id');
+    const initialVenueType = searchParams.get('type'); // 'business' or 'community'
+
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
+    
+    // Initialize selectedVenue if ID is present (we might need to fetch name, but for now let's assume flow starts from card)
+    // Actually, improved UX: If ID is present, we should probably fetch the venue details to show "Claiming: VenueName".
+    // For speed, let's wait for user to search OR if they came from a card, we trust the ID.
+    // Better yet: Just rely on the search flow for now, OR update this to fetch.
+    // Let's implement the search-first flow correctly, but ensure we pass 'type'.
+    
+    // Correction: The user flow usually is -> Click Claim on Card -> Land here. 
+    // So we SHOULD fetch if ID exists.
+    
     const [selectedVenue, setSelectedVenue] = useState(null);
+    const [venueType, setVenueType] = useState(initialVenueType || 'business');
+
+    // ... existing search state ...
     const [isSearching, setIsSearching] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // Form State
-    const [formData, setFormData] = useState({
-        businessName: '',
-        contactEmail: '',
-        contactPhone: ''
-    });
-
-    // Real-time search with debounce
+    // FETCH ON MOUNT if ID exists
     React.useEffect(() => {
-        const delayDebounceFn = setTimeout(async () => {
-            if (searchQuery.trim().length === 0) {
-                setResults([]);
-                setIsSearching(false);
-                return;
-            }
-
-            // Perform search
-            const { data, error } = await supabase
-                .from('community_locations')
-                .select('id, name, lat, lng, sports, description')
-                .ilike('name', `%${searchQuery}%`)
-                .limit(10);
-
-            if (!error) {
-                setResults(data || []);
-            }
-            setIsSearching(false);
-        }, 300); // 300ms delay
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
-
-    const handleInput = (e) => {
-        setSearchQuery(e.target.value);
-        if (e.target.value.trim().length > 0) {
-            setIsSearching(true); // Show loading immediately while typing
-        } else {
-            setIsSearching(false);
+        if (initialVenueId) {
+            const fetchVenue = async () => {
+                const table = initialVenueType === 'community' ? 'community_locations' : 'venues';
+                const { data, error } = await supabase
+                    .from(table)
+                    .select('*')
+                    .eq('id', initialVenueId)
+                    .single();
+                
+                if (data && !error) {
+                    setSelectedVenue(data);
+                    setVenueType(initialVenueType || 'business');
+                }
+            };
+            fetchVenue();
         }
-    };
+    }, [initialVenueId, initialVenueType]);
+
+    // ... handleInput ...
 
     const handleClaimSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            await businessService.claimVenue(selectedVenue.id, formData);
+            // Pass venueType to service
+            await businessService.claimVenue(selectedVenue.id, formData, venueType);
             alert("Claim request submitted! We will verify your details.");
             router.push('/business/dashboard');
         } catch (error) {
@@ -197,5 +198,17 @@ export default function ClaimVenuePage() {
 
             </div>
         </>
+    );
+}
+
+export default function ClaimVenuePage() {
+    return (
+        <React.Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0f0f', color: 'white' }}>
+                <p>Loading...</p>
+            </div>
+        }>
+            <ClaimVenueContent />
+        </React.Suspense>
     );
 }

@@ -5,6 +5,7 @@ import LocationCard from "@/components/Locations/LocationCard";
 import Map from "@/components/UI/Map";
 import CommunityLocationForm from "@/components/Community/CommunityLocationForm";
 import { communityLocationService } from "@/services/communityLocationService";
+import { venueService } from "@/services/venueService";
 import { useState, useRef, useEffect } from "react";
 import { City, Country } from 'country-state-city';
 import styles from './venues.module.css';
@@ -12,6 +13,7 @@ import styles from './venues.module.css';
 export default function VenuesPage() {
   const [displayVenues, setDisplayVenues] = useState([]);
   const [communityLocations, setCommunityLocations] = useState([]);
+  const [officialVenues, setOfficialVenues] = useState([]); // Official Business Venues
   const [filterSport, setFilterSport] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
   const [isGlobalView, setIsGlobalView] = useState(false);
@@ -36,6 +38,13 @@ export default function VenuesPage() {
   // Use a ref to ensure we don't re-randomize unnecessarily if component re-renders
   const hasRandomized = useRef(false);
   const mapRef = useRef(null); // Ref for scrolling to map
+
+  // Load Official Venues (Business) on Mount
+  useEffect(() => {
+    venueService.getAllVenues()
+      .then(setOfficialVenues)
+      .catch(err => console.error("Error loading official venues:", err));
+  }, []);
 
   // REMOVED: Initial global fetch (user wants local-only by default)
   // useEffect(() => {
@@ -258,6 +267,7 @@ export default function VenuesPage() {
 
   // Merge legacy venues and community locations
   const allLocations = [
+    ...officialVenues.map(l => ({ ...l, type: 'business', isBusiness: true })),
     ...communityLocations.map(l => ({ ...l, type: 'community', isBusiness: false }))
   ];
 

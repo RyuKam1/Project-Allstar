@@ -18,13 +18,22 @@ export default function MigrationPage() {
     addLog("Starting comprehensive migration...");
 
     try {
-        // 1. READ LOCAL DATA
+        addLog("--- DEBUG: LocalStorage Keys ---");
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const size = localStorage.getItem(key).length;
+            addLog(`Key: "${key}" (Size: ${size} chars)`);
+        }
+        addLog("--------------------------------");
+
         const localUsers = JSON.parse(localStorage.getItem('allstar_users_db') || '[]');
         const localTeams = JSON.parse(localStorage.getItem('allstar_teams') || '[]');
         const localTournaments = JSON.parse(localStorage.getItem('allstar_tournaments') || '[]');
         const localEvents = JSON.parse(localStorage.getItem('allstar_events') || '[]');
+        // Try multiple keys for venues as fallback
+        const localVenues = JSON.parse(localStorage.getItem('allstar_venues') || localStorage.getItem('venues') || '[]');
 
-        addLog(`Found: ${localUsers.length} Users, ${localTeams.length} Teams, ${localTournaments.length} Tournaments, ${localEvents.length} Events.`);
+        addLog(`Found: ${localUsers.length} Users, ${localTeams.length} Teams, ${localVenues.length} Venues.`);
 
         const userIdMap = {}; // oldId -> newId
         const teamIdMap = {}; // oldId -> newId
@@ -190,8 +199,46 @@ export default function MigrationPage() {
              }
         }
 
-        // 5. MIGRATE EVENTS
-        addLog("--- Phase 4: Events ---");
+        // 5. MIGRATE VENUES
+        addLog("--- Phase 4: Venues ---");
+        for (const venue of localVenues) {
+            try {
+                // If venue has an owner, try to map it
+                const ownerId = venue.ownerId ? userIdMap[venue.ownerId] : null;
+
+                const { data: newVenue, error: vErr } = await supabase.from('venues').insert({
+                    name: venue.name,
+                    type: venue.type || 'Generic',
+                    sport: venue.sport || 'Multi-sport',
+                    location: venue.location || 'Unknown',
+                    rating: venue.rating || 4.0,
+                    price: venue.price || 'Free',
+                    image: venue.image || null,
+                    amenities: venue.amenities || [],
+                    coordinates: venue.coordinates || [0, 0],
+                    gallery: venue.gallery || [],
+                    description: venue.description || 'Migrated Venue',
+                    owner_id: ownerId, // Map to new user ID or null
+                    created_at: new Date().toISOString()
+                }).select().single();
+
+                if (vErr) {
+                     // If duplicate or error, log it
+                     if (vErr.code === '23505') {
+                        addLog(`   -> Skipped Duplicate Venue: ${venue.name}`);
+                     } else {
+                        throw vErr;
+                     }
+                } else {
+                     addLog(`   -> Migrated Venue: ${venue.name}`);
+                }
+            } catch (e) {
+                addLog(`   -> Error Migrate Venue ${venue.name}: ${e.message}`);
+            }
+        }
+
+        // 6. MIGRATE EVENTS
+        addLog("--- Phase 5: Events ---");
         for (const evt of localEvents) {
             try {
                 const creatorId = userIdMap[evt.creatorId];

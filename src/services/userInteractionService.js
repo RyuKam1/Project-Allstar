@@ -64,6 +64,37 @@ export const userInteractionService = {
     },
 
     /**
+     * Track play intent
+     * @param {number} venueId - The venue ID
+     * @param {Date} date - The date of play
+     * @returns {Promise<boolean>} Success status
+     */
+    trackPlayIntent: async (venueId, date) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in to track intent");
+
+        try {
+            const { error } = await supabase
+                .from('user_venue_interactions')
+                .insert({
+                    user_id: user.id,
+                    venue_id: venueId,
+                    interaction_type: 'play_intent',
+                    interaction_data: { date: date.toISOString() }
+                });
+
+            if (error) {
+                console.error('Failed to track play intent:', error);
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.error('Error tracking play intent:', err);
+            return false;
+        }
+    },
+
+    /**
      * Track an image upload for a venue
      * @param {number} venueId - The venue ID
      * @returns {Promise<boolean>} Success status

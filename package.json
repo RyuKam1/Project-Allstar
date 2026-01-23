@@ -10,9 +10,12 @@
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.9.0",
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "browser-image-compression": "^2.0.2",
     "country-state-city": "^3.2.1",
+    "dotenv": "^17.2.3",
     "leaflet": "^1.9.4",
     "next": "16.0.10",
     "react": "19.2.1",

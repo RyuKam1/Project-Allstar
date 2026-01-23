@@ -35,9 +35,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (name, email, password, accountType) => {
+  const register = async (name, email, password, role) => {
     try {
-      const user = await authService.register(name, email, password, accountType);
+      const user = await authService.register(name, email, password, role);
       setUser(user);
       return { success: true, user };
     } catch (error) {
@@ -60,8 +60,23 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Role helpers
+  const role = user?.role || user?.account_type || 'user';
+  const isBusiness = role === 'business' || role === 'admin'; // Admin has business privileges
+  const isAdmin = role === 'admin';
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      role,
+      isBusiness,
+      isAdmin,
+      login, 
+      register, 
+      logout, 
+      updateUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );
