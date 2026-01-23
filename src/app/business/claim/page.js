@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import Navbar from "@/components/Layout/Navbar";
 import { businessService } from '@/services/businessService';
 
-export default function ClaimVenuePage() {
+function ClaimVenueContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     
@@ -198,5 +198,17 @@ export default function ClaimVenuePage() {
 
             </div>
         </>
+    );
+}
+
+export default function ClaimVenuePage() {
+    return (
+        <React.Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0f0f', color: 'white' }}>
+                <p>Loading...</p>
+            </div>
+        }>
+            <ClaimVenueContent />
+        </React.Suspense>
     );
 }
