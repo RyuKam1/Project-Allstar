@@ -1,283 +1,302 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
+import AdminSidebar from "@/components/Admin/AdminSidebar";
+import DashboardStats from "@/components/Admin/DashboardStats";
 import { authService } from "@/services/authService";
 import { teamService } from "@/services/teamService";
 import { tournamentService } from "@/services/tournamentService";
+import { venueService } from "@/services/venueService";
+import { businessService } from "@/services/businessService";
+import { useRouter } from 'next/navigation';
+
+// Placeholder for Detail Views (We can extract these to separate files if they grow)
+/* eslint-disable react/display-name */
+
+// Generic Table Component
+const DataTable = ({ columns, data, onEdit, onDelete, actions }) => {
+    const [search, setSearch] = useState('');
+    const filteredData = data.filter(item => 
+        Object.values(item).some(val => 
+            String(val).toLowerCase().includes(search.toLowerCase())
+        )
+    );
+
+    return (
+        <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between' }}>
+                <input 
+                    type="text" 
+                    placeholder="Search..." 
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{ padding: '10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)', color: 'white', width: '300px' }}
+                />
+                <div style={{ color: 'var(--text-muted)' }}>{filteredData.length} entries</div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
+                        <tr>
+                            {columns.map(col => <th key={col.key} style={{ padding: '1rem' }}>{col.label}</th>)}
+                            <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredData.map((item, idx) => (
+                            <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                                {columns.map(col => (
+                                    <td key={col.key} style={{ padding: '1rem' }}>
+                                        {col.render ? col.render(item) : item[col.key]}
+                                    </td>
+                                ))}
+                                <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                    {actions && actions(item)}
+                                    {onEdit && <button onClick={() => onEdit(item)} className="btn-icon">✏️</button>}
+                                    {onDelete && <button onClick={() => onDelete(item)} className="btn-icon-danger">🗑️</button>}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState('users'); // users, teams, tournaments
-  const [data, setData] = useState({ users: [], teams: [], tournaments: [] });
-  const [loading, setLoading] = useState(true);
-  
-  // Edit State
-  const [editingItem, setEditingItem] = useState(null);
+    const router = useRouter();
+    // Default to 'dashboard' but wait for mount/searchParams to be sure
+    const [activeTab, setActiveTabState] = useState('dashboard');
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState({ users: [], teams: [], tournaments: [], venues: [], claims: [] });
+    const [currentUser, setCurrentUser] = useState(null);
 
-  useEffect(() => {
-    loadAllData();
-  }, []);
+    // Sync state with URL params manually to avoid hook complexity if we wanted, 
+    // but using window.location or searchParams is standard.
+    // We'll use a simple useEffect on mount to read URL, and router.push on change.
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab) setActiveTabState(tab);
+        }
+        loadData();
+        checkUser();
+    }, []);
 
-  const loadAllData = async () => {
-    const [users, teams, tournaments] = await Promise.all([
-      authService.getAllUsers(),
-      teamService.getAllTeams(),
-      tournamentService.getAllTournaments()
-    ]);
-    setData({ users, teams, tournaments });
-    setLoading(false);
-  };
+    const setActiveTab = (tab) => {
+        setActiveTabState(tab);
+        router.push(`?tab=${tab}`, { scroll: false });
+    };
 
-  // --- Handlers ---
+    const checkUser = async () => {
+        const user = await authService.getCurrentUser();
+        setCurrentUser(user);
+    };
 
-  const handleDelete = async (type, id) => {
-    if (!confirm("Are you sure you want to delete this item? This cannot be undone.")) return;
-    
-    if (type === 'users') {
-      // authService doesn't have delete yet, assumed mostly ready but strict req was teams/tournaments
-      // Adding basic filter locally for prototype if needed, or simply removing from DB
-      // Note: authService.deleteUser not implemented in previous step, focusing on Teams/Tournaments as requested
-      alert("User deletion not supported in this version.");
-    } else if (type === 'teams') {
-      await teamService.deleteTeam(id);
-    } else if (type === 'tournaments') {
-      await tournamentService.deleteTournament(id);
-    }
-    loadAllData();
-  };
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            // Use allSettled to prevent one failure from blocking all data
+            const results = await Promise.allSettled([
+                authService.getAllUsers(),
+                teamService.getAllTeams(),
+                tournamentService.getAllTournaments(),
+                venueService.getAllVenues(),
+                businessService.getAllClaims()
+            ]);
 
-  const handleAddWin = async (teamId) => {
-    const cat = prompt("Win Category (e.g. Tournament, Match):", "Tournament");
-    if (!cat) return;
-    const desc = prompt("Description (e.g. Summer Cup 2025):", "Championship");
-    if (!desc) return;
-    
-    await teamService.addWin(teamId, cat, desc);
-    loadAllData();
-  };
+            const [usersRes, teamsRes, tournRes, venuesRes, claimsRes] = results;
 
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    if (!editingItem) return;
+            // Log errors for debugging
+            if (usersRes.status === 'rejected') console.error("Users load failed:", usersRes.reason);
+            if (teamsRes.status === 'rejected') console.error("Teams load failed:", teamsRes.reason);
+            if (tournRes.status === 'rejected') console.error("Tourn load failed:", tournRes.reason);
+            if (venuesRes.status === 'rejected') console.error("Venues load failed:", venuesRes.reason);
+            if (claimsRes.status === 'rejected') console.error("Claims load failed:", claimsRes.reason);
 
-    if (activeTab === 'teams') {
-      await teamService.updateTeam(editingItem.id, { name: editingItem.name, sport: editingItem.sport });
-    } else if (activeTab === 'tournaments') {
-      await tournamentService.updateTournament(editingItem.id, { name: editingItem.name, status: editingItem.status });
-    }
-    setEditingItem(null);
-    loadAllData();
-  };
+            setData({ 
+                users: usersRes.status === 'fulfilled' ? usersRes.value : [], 
+                teams: teamsRes.status === 'fulfilled' ? teamsRes.value : [], 
+                tournaments: tournRes.status === 'fulfilled' ? tournRes.value : [], 
+                venues: venuesRes.status === 'fulfilled' ? venuesRes.value : [], 
+                claims: claimsRes.status === 'fulfilled' ? claimsRes.value : [] 
+            });
+        } catch (e) {
+            console.error("Admin load critical error", e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  // --- Renderers ---
+    // --- Actions ---
+    const handleDelete = async (type, id) => {
+        if (!confirm("Are you sure? This is irreversible.")) return;
+        try {
+            if (type === 'team') await teamService.deleteTeam(id);
+            if (type === 'tournament') await tournamentService.deleteTournament(id);
+            if (type === 'venue') await venueService.deleteVenue(id);
+            // User deletion skipped for now per prev instructions constraint
+            loadData(); // Refresh
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    };
 
-  const renderTabs = () => (
-    <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-      {['users', 'teams', 'tournaments'].map(tab => (
-        <button 
-          key={tab}
-          onClick={() => setActiveTab(tab)}
-          style={{
-            padding: '10px 20px',
-            background: activeTab === tab ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'white',
-            fontWeight: 'bold',
-            textTransform: 'capitalize',
-            cursor: 'pointer'
-          }}
-        >
-          {tab}
-        </button>
-      ))}
-    </div>
-  );
+    const handleClaim = async (claimId, status) => {
+        try {
+            await businessService.resolveClaim(claimId, status);
+            loadData();
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    };
 
-  const renderUsersTable = () => (
-    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-      <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
-        <tr>
-          <th style={{ padding: '1rem' }}>User</th>
-          <th style={{ padding: '1rem' }}>Email</th>
-          <th style={{ padding: '1rem', color: '#EF4444' }}>Password</th>
-          <th style={{ padding: '1rem' }}>Joined</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.users.map(u => (
-          <tr key={u.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
-            <td style={{ padding: '1rem' }}>{u.name}</td>
-            <td style={{ padding: '1rem', color: '#aaa' }}>{u.email}</td>
-            <td style={{ padding: '1rem', fontFamily: 'monospace', color: '#EF4444' }}>{u.password}</td>
-            <td style={{ padding: '1rem', fontSize: '0.8rem' }}>{new Date(u.joinedAt).toLocaleDateString()}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    // --- Renderers ---
+    const renderContent = () => {
+        if (loading) return <div className="loading-spinner"></div>;
 
-  const renderTeamsTable = () => (
-    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-      <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
-        <tr>
-          <th style={{ padding: '1rem' }}>Name</th>
-          <th style={{ padding: '1rem' }}>Sport</th>
-          <th style={{ padding: '1rem' }}>Members</th>
-          <th style={{ padding: '1rem' }}>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.teams.map(t => (
-          <tr key={t.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
-            <td style={{ padding: '1rem', fontWeight: 'bold' }}>{t.name}</td>
-            <td style={{ padding: '1rem' }}>
-                <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{t.sport}</span>
-            </td>
-            <td style={{ padding: '1rem' }}>{t.members.length}</td>
-            <td style={{ padding: '1rem' }}>
-              <button 
-                onClick={() => handleAddWin(t.id)}
-                 style={{ marginRight: '10px', background: 'transparent', border: '1px solid #FFD700', color: '#FFD700', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                +Win
-              </button>
-              <button 
-                onClick={() => setEditingItem(t)}
-                style={{ marginRight: '10px', background: 'transparent', border: '1px solid #aaa', color: '#aaa', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Edit
-              </button>
-              <button 
-                 onClick={() => handleDelete('teams', t.id)}
-                 style={{ background: 'rgba(239, 68, 68, 0.2)', border: 'none', color: '#F87171', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        ))}
-        {data.teams.length === 0 && <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>No teams found.</td></tr>}
-      </tbody>
-    </table>
-  );
-
-  const renderTournamentsTable = () => (
-    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-      <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
-        <tr>
-          <th style={{ padding: '1rem' }}>Name</th>
-          <th style={{ padding: '1rem' }}>Sport</th>
-          <th style={{ padding: '1rem' }}>Status</th>
-           <th style={{ padding: '1rem' }}>Teams</th>
-          <th style={{ padding: '1rem' }}>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.tournaments.map(t => (
-          <tr key={t.id} style={{ borderBottom: '1px solid var(--border-glass)' }}>
-            <td style={{ padding: '1rem', fontWeight: 'bold' }}>{t.name}</td>
-            <td style={{ padding: '1rem' }}>{t.sport}</td>
-            <td style={{ padding: '1rem' }}>
-                <span style={{ color: t.status === 'Active' ? '#10B981' : '#aaa' }}>{t.status}</span>
-            </td>
-             <td style={{ padding: '1rem' }}>{t.teams.length}</td>
-            <td style={{ padding: '1rem' }}>
-              <button 
-                onClick={() => setEditingItem(t)}
-                 style={{ marginRight: '10px', background: 'transparent', border: '1px solid #aaa', color: '#aaa', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Edit
-              </button>
-              <button 
-                 onClick={() => handleDelete('tournaments', t.id)}
-                 style={{ background: 'rgba(239, 68, 68, 0.2)', border: 'none', color: '#F87171', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        ))}
-         {data.tournaments.length === 0 && <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>No tournaments found.</td></tr>}
-      </tbody>
-    </table>
-  );
-
-  return (
-    <main style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
-      <Navbar />
-      
-      <div className="container" style={{ paddingTop: '140px' }}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>Admin <span className="primary-gradient-text">Dashboard</span></h1>
-        
-        {renderTabs()}
-
-        {loading ? (
-          <div>Loading...</div>
-        ) : (
-          <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              {activeTab === 'users' && renderUsersTable()}
-              {activeTab === 'teams' && renderTeamsTable()}
-              {activeTab === 'tournaments' && renderTournamentsTable()}
+        // Header for the panel content with Refresh Button
+        const PanelHeader = ({ title }) => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0 }}>{title}</h2>
+                <button 
+                    onClick={loadData}
+                    className="hover-bg"
+                    style={{ 
+                        background: 'rgba(255,255,255,0.05)', 
+                        border: '1px solid var(--border-glass)', 
+                        borderRadius: '6px', 
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    🔄 Refresh Data
+                </button>
             </div>
-          </div>
-        )}
-      </div>
+        );
 
-      {/* Edit Modal */}
-      {editingItem && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000
-        }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '90%', maxWidth: '400px', background: '#222' }}>
-            <h2>Edit {activeTab === 'teams' ? 'Team' : 'Tournament'}</h2>
-            <form onSubmit={handleSaveEdit}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Name</label>
-                <input 
-                  value={editingItem.name} 
-                  onChange={e => setEditingItem({...editingItem, name: e.target.value})}
-                  style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #444', color: 'white' }}
-                />
-              </div>
+        switch (activeTab) {
+            case 'dashboard':
+                return (
+                    <div>
+                        <PanelHeader title="System Overview" />
+                        <DashboardStats stats={{
+                            usersCount: data.users.length,
+                            teamsCount: data.teams.length,
+                            tournamentsCount: data.tournaments.length,
+                            venuesCount: data.venues.length,
+                            claimsCount: data.claims.filter(c => c.status === 'pending').length
+                        }} />
+                        {/* Recent Activity / Quick Actions could go here */}
+                    </div>
+                );
+            case 'users':
+                return (
+                    <div>
+                        <PanelHeader title="User Management" />
+                         <DataTable 
+                            columns={[
+                                { key: 'name', label: 'Name', render: u => <div style={{fontWeight:'bold'}}>{u.name}</div> },
+                                { key: 'email', label: 'Email' },
+                                { key: 'role', label: 'Role', render: u => <span className={`badge badge-${u.role || 'user'}`}>{(u.role || 'User').toUpperCase()}</span> },
+                                { key: 'created_at', label: 'Joined', render: u => new Date(u.created_at || Date.now()).toLocaleDateString() }
+                            ]}
+                            data={data.users}
+                            // onEdit={(u) => alert("Edit User ID: " + u.id)}
+                            onDelete={(u) => alert("Deletion Disabled for safety in this demo")}
+                         />
+                    </div>
+                );
+            case 'venues':
+                return (
+                    <div>
+                        <PanelHeader title="Venue Management" />
+                        <DataTable 
+                            columns={[
+                                { key: 'name', label: 'Venue' },
+                                { key: 'sport', label: 'Sport' },
+                                { key: 'location', label: 'Location' },
+                                { key: 'owner_id', label: 'Status', render: v => v.owner_id ? <span style={{color:'#4ade80'}}>Owner Claimed</span> : <span style={{color:'#9ca3af'}}>Unclaimed</span> }
+                            ]}
+                            data={data.venues}
+                            onDelete={(v) => handleDelete('venue', v.id)}
+                            actions={(v) => (
+                                <button className="btn-secondary" style={{fontSize:'0.8rem', padding:'5px 10px'}} onClick={() => window.open(`/venues/${v.id}`, '_blank')}>View</button>
+                            )}
+                        />
+                    </div>
+                );
+            case 'teams':
+                return (
+                    <div>
+                         <PanelHeader title="Team Registry" />
+                        <DataTable 
+                            columns={[
+                                { key: 'name', label: 'Team Name' },
+                                { key: 'sport', label: 'Sport' },
+                                { key: 'members', label: 'Size', render: t => t.members?.length || 0 }
+                            ]}
+                            data={data.teams}
+                            onDelete={(t) => handleDelete('team', t.id)}
+                        />
+                    </div>
+                );
+            case 'claims':
+                return (
+                    <div>
+                        <PanelHeader title="Business Verification Requests" />
+                         <DataTable 
+                            columns={[
+                                { key: 'business_name', label: 'Business' },
+                                { key: 'requester', label: 'Requester', render: c => c.profile?.name || c.contact_email },
+                                { key: 'venue', label: 'Target Venue', render: c => c.venue?.name || 'Unknown Venue' },
+                                { key: 'status', label: 'Status', render: c => (
+                                    <span style={{ 
+                                        color: c.status === 'pending' ? '#f59e0b' : c.status === 'approved' ? '#4ade80' : '#ef4444',
+                                        fontWeight: 'bold' 
+                                    }}>{c.status.toUpperCase()}</span>
+                                )}
+                            ]}
+                            data={data.claims}
+                            actions={(c) => c.status === 'pending' && (
+                                <>
+                                    <button onClick={() => handleClaim(c.id, 'approved')} style={{ background: '#064e3b', color: '#6ee7b7', border:'none', borderRadius:'4px', padding:'5px 10px', marginRight:'5px', cursor:'pointer' }}>Approve</button>
+                                    <button onClick={() => handleClaim(c.id, 'rejected')} style={{ background: '#450a0a', color: '#fca5a5', border:'none', borderRadius:'4px', padding:'5px 10px', cursor:'pointer' }}>Reject</button>
+                                </>
+                            )}
+                         />
+                    </div>
+                );
+            default:
+                return <div>Select a tab</div>;
+        }
+    };
 
-              {activeTab === 'teams' && (
-                 <div style={{ marginBottom: '1rem' }}>
-                   <label style={{ display: 'block', marginBottom: '0.5rem' }}>Sport</label>
-                   <select 
-                     value={editingItem.sport} 
-                     onChange={e => setEditingItem({...editingItem, sport: e.target.value})}
-                     style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #444', color: 'white' }}
-                   >
-                     {['Basketball', 'Soccer', 'Tennis', 'Baseball', 'Volleyball'].map(s => <option key={s}>{s}</option>)}
-                   </select>
-                 </div>
-              )}
+    return (
+        <main style={{ minHeight: '100vh', display: 'flex' }}>
+            {/* Sidebar only visible on desktop usually, but for admin we force it */}
+            <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+            
+            <div style={{ flex: 1, padding: '40px', background: 'var(--background)', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                         {/* Empty Left Header Space or Breadcrumb */}
+                    </div>
 
-              {activeTab === 'tournaments' && (
-                 <div style={{ marginBottom: '1rem' }}>
-                   <label style={{ display: 'block', marginBottom: '0.5rem' }}>Status</label>
-                   <select 
-                     value={editingItem.status} 
-                     onChange={e => setEditingItem({...editingItem, status: e.target.value})}
-                     style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #444', color: 'white' }}
-                   >
-                     <option>Active</option>
-                     <option>Completed</option>
-                     <option>Cancelled</option>
-                   </select>
-                 </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setEditingItem(null)} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid #555', color: '#888' }}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-    </main>
-  );
+                    {currentUser && (
+                        <div className="glass-panel" style={{ padding: '8px 16px', display: 'flex', gap: '8px', alignItems: 'center', fontSize: '0.9rem' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: currentUser.role === 'admin' ? '#4ade80' : '#f59e0b' }}></div>
+                            <span style={{opacity: 0.8}}>{currentUser.name} ({currentUser.role || 'user'})</span>
+                        </div>
+                    )}
+                </div>
+                {renderContent()}
+            </div>
+        </main>
+    );
 }

@@ -234,6 +234,17 @@ export const teamService = {
         });
   },
 
+  // Delete a team
+  deleteTeam: async (teamId) => {
+    // Rely on Cascade Delete for members, requests, wins
+    const { error } = await supabase
+        .from('teams')
+        .delete()
+        .eq('id', teamId);
+    
+    if (error) throw new Error(error.message);
+  },
+
   getUserTeams: async (userId) => {
      // Get query through team_members
      const { data: memberships } = await supabase

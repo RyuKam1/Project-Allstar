@@ -5,7 +5,7 @@ import { userInteractionService } from "./userInteractionService";
 export const venueService = {
   // Get all venues (now from Supabase)
   getAllVenues: async () => {
-    // 1. Fetch from DB
+    // Fetch from DB
     const { data: venues, error } = await supabase
       .from('venues')
       .select('*')
@@ -13,17 +13,10 @@ export const venueService = {
 
     if (error) {
       console.error("Error fetching venues:", error);
-      return staticVenues; // Fallback only on error
+      throw error;
     }
 
-    // 2. Auto-Seed if empty (First run)
-    if (!venues || venues.length === 0) {
-      console.log("Seeding venues...");
-      await venueService.seedVenues();
-      return staticVenues; // Return static for now, next refresh will have DB data
-    }
-
-    return venues;
+    return venues || [];
   },
 
   // Get single venue
@@ -89,5 +82,18 @@ export const venueService = {
 
     const { error } = await supabase.from('venues').insert(venuesToInsert);
     if (error) console.error("Seeding error:", error);
+  },
+
+  // Admin: Delete Venue
+  deleteVenue: async (id) => {
+    const { error } = await supabase.from('venues').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
+  // Admin: Update Venue
+  updateVenue: async (id, updates) => {
+    const { data, error } = await supabase.from('venues').update(updates).eq('id', id).select().single();
+    if (error) throw new Error(error.message);
+    return data;
   }
 };

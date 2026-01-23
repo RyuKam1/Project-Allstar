@@ -147,7 +147,8 @@ const DashboardContent = () => {
         e.preventDefault();
         setIsSubmittingClaim(true);
         try {
-            await businessService.claimVenue(selectedClaimVenue.id, claimForm);
+            // Search currently only returns community locations
+            await businessService.claimVenue(selectedClaimVenue.id, claimForm, 'community');
             alert("Claim submitted! We will review it shortly.");
             setClaimSearchQuery('');
             setSelectedClaimVenue(null);
@@ -325,11 +326,11 @@ const DashboardContent = () => {
                                 ) : (
                                     <div className={styles.venueList}>
                                         {venues.map(v => (
-                                            <div key={v.venue_id} className={styles.venueCard}>
+                                            <div key={v.venue_id || v.id} className={styles.venueCard}>
                                                 <div>
-                                                    <h3 style={{ margin: '0 0 5px 0' }}>{v.community_locations?.name}</h3>
+                                                    <h3 style={{ margin: '0 0 5px 0' }}>{v.name || v.community_locations?.name || 'Unnamed Venue'}</h3>
                                                     <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                                                        {v.status === 'verified' ? '✅ Verified' : '⏳ Pending'}
+                                                        {v.status === 'verified' ? '✅ Verified' : (v.status === 'active' ? '✅ Active' : '⏳ Pending')}
                                                     </div>
                                                 </div>
                                                 <button

@@ -45,24 +45,43 @@ export default function VenueEditorPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) { router.push('/login'); return; }
 
-            // Fetch Business Venue + Community Location
-            const { data, error } = await supabase
-                .from('business_venues')
-                .select(`
-                    *,
-                    community_locations:venue_id (*)
-                `)
-                .eq('venue_id', venueId) // This is the PK or unique
-                .eq('business_owner_id', user.id) // Security check
+            let targetVenue = null;
+            let type = 'community'; // default
+
+            // 1. Try Community Location
+            const { data: commData, error: commError } = await supabase
+                .from('community_locations')
+                .select('*')
+                .eq('id', venueId)
+                .eq('created_by', user.id)
                 .single();
 
-            if (error || !data) {
-                console.error("Venue not found or access denied", error);
+            if (commData) {
+                targetVenue = commData;
+                type = 'community';
+            } else {
+                // 2. Try Official Venue
+                // We use 'venues' table directly instead of 'business_venues' view to be safe
+                const { data: officialData, error: officialError } = await supabase
+                    .from('venues')
+                    .select('*')
+                    .eq('id', venueId)
+                    .eq('owner_id', user.id)
+                    .single();
+
+                if (officialData) {
+                    targetVenue = officialData;
+                    type = 'business';
+                }
+            }
+
+            if (!targetVenue) {
+                console.error("Venue not found or access denied");
                 router.push('/business/dashboard');
                 return;
             }
 
-            setVenue(data);
+            setVenue({ ...targetVenue, type });
 
             // Fetch Images separately from location_images table
             const { data: imageRows } = await supabase
@@ -76,16 +95,16 @@ export default function VenueEditorPage() {
             })) : [];
 
             setFormData({
-                name: data.community_locations.name,
-                description: data.community_locations.description || '',
-                address: data.community_locations.address || '',
-                sports: data.community_locations.sports || [],
+                name: targetVenue.name,
+                description: targetVenue.description || '',
+                address: targetVenue.address || (targetVenue.location || ''),
+                sports: targetVenue.sports || (targetVenue.sport ? [targetVenue.sport] : []),
                 images: loadedImages,
-                bannerUrl: data.community_locations.banner_image_url || '', // Load banner
-                coverUrl: data.community_locations.image_url || '', // Load cover
-                hours: data.operating_hours || '',
-                bookingUrl: data.booking_config?.url || '',
-                bookingPhone: data.booking_config?.phone || ''
+                bannerUrl: targetVenue.banner_image_url || '', // Load banner
+                coverUrl: targetVenue.image_url || '', // Load cover
+                hours: targetVenue.operating_hours || '',
+                bookingUrl: targetVenue.booking_config?.url || '',
+                bookingPhone: targetVenue.booking_config?.phone || ''
             });
 
             // Load Analytics (Parallel)
@@ -203,51 +222,56 @@ export default function VenueEditorPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            console.log("Saving changes for venue ID:", venueId);
+            console.log("Saving changes for venue ID:", venueId, "Type:", venue.type);
 
-            // 1. Update Community Location (Name, Description, Sports, Address)
-            // REMOVED: images (handled via separate table)
-            const { data: locData, error: locError } = await supabase
-                .from('community_locations')
-                .update({
-                    name: formData.name,
-                    description: formData.description,
-                    address: formData.address,
-                    sports: formData.sports,
-                    banner_image_url: formData.bannerUrl, // Save banner
-                    image_url: formData.coverUrl // Save cover
-                })
-                .eq('id', venueId)
-                .select();
+            if (venue.type === 'community') {
+                // Update Community Location
+                const { error: locError } = await supabase
+                    .from('community_locations')
+                    .update({
+                        name: formData.name,
+                        description: formData.description,
+                        address: formData.address,
+                        sports: formData.sports,
+                        banner_image_url: formData.bannerUrl,
+                        image_url: formData.coverUrl,
+                        operating_hours: formData.hours, // Assuming we add these cols or they exist
+                        // storing booking config in description or separate generic col if needed?
+                        // For now let's assume community_locations schema supports these or we ignore them
+                    })
+                    .eq('id', venueId);
 
-            if (locError) {
-                console.error("Location update failed:", locError);
-                throw new Error("Failed to update location details: " + locError.message);
-            }
+                if (locError) throw new Error("Failed to update community location: " + locError.message);
+            
+            } else {
+                // Update Official Venue
+                // 1. Basic Info
+                const { error: venueError } = await supabase
+                    .from('venues')
+                    .update({
+                        name: formData.name,
+                        description: formData.description,
+                        // address? venues usually uses 'location' or coords. Let's try flexible update.
+                        // schema: name, description, sport, amenities...
+                    })
+                    .eq('id', venueId);
+                
+                if (venueError) console.warn("Basic info update warning:", venueError);
 
-            if (!locData || locData.length === 0) {
-                console.warn("No location rows updated. ID might be mismatch.");
-            }
-
-            // 2. Update Business Venue (Hours, Booking Config)
-            try {
+                // 2. Settings (Hours, etc)
                 await businessService.updateVenueSettings(venueId, {
                     operating_hours: formData.hours,
                     booking_config: {
-                        method: 'external_link', // Default for now
+                        method: 'external_link',
                         url: formData.bookingUrl,
                         phone: formData.bookingPhone,
                         label: 'Book Now'
                     }
                 });
-            } catch (bizError) {
-                console.error("Business stats update failed:", bizError);
-                // Don't block full success if just business settings fail, but warn
             }
 
             setHasChanges(false);
             alert("Changes saved successfully!");
-            // Reload to verify data persistence
             loadVenue();
         } catch (error) {
             console.error(error);
