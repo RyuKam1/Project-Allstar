@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { authService } from '@/services/authService';
 import { teamService } from '@/services/teamService';
+import { isPlaceholderVenueName } from '@/lib/placeholderVenues';
 
 export default function MigrationPage() {
   const [logs, setLogs] = useState([]);
@@ -203,6 +204,10 @@ export default function MigrationPage() {
         addLog("--- Phase 4: Venues ---");
         for (const venue of localVenues) {
             try {
+                if (isPlaceholderVenueName(venue?.name)) {
+                    addLog(`   -> Skipped Placeholder Venue: ${venue.name}`);
+                    continue;
+                }
                 // If venue has an owner, try to map it
                 const ownerId = venue.ownerId ? userIdMap[venue.ownerId] : null;
 

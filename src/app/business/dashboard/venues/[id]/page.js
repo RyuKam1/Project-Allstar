@@ -31,7 +31,9 @@ export default function VenueEditorPage() {
         images: [], // Array of { image_url: string } or similar
         hours: '',
         bookingUrl: '',
-        bookingPhone: ''
+        bookingPhone: '',
+        ownerDisplayMode: 'user',
+        allowCommunityContributions: false
     });
 
     const [analyticsData, setAnalyticsData] = useState({ activeCount: 0, totalIntents: 0 });
@@ -104,7 +106,9 @@ export default function VenueEditorPage() {
                 coverUrl: targetVenue.image_url || '', // Load cover
                 hours: targetVenue.operating_hours || '',
                 bookingUrl: targetVenue.booking_config?.url || '',
-                bookingPhone: targetVenue.booking_config?.phone || ''
+                bookingPhone: targetVenue.booking_config?.phone || '',
+                ownerDisplayMode: targetVenue.booking_config?.owner_display_mode || 'user',
+                allowCommunityContributions: !!targetVenue.booking_config?.allow_community_contributions
             });
 
             // Load Analytics (Parallel)
@@ -262,10 +266,13 @@ export default function VenueEditorPage() {
                 await businessService.updateVenueSettings(venueId, {
                     operating_hours: formData.hours,
                     booking_config: {
+                        ...(venue?.booking_config || {}),
                         method: 'external_link',
                         url: formData.bookingUrl,
                         phone: formData.bookingPhone,
-                        label: 'Book Now'
+                        label: 'Book Now',
+                        owner_display_mode: formData.ownerDisplayMode,
+                        allow_community_contributions: formData.allowCommunityContributions
                     }
                 });
             }
@@ -496,6 +503,32 @@ export default function VenueEditorPage() {
                                     value={formData.bookingPhone}
                                     onChange={e => handleInputChange('bookingPhone', e.target.value)}
                                 />
+                            </div>
+
+                            <div>
+                                <label className={styles.label}>Display Publisher As</label>
+                                <select
+                                    className={styles.input}
+                                    value={formData.ownerDisplayMode || 'user'}
+                                    onChange={e => handleInputChange('ownerDisplayMode', e.target.value)}
+                                >
+                                    <option value="user">Owner (User)</option>
+                                    <option value="company">Company</option>
+                                </select>
+                            </div>
+
+                            <div className={styles.fullWidth}>
+                                <label className={styles.label}>Community Contributions</label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!formData.allowCommunityContributions}
+                                        onChange={e => handleInputChange('allowCommunityContributions', e.target.checked)}
+                                    />
+                                    <span style={{ color: 'var(--text-muted)' }}>
+                                        Allow community users to contribute feedback while owner keeps final edit control
+                                    </span>
+                                </label>
                             </div>
                         </div>
                     </div>

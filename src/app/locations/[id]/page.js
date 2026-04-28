@@ -17,6 +17,8 @@ import ReviewForm from '@/components/Reviews/ReviewForm';
 import { reviewService } from '@/services/reviewService'; // Import Service
 import Map from '@/components/UI/Map';
 import PendingEditsList from '@/components/Community/PendingEditsList'; // Import correctly at top
+import PendingVenueContributions from '@/components/Locations/PendingVenueContributions';
+import BusinessContributionForm from '@/components/Locations/BusinessContributionForm';
 import { useAuth } from '@/context/AuthContext';
 import ImageLightbox from '@/components/UI/ImageLightbox';
 import { getPlayButtonText } from '@/lib/sportUtils';
@@ -37,6 +39,7 @@ export default function LocationDetailPage() {
     const [reviews, setReviews] = useState([]);
     const [reviewStats, setReviewStats] = useState(null);
     const [showReviewForm, setShowReviewForm] = useState(false);
+    const [publisherInfo, setPublisherInfo] = useState(null);
 
     // Lightbox State
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -111,6 +114,7 @@ export default function LocationDetailPage() {
                 // Normalize data structure if needed
             }
             setLocation(data);
+            setPublisherInfo(await resolvePublisherInfo(data, locationType));
 
             // Get active player count
             const count = await playIntentService.getActivePlayerCount(id, locationType);
@@ -169,6 +173,10 @@ export default function LocationDetailPage() {
     }
 
     const sports = location.sports || (location.sport ? [location.sport] : []);
+    const contributionPolicy = getContributionPolicy(location, locationType);
+    const showSuggestEdit = locationType === 'community';
+    const isBusinessOwner = locationType === 'business' && user && location.owner_id === user.id;
+    const businessContribEnabled = !!location.booking_config?.allow_community_contributions;
 
     return (
         <div className={styles.container}>
@@ -401,10 +409,23 @@ export default function LocationDetailPage() {
                             </div>
                         </div>
 
-                        {locationType === 'community' && (
+                        <div className={styles.sidebarCard}>
+                            <h3>Posted By</h3>
+                            <p>
+                                {publisherInfo?.label || (locationType === 'business' ? 'Venue Owner' : 'Community Member')}
+                            </p>
+                            <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                {publisherInfo?.subtitle || 'Maintains this venue page'}
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem', fontSize: '0.9rem' }}>
+                                {contributionPolicy}
+                            </p>
+                        </div>
+
+                        {showSuggestEdit && (
                             <div className={styles.sidebarCard}>
                                 <h3>Contributors</h3>
-                                <p>Added by {location.created_by_name || 'Community Member'}</p>
+                                <p>Added by {publisherInfo?.label || location.created_by_name || 'Community Member'}</p>
                                 <button
                                     className={styles.secondaryButton}
                                     onClick={() => setShowEditForm(true)}
@@ -414,11 +435,28 @@ export default function LocationDetailPage() {
                             </div>
                         )}
 
+                        {locationType === 'business' && isBusinessOwner && businessContribEnabled && (
+                            <PendingVenueContributions
+                                venueId={id}
+                                onUpdate={loadLocationData}
+                            />
+                        )}
+
                         {locationType === 'business' && (
                             <div className={styles.sidebarCard}>
                                 <h3>Info</h3>
-                                <p>Opening Hours: 08:00 - 22:00</p>
-                                <button className={styles.secondaryButton}>Contact Venue</button>
+                                <p>Opening Hours: {location.operating_hours || 'Not specified'}</p>
+                                <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                                    {(location.booking_config?.allow_community_contributions)
+                                        ? 'Community contributions are enabled by the owner.'
+                                        : 'Only owner account can make venue page changes.'}
+                                </p>
+                                {businessContribEnabled && !isBusinessOwner && (
+                                    <button className={styles.secondaryButton} onClick={() => setShowEditForm(true)}>
+                                        Suggest Improvement
+                                    </button>
+                                )}
+                                {!businessContribEnabled && <button className={styles.secondaryButton}>Contact Venue</button>}
                             </div>
                         )}
                     </div>
@@ -450,14 +488,25 @@ export default function LocationDetailPage() {
                     padding: '1rem'
                 }}>
                     <div className="glass-panel" style={{ background: '#1a1a1a', padding: '0', borderRadius: '16px', overflow: 'hidden' }}>
-                        <EditLocationForm
-                            location={location}
-                            onSuccess={() => {
-                                setShowEditForm(false);
-                                loadLocationData(); // Refresh to see applied edits (if auto-applied)
-                            }}
-                            onCancel={() => setShowEditForm(false)}
-                        />
+                        {locationType === 'community' ? (
+                            <EditLocationForm
+                                location={location}
+                                onSuccess={() => {
+                                    setShowEditForm(false);
+                                    loadLocationData(); // Refresh to see applied edits (if auto-applied)
+                                }}
+                                onCancel={() => setShowEditForm(false)}
+                            />
+                        ) : (
+                            <BusinessContributionForm
+                                venue={location}
+                                onSuccess={() => {
+                                    setShowEditForm(false);
+                                    loadLocationData();
+                                }}
+                                onCancel={() => setShowEditForm(false)}
+                            />
+                        )}
                     </div>
                 </div>
             )}
@@ -491,6 +540,68 @@ export default function LocationDetailPage() {
             )}
         </div>
     );
+}
+
+async function resolvePublisherInfo(location, locationType) {
+    if (!location) return null;
+
+    if (locationType === 'community') {
+        if (!location.created_by) {
+            return { label: 'Community Member', subtitle: 'Community-maintained location' };
+        }
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', location.created_by)
+            .single();
+
+        return {
+            label: profile?.name || 'Community Member',
+            subtitle: 'Community maintainer'
+        };
+    }
+
+    if (!location.owner_id) {
+        return { label: 'Platform Venue', subtitle: 'Managed by platform team' };
+    }
+
+    const bookingConfig = location.booking_config || {};
+    const showAsCompany = bookingConfig.owner_display_mode === 'company';
+
+    const [{ data: profile }, { data: approvedClaim }] = await Promise.all([
+        supabase.from('profiles').select('name').eq('id', location.owner_id).single(),
+        supabase
+            .from('claim_requests')
+            .select('business_name')
+            .eq('requester_id', location.owner_id)
+            .eq('venue_id', location.id)
+            .eq('status', 'approved')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+    ]);
+
+    const ownerName = profile?.name || 'Venue Owner';
+    const companyName = approvedClaim?.business_name || ownerName;
+
+    return {
+        label: showAsCompany ? companyName : ownerName,
+        subtitle: showAsCompany ? 'Published by company account' : 'Published by owner account'
+    };
+}
+
+function getContributionPolicy(location, locationType) {
+    if (!location) return '';
+    if (locationType === 'community') {
+        return 'Community contributions are enabled. Other users can suggest edits for maintainer review.';
+    }
+
+    const bookingConfig = location.booking_config || {};
+    if (bookingConfig.allow_community_contributions) {
+        return 'Owner allows community contributions (reviews and collaborative feedback). Owner account remains the only direct editor.';
+    }
+    return 'Only the owner account can edit this venue page. Community contributions are currently disabled.';
 }
 
 function AddressDisplay({ address, lat, lng }) {

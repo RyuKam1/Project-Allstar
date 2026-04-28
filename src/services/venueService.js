@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { venues as staticVenues } from "@/lib/venues";
+import { isPlaceholderVenueName } from "@/lib/placeholderVenues";
 import { userInteractionService } from "./userInteractionService";
 
 export const venueService = {
@@ -16,7 +17,7 @@ export const venueService = {
       throw error;
     }
 
-    return venues || [];
+    return (venues || []).filter((venue) => !isPlaceholderVenueName(venue?.name));
   },
 
   // Get single venue
@@ -28,6 +29,7 @@ export const venueService = {
       .single();
 
     if (error) return null;
+    if (isPlaceholderVenueName(data?.name)) return null;
     return data;
   },
 
@@ -62,6 +64,10 @@ export const venueService = {
 
   // Seed Function
   seedVenues: async () => {
+    if (!Array.isArray(staticVenues) || staticVenues.length === 0) {
+      return { inserted: 0, skipped: true };
+    }
+
     // Transform static venues to match DB schema if needed
     // Static venues have 'id' which is auto-generated in DB, so we might omit it or force it.
     // We'll omit 'id' to let DB generate unique IDs, or force it if we want consistency.
@@ -82,6 +88,7 @@ export const venueService = {
 
     const { error } = await supabase.from('venues').insert(venuesToInsert);
     if (error) console.error("Seeding error:", error);
+    return { inserted: venuesToInsert.length, skipped: false };
   },
 
   // Admin: Delete Venue
