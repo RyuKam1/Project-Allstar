@@ -22,17 +22,17 @@ export default function TournamentsPage() {
   const [newSport, setNewSport] = useState('Basketball');
   const [selectedTeams, setSelectedTeams] = useState([]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  async function loadData() {
     const data = await tournamentService.getAllTournaments();
     const teams = await teamService.getAllTeams();
     setTournaments(data);
     setAllTeams(teams);
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleToggleTeam = (team) => {
     if (selectedTeams.find(t => t.id === team.id)) {

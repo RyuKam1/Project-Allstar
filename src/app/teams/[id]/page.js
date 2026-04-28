@@ -17,16 +17,16 @@ export default function TeamDetails() {
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [guestName, setGuestName] = useState('');
 
-  useEffect(() => {
-    if (params?.id) loadTeam();
-  }, [params?.id]);
-
-  const loadTeam = async () => {
+  async function loadTeam() {
     const teams = await teamService.getAllTeams();
     const found = teams.find(t => t.id === params.id);
     setTeam(found);
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    if (params?.id) loadTeam();
+  }, [params?.id]);
 
   const handleAddGuest = async (e) => {
     e.preventDefault();
@@ -379,7 +379,7 @@ export default function TeamDetails() {
                  {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || selectedPlayer.role || 'Member'}
               </div>
               <p className={styles.playerBio}>
-                "{selectedPlayer.bio || `Representing ${team.name}`}"
+                &quot;{selectedPlayer.bio || `Representing ${team.name}`}&quot;
               </p>
 
               {/* Physical Stats Grid */}

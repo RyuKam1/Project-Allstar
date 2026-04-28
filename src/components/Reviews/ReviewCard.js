@@ -162,7 +162,7 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
                     <div className={`glass-panel ${styles.reportContent}`}>
                         <h4 className={styles.reportTitle}>Report Review</h4>
                         <p className={styles.reportSubtitle}>
-                            Help us maintain a respectful community. What's wrong with this review?
+                            Help us maintain a respectful community. What&apos;s wrong with this review?
                         </p>
                         <form onSubmit={handleReport}>
                             <textarea

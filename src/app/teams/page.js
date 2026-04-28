@@ -18,15 +18,15 @@ export default function TeamsPage() {
   // Create Form State
   const [newTeam, setNewTeam] = useState({ name: '', sport: 'Basketball', description: '' });
 
-  useEffect(() => {
-    loadTeams();
-  }, []);
-
-  const loadTeams = async () => {
+  async function loadTeams() {
     const data = await teamService.getAllTeams();
     setTeams(data);
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    loadTeams();
+  }, []);
 
   const handleCreateTeam = async (e) => {
     e.preventDefault();

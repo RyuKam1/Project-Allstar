@@ -394,12 +394,12 @@ export default function MigrationPage() {
   return (
     <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', color: 'white' }}>
       <h1>Data Migration Utility</h1>
-      <p>Recommended: Click "Start Migration" to automatically create Supabase accounts and link your teams.</p>
+      <p>Recommended: Click &quot;Start Migration&quot; to automatically create Supabase accounts and link your teams.</p>
       
       <div style={{ background: '#333', padding: '1rem', borderRadius: '8px', margin: '2rem 0' }}>
          <strong>Why not CSV Drag-and-Drop?</strong>
          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#ccc' }}>
-            Supabase Authentication handles passwords securely. You cannot drag-and-drop users with passwords directly into the database table. 
+            Supabase Authentication handles passwords securely. You cannot drag-and-drop users with passwords directly into the database table.
             This utility uses the API to properly register your users and maintain the link to their teams.
          </p>
       </div>

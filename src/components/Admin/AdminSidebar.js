@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 const AdminSidebar = ({ activeTab, onTabChange }) => {
     const tabs = [
@@ -51,7 +52,7 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
             ))}
 
             <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <a href="/" style={{
+                <Link href="/" style={{
                      display: 'flex',
                      alignItems: 'center',
                      gap: '15px',
@@ -62,8 +63,8 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
                      transition: 'all 0.2s'
                 }} className="hover-bg">
                     <span>🏠</span> Home
-                </a>
-                <a href="/profile" style={{
+                </Link>
+                <Link href="/profile" style={{
                      display: 'flex',
                      alignItems: 'center',
                      gap: '15px',
@@ -74,7 +75,7 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
                      transition: 'all 0.2s'
                 }} className="hover-bg">
                     <span>👤</span> My Profile
-                </a>
+                </Link>
             </div>
         </div>
     );

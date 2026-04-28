@@ -26,7 +26,7 @@ export default function UnauthorizedPage() {
                     <div style={{ fontSize: '3rem', marginBottom: '20px' }}>🛑</div>
                     <h1 style={{ fontSize: '2rem', marginBottom: '10px' }}>Access Denied</h1>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '30px', lineHeight: '1.6' }}>
-                        You don't have permission to view this area. This section is restricted to registered business owners and administrators.
+                        You don&apos;t have permission to view this area. This section is restricted to registered business owners and administrators.
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

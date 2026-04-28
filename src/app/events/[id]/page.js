@@ -227,7 +227,7 @@ export default function EventDetails() {
                  {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || 'Participant'}
               </div>
               <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
-                "{selectedPlayer.bio || `Attendee of ${event.title}`}"
+                &quot;{selectedPlayer.bio || `Attendee of ${event.title}`}&quot;
               </p>
 
               {/* Physical Stats Grid */}

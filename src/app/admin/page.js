@@ -11,9 +11,6 @@ import { businessService } from "@/services/businessService";
 import { placeholderVenueCleanupService } from "@/services/placeholderVenueCleanupService";
 import { useRouter } from 'next/navigation';
 
-// Placeholder for Detail Views (We can extract these to separate files if they grow)
-/* eslint-disable react/display-name */
-
 // Generic Table Component
 const DataTable = ({ columns, data, onEdit, onDelete, actions }) => {
     const [search, setSearch] = useState('');
@@ -136,10 +133,13 @@ export default function AdminPage() {
     const handleDelete = async (type, id) => {
         if (!confirm("Are you sure? This is irreversible.")) return;
         try {
-            if (type === 'team') await teamService.deleteTeam(id);
-            if (type === 'tournament') await tournamentService.deleteTournament(id);
-            if (type === 'venue') await venueService.deleteVenue(id);
-            // User deletion skipped for now per prev instructions constraint
+            const res = await fetch('/api/admin/resources', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, id })
+            });
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error || 'Deletion failed');
             loadData(); // Refresh
         } catch (e) {
             alert("Error: " + e.message);
@@ -148,7 +148,13 @@ export default function AdminPage() {
 
     const handleClaim = async (claimId, status) => {
         try {
-            await businessService.resolveClaim(claimId, status);
+            const res = await fetch(`/api/admin/claims/${claimId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error || 'Claim update failed');
             loadData();
         } catch (e) {
             alert("Error: " + e.message);

@@ -78,11 +78,32 @@ export async function middleware(request) {
     }
   }
 
+  // 4. Admin Routes
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    if (!user) {
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role || user.user_metadata?.role || 'user';
+    if (role !== 'admin') {
+      url.pathname = '/unauthorized';
+      return NextResponse.redirect(url);
+    }
+  }
+
   return response
 }
 
 export const config = {
   matcher: [
-    '/business/:path*'
+    '/business/:path*',
+    '/admin/:path*'
   ],
 };

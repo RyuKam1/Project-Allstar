@@ -32,6 +32,19 @@ export default function CommunityLocationForm({ initialCoords, onSuccess, onCanc
         'Baseball', 'Skateboarding', 'Running', 'Fitness', 'Other'
     ];
 
+    async function fetchAddress(lat, lng) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const data = await res.json();
+            if (data && data.display_name) {
+                // Use the display name from Nominatim
+                setFormData(prev => ({ ...prev, address: data.display_name }));
+            }
+        } catch (err) {
+            console.error("Failed to fetch address", err);
+        }
+    }
+
     useEffect(() => {
         if (initialCoords) {
             setFormData(prev => ({
@@ -44,19 +57,6 @@ export default function CommunityLocationForm({ initialCoords, onSuccess, onCanc
             fetchAddress(initialCoords.lat, initialCoords.lng);
         }
     }, [initialCoords]);
-
-    const fetchAddress = async (lat, lng) => {
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-            const data = await res.json();
-            if (data && data.display_name) {
-                // Use the display name from Nominatim
-                setFormData(prev => ({ ...prev, address: data.display_name }));
-            }
-        } catch (err) {
-            console.error("Failed to fetch address", err);
-        }
-    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

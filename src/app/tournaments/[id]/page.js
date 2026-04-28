@@ -13,15 +13,15 @@ export default function TournamentDetails() {
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (params?.id) loadTour();
-  }, [params?.id]);
-
-  const loadTour = async () => {
+  async function loadTour() {
     const data = await tournamentService.getTournament(params.id);
     setTournament(data);
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    if (params?.id) loadTour();
+  }, [params?.id]);
 
   const handleUpdate = async (matchId, result) => {
     const updated = await tournamentService.updateMatch(tournament.id, matchId, result);

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { sanitizeText } from "@/lib/security/inputSanitizer";
 
 export const communityService = {
   // Get all posts (Joined with profiles for author info)
@@ -58,6 +59,9 @@ export const communityService = {
 
   // Create new post
   createPost: async (userId, content, type = 'General', imageFile = null) => {
+    const safeContent = sanitizeText(content, 2000);
+    if (!safeContent) throw new Error("Post content cannot be empty");
+
     let image_url = null;
     if (imageFile) {
         image_url = await communityService.uploadPostImage(imageFile);
@@ -67,7 +71,7 @@ export const communityService = {
       .from('community_posts')
       .insert({
         user_id: userId,
-        content,
+        content: safeContent,
         type,
         image_url
       })
@@ -101,12 +105,15 @@ export const communityService = {
   },
 
   createComment: async (postId, userId, content) => {
+    const safeContent = sanitizeText(content, 1200);
+    if (!safeContent) throw new Error("Comment cannot be empty");
+
     const { data, error } = await supabase
         .from('community_comments')
         .insert({
             post_id: postId,
             user_id: userId,
-            content
+            content: safeContent
         })
         .select(`
             *,

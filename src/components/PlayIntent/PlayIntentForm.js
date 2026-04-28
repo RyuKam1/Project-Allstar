@@ -114,7 +114,7 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
                 <div className={styles.header}>
                     <h2 className={styles.title}>When are you playing?</h2>
                     <p className={styles.subtitle}>
-                        Let others know you'll be at <strong>{locationName}</strong>
+                        Let others know you&apos;ll be at <strong>{locationName}</strong>
                     </p>
                 </div>
 
@@ -127,7 +127,7 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
                             onQuickSelect={handleTimeConfirmed}
                         />
                         <p className={styles.timeHint}>
-                            You're planning to play {formatTimeDisplay(selectedTime)}
+                            You&apos;re planning to play {formatTimeDisplay(selectedTime)}
                             <span className={styles.scrollHintIcon}>↓</span>
                         </p>
                     </div>

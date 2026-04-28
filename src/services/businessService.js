@@ -158,51 +158,13 @@ export const businessService = {
 
     // Admin: Resolve Claim (Approve/Reject)
     resolveClaim: async (claimId, status) => {
-        // 1. Update Claim Status
-        // Remove .single() to avoid "Cannot coerce" error if RLS lets us see duplicates or something weird
-        const { data, error } = await supabase
-            .from('claim_requests')
-            .update({ status })
-            .eq('id', claimId)
-            .select();
-        
-        if (error) throw new Error(error.message);
-        const claim = data?.[0];
-        if (!claim) throw new Error("Claim not found or update failed");
-
-        // 2. If Approved, transfer ownership
-        if (status === 'approved') {
-            
-            // Check if it's an Official Venue
-            if (claim.venue_id) {
-                const { error: venueError } = await supabase
-                    .from('venues')
-                    .update({ owner_id: claim.requester_id })
-                    .eq('id', claim.venue_id);
-                
-                if (venueError) throw new Error("Failed to transfer official venue ownership: " + venueError.message);
-            } 
-            // Check if it's a Community Location
-            else if (claim.community_location_id) {
-                const { error: commError } = await supabase
-                    .from('community_locations')
-                    .update({ created_by: claim.requester_id }) // Transfer ownership by changing creator
-                    .eq('id', claim.community_location_id);
-                
-                if (commError) throw new Error("Failed to transfer community location ownership: " + commError.message);
-            }
-            else {
-                console.warn("Claim approved but no target venue found in request.");
-            }
-
-            // Also upgrade user role to 'business' if not already
-            // This is a "nice to have" automation
-            await supabase
-                .from('profiles')
-                .update({ role: 'business' })
-                .eq('id', claim.requester_id);
-        }
-
-        return claim;
+        const res = await fetch(`/api/admin/claims/${claimId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Failed to resolve claim');
+        return payload.claim;
     }
 };

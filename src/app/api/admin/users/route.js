@@ -1,18 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-// Create a Service Role Client (ADMIN ONLY)
-// Requires process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'MISSING_KEY'
-);
+import { requireAdmin } from '@/lib/server/adminAuth';
+import { enforceRateLimit } from '@/lib/server/rateLimit';
+import { logAdminAudit } from '@/lib/server/adminAudit';
 
 // DELETE: Terminate Account
 export async function DELETE(request) {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: "Server Configuration Error: Missing Service Role Key" }, { status: 500 });
-  }
+  const rateLimitResponse = enforceRateLimit(request, 'admin-users-delete', 20, 60_000);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const authz = await requireAdmin(request);
+  if (authz.error) return authz.error;
+  const { supabaseAdmin, user } = authz;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -25,6 +23,13 @@ export async function DELETE(request) {
     
     if (error) throw error;
 
+    await logAdminAudit(supabaseAdmin, {
+      action: 'delete_user',
+      actorId: user.id,
+      targetType: 'user',
+      targetId: userId
+    });
+
     // 2. Delete Profile (If not cascaded)
     // const { error: pErr } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
 
@@ -36,9 +41,12 @@ export async function DELETE(request) {
 
 // PATCH: Update User (Email, Password, Metadata)
 export async function PATCH(request) {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: "Server Configuration Error: Missing Service Role Key" }, { status: 500 });
-  }
+  const rateLimitResponse = enforceRateLimit(request, 'admin-users-patch', 30, 60_000);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const authz = await requireAdmin(request);
+  if (authz.error) return authz.error;
+  const { supabaseAdmin, user } = authz;
 
   try {
     const body = await request.json();
@@ -64,6 +72,14 @@ export async function PATCH(request) {
         const { error: aErr } = await supabaseAdmin.auth.admin.updateUserById(id, authUpdates);
         if (aErr) throw aErr;
     }
+
+    await logAdminAudit(supabaseAdmin, {
+      action: 'update_user',
+      actorId: user.id,
+      targetType: 'user',
+      targetId: id,
+      metadata: { profileUpdated: !!profile, authUpdated: Object.keys(authUpdates).length > 0 }
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

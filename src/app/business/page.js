@@ -55,7 +55,7 @@ export default function BusinessLandingPage() {
 
                         <h2 style={{ fontSize: '1.5rem', marginBottom: '10px' }}>Already on the map?</h2>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '30px', flex: 1 }}>
-                            Search for your venue to verify ownership. We'll transfer control to you while
+                            Search for your venue to verify ownership. We&apos;ll transfer control to you while
                             keeping all existing community reviews and activity history intact.
                         </p>
 
@@ -128,7 +128,7 @@ export default function BusinessLandingPage() {
                             <div>
                                 <h4 style={{ margin: '0 0 8px' }}>External-First Booking</h4>
                                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                    We don't try to replace your booking system. We link directly to it.
+                                    We don&apos;t try to replace your booking system. We link directly to it.
                                     Keep using your existing tools; we just send you the traffic.
                                 </p>
                             </div>

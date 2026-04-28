@@ -1,8 +1,18 @@
 import { supabase } from "@/lib/supabaseClient";
 
+let getAllTeamsInFlight = null;
+let getAllTeamsCache = null;
+let getAllTeamsCacheAt = 0;
+const TEAM_LIST_CACHE_TTL_MS = 15000;
+
 export const teamService = {
   // Get all teams with their members and owner profile
   getAllTeams: async () => {
+    if (getAllTeamsCache && (Date.now() - getAllTeamsCacheAt) < TEAM_LIST_CACHE_TTL_MS) {
+      return getAllTeamsCache;
+    }
+    if (getAllTeamsInFlight) return getAllTeamsInFlight;
+    getAllTeamsInFlight = (async () => {
     // Fetch teams
     const { data: teams, error } = await supabase
       .from('teams')
@@ -12,58 +22,82 @@ export const teamService = {
         console.error("Error fetching teams:", error);
         return [];
     }
-    
-    // For each team, fetch its members, requests, and wins
-    // NOTE: In production, we would use a more complex join query or view
-    // But for this refactor we'll do parallel fetches for simplicity to match old structure
-    
-    const teamsWithData = await Promise.all(teams.map(async (team) => {
-        // Fetch Members
-        const { data: members } = await supabase
-            .from('team_members')
-            .select(`
-                *,
-                profile:user_id ( id, name, avatar )
-            `)
-            .eq('team_id', team.id);
+    const teamIds = (teams || []).map((t) => t.id);
+    if (teamIds.length === 0) return [];
 
-        // Fetch Requests
-        const { data: requests } = await supabase
-            .from('team_requests')
-            .select(`
-                *,
-                profile:user_id ( id, name, avatar )
-            `)
-            .eq('team_id', team.id);
+    const [membersRes, requestsRes, winsRes] = await Promise.all([
+      supabase
+        .from('team_members')
+        .select(`
+          *,
+          profile:user_id ( id, name, avatar )
+        `)
+        .in('team_id', teamIds),
+      supabase
+        .from('team_requests')
+        .select(`
+          *,
+          profile:user_id ( id, name, avatar )
+        `)
+        .in('team_id', teamIds),
+      supabase
+        .from('team_wins')
+        .select('*')
+        .in('team_id', teamIds)
+    ]);
 
-        // Fetch Wins
-        const { data: wins } = await supabase
-            .from('team_wins')
-            .select('*')
-            .eq('team_id', team.id);
+    const membersByTeam = {};
+    const requestsByTeam = {};
+    const winsByTeam = {};
 
-        // Structure it to match the old schema the frontend expects
-        return {
-            ...team,
-            ownerId: team.owner_id, // Map snake_case to camelCase
-            members: members ? members.map(m => ({
-                id: m.user_id,
-                name: m.profile?.name || m.user_id, // Fallback
-                avatar: m.profile?.avatar,
-                role: m.role,
-                position: m.position
-            })) : [],
-            requests: requests ? requests.map(r => ({
-                id: r.user_id,
-                name: r.profile?.name,
-                avatar: r.profile?.avatar,
-                requestedAt: r.requested_at
-            })) : [],
-            wins: wins || []
-        };
-    }));
+    (membersRes.data || []).forEach((m) => {
+      if (!membersByTeam[m.team_id]) membersByTeam[m.team_id] = [];
+      membersByTeam[m.team_id].push(m);
+    });
+    (requestsRes.data || []).forEach((r) => {
+      if (!requestsByTeam[r.team_id]) requestsByTeam[r.team_id] = [];
+      requestsByTeam[r.team_id].push(r);
+    });
+    (winsRes.data || []).forEach((w) => {
+      if (!winsByTeam[w.team_id]) winsByTeam[w.team_id] = [];
+      winsByTeam[w.team_id].push(w);
+    });
+
+    const teamsWithData = teams.map((team) => {
+      const members = membersByTeam[team.id] || [];
+      const requests = requestsByTeam[team.id] || [];
+      const wins = winsByTeam[team.id] || [];
+      return {
+        ...team,
+        ownerId: team.owner_id,
+        members: members.map(m => ({
+          id: m.user_id,
+          name: m.profile?.name || m.user_id,
+          avatar: m.profile?.avatar,
+          role: m.role,
+          position: m.position
+        })),
+        requests: requests.map(r => ({
+          id: r.user_id,
+          name: r.profile?.name,
+          avatar: r.profile?.avatar,
+          requestedAt: r.requested_at
+        })),
+        wins
+      };
+    });
 
     return teamsWithData;
+    })();
+
+    try {
+      const data = await getAllTeamsInFlight;
+      getAllTeamsCache = data;
+      getAllTeamsCacheAt = Date.now();
+      return data;
+    } finally {
+      getAllTeamsInFlight = null;
+    }
   },
 
   // Create a new team

@@ -3,9 +3,19 @@ import { venues as staticVenues } from "@/lib/venues";
 import { isPlaceholderVenueName } from "@/lib/placeholderVenues";
 import { userInteractionService } from "./userInteractionService";
 
+let getAllVenuesInFlight = null;
+let getAllVenuesCache = null;
+let getAllVenuesCacheAt = 0;
+const VENUE_LIST_CACHE_TTL_MS = 15000;
+
 export const venueService = {
   // Get all venues (now from Supabase)
   getAllVenues: async () => {
+    if (getAllVenuesCache && (Date.now() - getAllVenuesCacheAt) < VENUE_LIST_CACHE_TTL_MS) {
+      return getAllVenuesCache;
+    }
+    if (getAllVenuesInFlight) return getAllVenuesInFlight;
+    getAllVenuesInFlight = (async () => {
     // Fetch from DB
     const { data: venues, error } = await supabase
       .from('venues')
@@ -17,7 +27,18 @@ export const venueService = {
       throw error;
     }
 
-    return (venues || []).filter((venue) => !isPlaceholderVenueName(venue?.name));
+    const filtered = (venues || []).filter((venue) => !isPlaceholderVenueName(venue?.name));
+    return filtered;
+    })();
+
+    try {
+      const data = await getAllVenuesInFlight;
+      getAllVenuesCache = data;
+      getAllVenuesCacheAt = Date.now();
+      return data;
+    } finally {
+      getAllVenuesInFlight = null;
+    }
   },
 
   // Get single venue

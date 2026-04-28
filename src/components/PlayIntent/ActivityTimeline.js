@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { playIntentService } from '@/services/playIntentService';
 import ParticipantList from './ParticipantList';
@@ -16,6 +16,17 @@ export default function ActivityTimeline({ locationId, locationType, onJoinBlock
     const [timeline, setTimeline] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedBlock, setExpandedBlock] = useState(null);
+
+    const loadTimeline = useCallback(async () => {
+        try {
+            const data = await playIntentService.getIntentTimeline(locationId, locationType);
+            setTimeline(data);
+        } catch (error) {
+            console.error('Failed to load timeline:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [locationId, locationType]);
 
     useEffect(() => {
         loadTimeline();
@@ -41,18 +52,7 @@ export default function ActivityTimeline({ locationId, locationType, onJoinBlock
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [locationId, locationType]);
-
-    const loadTimeline = async () => {
-        try {
-            const data = await playIntentService.getIntentTimeline(locationId, locationType);
-            setTimeline(data);
-        } catch (error) {
-            console.error('Failed to load timeline:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [locationId, loadTimeline]);
 
     const formatTime = (date) => {
         return new Date(date).toLocaleTimeString('en-US', {
@@ -106,8 +106,8 @@ export default function ActivityTimeline({ locationId, locationType, onJoinBlock
         return (
             <div className={styles.empty}>
                 <div className={styles.emptyIcon}>🏃</div>
-                <h3>No one's playing yet</h3>
-                <p>Be the first to signal when you're heading here!</p>
+                <h3>No one&apos;s playing yet</h3>
+                <p>Be the first to signal when you&apos;re heading here!</p>
             </div>
         );
     }
