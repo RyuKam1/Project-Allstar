@@ -8,6 +8,7 @@ import { teamService } from "@/services/teamService";
 import { tournamentService } from "@/services/tournamentService";
 import { venueService } from "@/services/venueService";
 import { businessService } from "@/services/businessService";
+import { placeholderVenueCleanupService } from "@/services/placeholderVenueCleanupService";
 import { useRouter } from 'next/navigation';
 
 // Placeholder for Detail Views (We can extract these to separate files if they grow)
@@ -71,6 +72,7 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({ users: [], teams: [], tournaments: [], venues: [], claims: [] });
     const [currentUser, setCurrentUser] = useState(null);
+    const [cleanupRunning, setCleanupRunning] = useState(false);
 
     // Sync state with URL params manually to avoid hook complexity if we wanted, 
     // but using window.location or searchParams is standard.
@@ -153,30 +155,57 @@ export default function AdminPage() {
         }
     };
 
+    const handlePlaceholderVenueCleanup = async () => {
+        const confirmed = confirm("Remove placeholder venues and attempt to delete their storage images?");
+        if (!confirmed) return;
+
+        setCleanupRunning(true);
+        try {
+            const result = await placeholderVenueCleanupService.cleanup();
+            await loadData();
+            alert(
+                `Cleanup complete.\n` +
+                `Matched venues: ${result.matchedVenues}\n` +
+                `Deleted venues: ${result.deletedVenues}\n` +
+                `Deleted location_images rows: ${result.deletedLocationImages}\n` +
+                `Storage attempted: ${result.storage.attempted}\n` +
+                `Storage deleted: ${result.storage.deleted}\n` +
+                `Storage failed: ${result.storage.failed}`
+            );
+        } catch (e) {
+            alert("Cleanup failed: " + e.message);
+        } finally {
+            setCleanupRunning(false);
+        }
+    };
+
     // --- Renderers ---
     const renderContent = () => {
         if (loading) return <div className="loading-spinner"></div>;
 
         // Header for the panel content with Refresh Button
-        const PanelHeader = ({ title }) => (
+        const PanelHeader = ({ title, rightActions = null }) => (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 style={{ margin: 0 }}>{title}</h2>
-                <button 
-                    onClick={loadData}
-                    className="hover-bg"
-                    style={{ 
-                        background: 'rgba(255,255,255,0.05)', 
-                        border: '1px solid var(--border-glass)', 
-                        borderRadius: '6px', 
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                    }}
-                >
-                    🔄 Refresh Data
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {rightActions}
+                    <button 
+                        onClick={loadData}
+                        className="hover-bg"
+                        style={{ 
+                            background: 'rgba(255,255,255,0.05)', 
+                            border: '1px solid var(--border-glass)', 
+                            borderRadius: '6px', 
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        🔄 Refresh Data
+                    </button>
+                </div>
             </div>
         );
 
@@ -215,7 +244,19 @@ export default function AdminPage() {
             case 'venues':
                 return (
                     <div>
-                        <PanelHeader title="Venue Management" />
+                        <PanelHeader
+                            title="Venue Management"
+                            rightActions={
+                                <button
+                                    onClick={handlePlaceholderVenueCleanup}
+                                    className="btn-secondary"
+                                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                                    disabled={cleanupRunning}
+                                >
+                                    {cleanupRunning ? 'Cleaning...' : 'Remove Placeholder Venues'}
+                                </button>
+                            }
+                        />
                         <DataTable 
                             columns={[
                                 { key: 'name', label: 'Venue' },

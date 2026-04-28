@@ -6,6 +6,7 @@ import Map from "@/components/UI/Map";
 import CommunityLocationForm from "@/components/Community/CommunityLocationForm";
 import { communityLocationService } from "@/services/communityLocationService";
 import { venueService } from "@/services/venueService";
+import { isPlaceholderVenueName } from "@/lib/placeholderVenues";
 import { useState, useRef, useEffect } from "react";
 import { City, Country } from 'country-state-city';
 import styles from './venues.module.css';
@@ -38,11 +39,13 @@ export default function VenuesPage() {
   // Use a ref to ensure we don't re-randomize unnecessarily if component re-renders
   const hasRandomized = useRef(false);
   const mapRef = useRef(null); // Ref for scrolling to map
+  const fallbackInitializedRef = useRef(false);
+  const fallbackCenter = [40.7300, -74.0000];
 
   // Load Official Venues (Business) on Mount
   useEffect(() => {
     venueService.getAllVenues()
-      .then(setOfficialVenues)
+      .then((rows) => setOfficialVenues((rows || []).filter((venue) => !isPlaceholderVenueName(venue?.name))))
       .catch(err => console.error("Error loading official venues:", err));
   }, []);
 
@@ -103,6 +106,31 @@ export default function VenuesPage() {
       // 3. Detect Country
       detectUserCountry(lat, lng);
     }
+  };
+
+  const initializeFallbackLocation = async () => {
+    if (fallbackInitializedRef.current || hasRandomized.current) return;
+    fallbackInitializedRef.current = true;
+    hasRandomized.current = true;
+
+    setMapCenter(fallbackCenter);
+    setMapZoom(12);
+    setUserCountry("US");
+    setIsLoading(true);
+
+    try {
+      const locations = await communityLocationService.getNearbyLocations(fallbackCenter[0], fallbackCenter[1], 20);
+      setCommunityLocations(locations);
+    } catch (error) {
+      console.error("Fallback location load failed:", error);
+      setCommunityLocations([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLocationUnavailable = async () => {
+    await initializeFallbackLocation();
   };
 
   const toggleGlobalView = () => {
@@ -310,6 +338,7 @@ export default function VenuesPage() {
           <Map
             venues={activeLocations}
             onUserLocationFound={handleUserLocationFound}
+            onLocationUnavailable={handleLocationUnavailable}
             isAddingLocation={isAddingLocation}
             onMapClick={handleMapClick}
             center={mapCenter}

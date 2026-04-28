@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 export default function Map({
   venues = [],
   onUserLocationFound,
+  onLocationUnavailable,
   isAddingLocation,
   onMapClick,
   minimal = false,
@@ -53,6 +54,9 @@ export default function Map({
     if (minimal) return;
 
     if (!("geolocation" in navigator)) {
+      if (onLocationUnavailable) {
+        onLocationUnavailable({ reason: "unsupported" });
+      }
       setIsLocating(false);
       return;
     }
@@ -60,6 +64,9 @@ export default function Map({
     const timer = setTimeout(() => {
       // Timeout fallback: just load the map at default center
       console.log("Location timeout - falling back to default");
+      if (onLocationUnavailable) {
+        onLocationUnavailable({ reason: "timeout" });
+      }
       setIsLocating(false);
     }, 4000); // 4 second timeout
 
@@ -78,11 +85,14 @@ export default function Map({
       (error) => {
         clearTimeout(timer);
         console.log("Auto-location failed or denied", error);
+        if (onLocationUnavailable) {
+          onLocationUnavailable({ reason: "error", error });
+        }
         setIsLocating(false);
       },
       { timeout: 3500 }
     );
-  }, [minimal, onUserLocationFound]);
+  }, [minimal, onLocationUnavailable, onUserLocationFound]);
 
   // 2. Initialize Map (Only after isLocating is false)
   useEffect(() => {
@@ -487,6 +497,9 @@ export default function Map({
         }
       }, (error) => {
         console.error("Error getting location:", error);
+        if (onLocationUnavailable) {
+          onLocationUnavailable({ reason: "error", error });
+        }
         alert("Could not get your location.");
       });
     }

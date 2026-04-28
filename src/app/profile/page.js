@@ -20,52 +20,115 @@ function ProfileContent() {
   const [upcomingGames, setUpcomingGames] = useState([]);
   const [history, setHistory] = useState([]);
   const [careerWins, setCareerWins] = useState([]);
-  const [isMetric, setIsMetric] = useState(false);
+  const [isMetric, setIsMetric] = useState(true);
 
-  // --- Conversion Helpers ---
-  const convertHeight = (val, toMetric) => {
-    if (!val) return '-';
-    if (toMetric) {
-      // Try parsing X'Y" format
-      if (typeof val === 'string' && val.includes("'")) {
-        const parts = val.split("'");
-        const ft = parseInt(parts[0]) || 0;
-        const inch = parseInt(parts[1]) || 0;
-        return Math.round((ft * 30.48) + (inch * 2.54)) + ' cm';
-      }
-      // Fallback: assume plain number is inches
-      const num = parseFloat(val);
-      if (!isNaN(num)) {
-        return Math.round(num * 2.54) + ' cm';
-      }
+  // --- Unit Helpers ---
+  const toNum = (val) => {
+    const num = parseFloat(String(val || '').replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const parseHeightToCm = (val) => {
+    if (!val) return null;
+    const raw = String(val).trim().toLowerCase();
+    const feetMatch = raw.match(/(\d+)\s*'\s*(\d+)?/);
+    if (feetMatch) {
+      const ft = parseInt(feetMatch[1], 10) || 0;
+      const inch = parseInt(feetMatch[2] || '0', 10) || 0;
+      return (ft * 30.48) + (inch * 2.54);
     }
-    return val;
+    if (raw.includes('cm')) return toNum(raw);
+    if (raw.includes('m')) return (toNum(raw) || 0) * 100;
+    if (raw.includes('in')) return (toNum(raw) || 0) * 2.54;
+    const n = toNum(raw);
+    if (n == null) return null;
+    return n > 100 ? n : n * 2.54; // legacy plain imperial inches fallback
   };
 
-  const convertWeight = (val, toMetric) => {
-    if (!val) return '-';
-    const num = parseFloat(val);
-    if (isNaN(num)) return val;
-    if (toMetric) return Math.round(num * 0.453592) + ' kg';
-    return val + ' lbs';
+  const parseWeightToKg = (val, assumeMetricPlain = false) => {
+    if (!val) return null;
+    const raw = String(val).trim().toLowerCase();
+    const n = toNum(raw);
+    if (n == null) return null;
+    if (raw.includes('kg')) return n;
+    if (assumeMetricPlain && !raw.includes('lb')) return n;
+    return n * 0.453592; // legacy assumed lbs
   };
 
-  const convertSpeed = (val, toMetric) => {
-    if (!val) return '-';
-    const num = parseFloat(val);
-    if (isNaN(num)) return val;
-    if (toMetric) return (num * 1.60934).toFixed(1) + ' km/h';
-    return val + ' mph';
+  const parseSpeedToKmh = (val, assumeMetricPlain = false) => {
+    if (!val) return null;
+    const raw = String(val).trim().toLowerCase();
+    const n = toNum(raw);
+    if (n == null) return null;
+    if (raw.includes('km/h') || raw.includes('kph')) return n;
+    if (assumeMetricPlain && !raw.includes('mph')) return n;
+    return n * 1.60934; // legacy assumed mph
   };
 
-  const convertVertical = (val, toMetric) => {
-    if (!val) return '-';
-    const num = parseFloat(val);
-    if (isNaN(num)) return val;
-    if (toMetric) return Math.round(num * 2.54) + ' cm';
-    return val + ' in';
+  const parseVerticalToCm = (val, assumeMetricPlain = false) => {
+    if (!val) return null;
+    const raw = String(val).trim().toLowerCase();
+    const n = toNum(raw);
+    if (n == null) return null;
+    if (raw.includes('cm')) return n;
+    if (assumeMetricPlain && !raw.includes('in')) return n;
+    return n * 2.54; // legacy assumed inches
   };
-  // --------------------------
+
+  const formatHeightForInput = (cmValue, metric) => {
+    if (cmValue == null) return '';
+    if (metric) return String(Math.round(cmValue));
+    const totalInches = Math.round(cmValue / 2.54);
+    const ft = Math.floor(totalInches / 12);
+    const inch = totalInches % 12;
+    return `${ft}'${inch}`;
+  };
+
+  const formatNumberForInput = (metricValue, metric, imperialFactor) => {
+    if (metricValue == null) return '';
+    if (metric) return String(Math.round(metricValue));
+    return String(Math.round(metricValue / imperialFactor));
+  };
+
+  const toDisplay = (rawVal, metric, kind) => {
+    if (!rawVal) return '-';
+    if (kind === 'height') {
+      const cm = parseHeightToCm(rawVal);
+      if (cm == null) return String(rawVal);
+      return metric ? `${Math.round(cm)} cm` : formatHeightForInput(cm, false);
+    }
+    if (kind === 'weight') {
+      const kg = parseWeightToKg(rawVal);
+      if (kg == null) return String(rawVal);
+      return metric ? `${Math.round(kg)} kg` : `${Math.round(kg / 0.453592)} lbs`;
+    }
+    if (kind === 'speed') {
+      const kmh = parseSpeedToKmh(rawVal);
+      if (kmh == null) return String(rawVal);
+      return metric ? `${kmh.toFixed(1)} km/h` : `${(kmh / 1.60934).toFixed(1)} mph`;
+    }
+    const cm = parseVerticalToCm(rawVal);
+    if (cm == null) return String(rawVal);
+    return metric ? `${Math.round(cm)} cm` : `${Math.round(cm / 2.54)} in`;
+  };
+
+  const getConvertedStatInputs = (source, metric, sourceIsMetric = true) => ({
+    height: formatHeightForInput(parseHeightToCm(source.height), metric),
+    weight: formatNumberForInput(parseWeightToKg(source.weight, sourceIsMetric), metric, 0.453592),
+    speed: formatNumberForInput(parseSpeedToKmh(source.speed, sourceIsMetric), metric, 1.60934),
+    vertical: formatNumberForInput(parseVerticalToCm(source.vertical, sourceIsMetric), metric, 2.54)
+  });
+
+  const buildStoredStatsPayload = (source, metric) => {
+    const converted = getConvertedStatInputs(source, metric, metric);
+    return {
+      height: metric ? `${converted.height} cm` : converted.height,
+      weight: metric ? `${converted.weight} kg` : `${converted.weight} lbs`,
+      speed: metric ? `${converted.speed} km/h` : `${converted.speed} mph`,
+      vertical: metric ? `${converted.vertical} cm` : `${converted.vertical} in`
+    };
+  };
+  // --------------------
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -115,15 +178,16 @@ function ProfileContent() {
 
       if (targetUser) {
         setProfileUser(targetUser);
+        const convertedInputs = getConvertedStatInputs(targetUser, true, true);
         setFormData({
           name: targetUser.name,
           bio: targetUser.bio || '',
           sport: targetUser.sport || '',
           positions: targetUser.positions || '',
-          height: targetUser.height || '',
-          weight: targetUser.weight || '',
-          speed: targetUser.speed || '',
-          vertical: targetUser.vertical || '',
+          height: convertedInputs.height,
+          weight: convertedInputs.weight,
+          speed: convertedInputs.speed,
+          vertical: convertedInputs.vertical,
           avatar: targetUser.avatar
         });
 
@@ -181,18 +245,31 @@ function ProfileContent() {
       }
     }
 
-    const result = await updateUser({ ...formData, avatar: finalAvatarUrl });
+    const statPayload = buildStoredStatsPayload(formData, isMetric);
+    const payload = { ...formData, ...statPayload, avatar: finalAvatarUrl };
+    const result = await updateUser(payload);
 
     if (result.success) {
       setIsEditing(false);
       setAvatarFile(null);
       // Update local display immediately
-      setProfileUser(prev => ({ ...prev, ...formData, avatar: finalAvatarUrl }));
+      setProfileUser(prev => ({ ...prev, ...payload }));
+      const convertedInputs = getConvertedStatInputs(payload, isMetric, isMetric);
+      setFormData(prev => ({ ...prev, ...convertedInputs, avatar: finalAvatarUrl }));
     } else {
       alert("Failed to save profile: " + result.error);
     }
 
     setIsSaving(false);
+  };
+
+  const handleUnitToggle = (nextMetric) => {
+    if (nextMetric === isMetric) return;
+    if (isEditing) {
+      const nextInputs = getConvertedStatInputs(formData, nextMetric, isMetric);
+      setFormData(prev => ({ ...prev, ...nextInputs }));
+    }
+    setIsMetric(nextMetric);
   };
 
   const handleImageUpload = (e) => {
@@ -268,13 +345,13 @@ function ProfileContent() {
                 <h3>Attributes</h3>
                 <div className={styles.toggleContainer}>
                   <button
-                    onClick={() => setIsMetric(false)}
+                    onClick={() => handleUnitToggle(false)}
                     className={`${styles.toggleButton} ${!isMetric ? styles.toggleButtonActive : ''}`}
                   >
                     Imperial
                   </button>
                   <button
-                    onClick={() => setIsMetric(true)}
+                    onClick={() => handleUnitToggle(true)}
                     className={`${styles.toggleButton} ${isMetric ? styles.toggleButtonActive : ''}`}
                   >
                     Metric
@@ -343,19 +420,19 @@ function ProfileContent() {
                 <div className={styles.statsGridDisplay}>
                   <div>
                     <div className={styles.label}>{isMetric ? 'Height (cm)' : 'Height'}</div>
-                    <div className={styles.value}>{convertHeight(profileUser.height, isMetric)}</div>
+                    <div className={styles.value}>{toDisplay(profileUser.height, isMetric, 'height')}</div>
                   </div>
                   <div>
                     <div className={styles.label}>{isMetric ? 'Weight (kg)' : 'Weight'}</div>
-                    <div className={styles.value}>{convertWeight(profileUser.weight, isMetric)}</div>
+                    <div className={styles.value}>{toDisplay(profileUser.weight, isMetric, 'weight')}</div>
                   </div>
                   <div>
                     <div className={styles.label}>{isMetric ? 'Speed (km/h)' : 'Speed'}</div>
-                    <div className={styles.value}>{convertSpeed(profileUser.speed, isMetric)}</div>
+                    <div className={styles.value}>{toDisplay(profileUser.speed, isMetric, 'speed')}</div>
                   </div>
                   <div>
                     <div className={styles.label}>{isMetric ? 'Vertical (cm)' : 'Vertical'}</div>
-                    <div className={styles.value}>{convertVertical(profileUser.vertical, isMetric)}</div>
+                    <div className={styles.value}>{toDisplay(profileUser.vertical, isMetric, 'vertical')}</div>
                   </div>
                   <div className={styles.span2}>
                     <div className={styles.label}>Sport & Positions</div>
