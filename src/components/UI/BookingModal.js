@@ -63,7 +63,7 @@ export default function BookingModal({ venue, onClose }) {
           <div className={styles.success}>
             <span className={styles.successIcon}>🎉</span>
             <h3 className={styles.successTitle}>Booking Confirmed!</h3>
-            <p className={styles.successText}>Your spot is reserved. We've sent a confirmation to your email.</p>
+            <p className={styles.successText}>Your spot is reserved. We&apos;ve sent a confirmation to your email.</p>
             <button className={`btn-primary ${styles.fullWidthBtn}`} onClick={onClose}>
               Awesome, thanks!
             </button>

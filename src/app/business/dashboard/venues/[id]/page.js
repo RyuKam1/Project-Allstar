@@ -404,7 +404,7 @@ export default function VenueEditorPage() {
                     <div className={styles.panel}>
                         <h2 className={styles.sectionTitle}>Gallery & Appearance</h2>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>
-                            Manage your venue's visual appearance. Hover over an image to set it as <strong>Banner</strong> or <strong>Cover</strong>.
+                            Manage your venue&apos;s visual appearance. Hover over an image to set it as <strong>Banner</strong> or <strong>Cover</strong>.
                         </p>
 
                         <div className={styles.imageGrid}>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTheme } from "@/context/ThemeContext";
 
 const themes = [
@@ -18,13 +18,6 @@ const themes = [
 export default function ThemeSwitcher() {
   const { theme, changeTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
 
   return (
     <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 9999 }}>

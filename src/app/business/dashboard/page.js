@@ -317,7 +317,7 @@ const DashboardContent = () => {
                                 <h2 style={{ marginBottom: '1.5rem' }}>Your Venues</h2>
                                 {venues.length === 0 ? (
                                     <div className={styles.emptyState}>
-                                        <p>You haven't added any venues yet.</p>
+                                        <p>You haven&apos;t added any venues yet.</p>
                                         <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
                                             <button onClick={() => setViewMode('claim')} className="btn-primary">Find Existing</button>
                                             <button onClick={() => setViewMode('add')} className="btn-secondary">Add New</button>

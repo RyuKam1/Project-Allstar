@@ -1,8 +1,18 @@
 import { supabase } from "@/lib/supabaseClient";
 import { teamService } from "./teamService";
 
+let getAllTournamentsInFlight = null;
+let getAllTournamentsCache = null;
+let getAllTournamentsCacheAt = 0;
+const TOURNAMENT_LIST_CACHE_TTL_MS = 15000;
+
 export const tournamentService = {
   getAllTournaments: async () => {
+    if (getAllTournamentsCache && (Date.now() - getAllTournamentsCacheAt) < TOURNAMENT_LIST_CACHE_TTL_MS) {
+      return getAllTournamentsCache;
+    }
+    if (getAllTournamentsInFlight) return getAllTournamentsInFlight;
+    getAllTournamentsInFlight = (async () => {
     // Fetch tournaments
     const { data: tournaments, error } = await supabase
       .from('tournaments')
@@ -10,34 +20,54 @@ export const tournamentService = {
 
     if (error) return [];
 
-    // For each, fetch matches & teams (simplified hydration for frontend)
-    const hydrated = await Promise.all(tournaments.map(async (t) => {
-        // Fetch Matches
-        const { data: matches } = await supabase
-            .from('matches')
-            .select(`
-                *,
-                team1:team1_id(id, name, logo),
-                team2:team2_id(id, name, logo),
-                winner:winner_id(id, name, logo)
-            `)
-            .eq('tournament_id', t.id)
-            .order('match_identifier'); // Order by ID logic
+    const tournamentIds = (tournaments || []).map((t) => t.id);
+    if (tournamentIds.length === 0) return [];
 
-        // Fetch Joined Teams (via join table)
-        const { data: teamJoins } = await supabase
-            .from('tournament_teams')
-            .select('team_id, team:teams(*)')
-            .eq('tournament_id', t.id);
+    const [matchesRes, teamJoinsRes] = await Promise.all([
+      supabase
+        .from('matches')
+        .select(`
+          *,
+          team1:team1_id(id, name, logo),
+          team2:team2_id(id, name, logo),
+          winner:winner_id(id, name, logo)
+        `)
+        .in('tournament_id', tournamentIds)
+        .order('match_identifier'),
+      supabase
+        .from('tournament_teams')
+        .select('tournament_id, team_id, team:teams(*)')
+        .in('tournament_id', tournamentIds)
+    ]);
 
-        return {
-            ...t,
-            matches: matches || [],
-            teams: teamJoins ? teamJoins.map(j => j.team) : []
-        };
+    const matchesByTournament = {};
+    const teamsByTournament = {};
+    (matchesRes.data || []).forEach((m) => {
+      if (!matchesByTournament[m.tournament_id]) matchesByTournament[m.tournament_id] = [];
+      matchesByTournament[m.tournament_id].push(m);
+    });
+    (teamJoinsRes.data || []).forEach((j) => {
+      if (!teamsByTournament[j.tournament_id]) teamsByTournament[j.tournament_id] = [];
+      teamsByTournament[j.tournament_id].push(j.team);
+    });
+
+    const hydrated = tournaments.map((t) => ({
+      ...t,
+      matches: matchesByTournament[t.id] || [],
+      teams: teamsByTournament[t.id] || []
     }));
 
     return hydrated;
+    })();
+
+    try {
+      const data = await getAllTournamentsInFlight;
+      getAllTournamentsCache = data;
+      getAllTournamentsCacheAt = Date.now();
+      return data;
+    } finally {
+      getAllTournamentsInFlight = null;
+    }
   },
 
   getTournament: async (id) => {

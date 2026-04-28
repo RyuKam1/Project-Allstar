@@ -52,6 +52,29 @@ export default function Navbar() {
         });
     }
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        if (window.__allstarPrefetchDone) return;
+        window.__allstarPrefetchDone = true;
+
+        const prefetchRoutes = ['/', '/venues', '/teams', '/events', '/community', '/profile', '/login'];
+        if (user?.account_type === 'business') {
+            prefetchRoutes.push('/business/dashboard');
+        }
+
+        const runPrefetch = () => {
+            prefetchRoutes.forEach((route) => {
+                router.prefetch(route);
+            });
+        };
+
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(runPrefetch, { timeout: 1200 });
+        } else {
+            setTimeout(runPrefetch, 250);
+        }
+    }, [router, user?.account_type]);
+
     const handleLogout = () => {
         logout();
         router.push('/');
@@ -264,8 +287,8 @@ export default function Navbar() {
                     <Link
                         href={item.href}
                         key={item.label}
-                        className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
                         onClick={closeMobileMenu}
+                        className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
                     >
                         {item.label}
                     </Link>

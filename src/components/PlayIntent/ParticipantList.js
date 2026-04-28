@@ -25,7 +25,7 @@ export default function ParticipantList({ participants }) {
     return (
         <div className={styles.list}>
             <div className={styles.header}>
-                <h4 className={styles.title}>Who's going</h4>
+                <h4 className={styles.title}>Who&apos;s going</h4>
                 <span className={styles.count}>{participants.length}</span>
             </div>
 
@@ -68,7 +68,7 @@ export default function ParticipantList({ participants }) {
                                 </div>
 
                                 {participant.note && (
-                                    <div className={styles.note}>"{participant.note}"</div>
+                                    <div className={styles.note}>&quot;{participant.note}&quot;</div>
                                 )}
                             </div>
                         </div>

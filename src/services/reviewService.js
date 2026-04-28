@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { interactionTrackingService } from "./interactionTrackingService";
+import { sanitizeText } from "@/lib/security/inputSanitizer";
 
 /**
  * Review Service
@@ -21,8 +22,9 @@ export const reviewService = {
         if (!user) throw new Error("Must be logged in to submit a review");
 
         // Validate inputs
+        const safeComment = sanitizeText(comment, 1500);
         if (rating < 1 || rating > 5) throw new Error("Rating must be between 1 and 5 stars");
-        if (!comment || comment.trim().length < 10) throw new Error("Review must be at least 10 characters");
+        if (!safeComment || safeComment.length < 10) throw new Error("Review must be at least 10 characters");
 
         // Check if user already reviewed this location
         const { data: existingReview } = await supabase
@@ -45,7 +47,7 @@ export const reviewService = {
                 location_type: locationType,
                 user_id: user.id,
                 rating,
-                comment: comment.trim(),
+                comment: safeComment,
                 images: images.length > 0 ? images : null,
                 played_sport: playedSport
             })
@@ -171,14 +173,15 @@ export const reviewService = {
         if (!user) throw new Error("Must be logged in");
 
         // Validate
+        const safeComment = sanitizeText(comment, 1500);
         if (rating < 1 || rating > 5) throw new Error("Rating must be between 1 and 5 stars");
-        if (!comment || comment.trim().length < 10) throw new Error("Review must be at least 10 characters");
+        if (!safeComment || safeComment.length < 10) throw new Error("Review must be at least 10 characters");
 
         const { data, error } = await supabase
             .from('venue_reviews')
             .update({
                 rating,
-                comment: comment.trim(),
+                comment: safeComment,
                 images: images.length > 0 ? images : null,
                 played_sport: playedSport,
                 updated_at: new Date().toISOString()

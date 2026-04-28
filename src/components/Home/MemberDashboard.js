@@ -15,7 +15,7 @@ export default function MemberDashboard({ user }) {
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ marginBottom: '0.5rem' }}>Good Afternoon, {user.name || 'Athlete'}</h1>
-        <p className="text-caption">Let's get back in the game.</p>
+        <p className="text-caption">Let&apos;s get back in the game.</p>
       </div>
 
       {/* Main Grid */}

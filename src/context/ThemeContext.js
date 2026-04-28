@@ -4,13 +4,10 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState('default');
-
-  useEffect(() => {
-    // Load saved theme
-    const saved = localStorage.getItem('allstar_theme');
-    if (saved) setTheme(saved);
-  }, []);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'default';
+    return localStorage.getItem('allstar_theme') || 'default';
+  });
 
   const changeTheme = (newTheme) => {
     setTheme(newTheme);

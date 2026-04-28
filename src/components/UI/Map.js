@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Map({
   venues = [],
@@ -9,13 +9,13 @@ export default function Map({
   isAddingLocation,
   onMapClick,
   minimal = false,
-  initialCenter = [40.7300, -74.0000],
+  initialCenter = [40.73, -74.0],
   initialZoom = 12,
   style = {},
-  className = '',
+  className = "",
   center = null, // New prop for external control
   zoom = 14, // New prop for dynamic zoom control
-  isGlobalView = false // New prop for global view styling
+  isGlobalView = false, // New prop for global view styling
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -26,27 +26,30 @@ export default function Map({
   const [userLocation, setUserLocation] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const tempMarkerRef = useRef(null); // Ref to hold the Leaflet marker instance
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [parksOverlaySupported, setParksOverlaySupported] = useState(true);
+  const parksOverlayRef = useRef(null);
+  const parksOverlayAbortRef = useRef(null);
 
   const [isLocating, setIsLocating] = useState(!minimal); // Start locating unless minimal mode
   const [initCenter, setInitCenter] = useState(initialCenter);
 
   // Sport Configuration for Markers
   const sportConfig = {
-    "Basketball": { color: '#F97316', emoji: '🏀' },
-    "Soccer": { color: '#10B981', emoji: '⚽' },
-    "Tennis": { color: '#84CC16', emoji: '🎾' },
-    "Baseball": { color: '#EF4444', emoji: '⚾' },
-    "Volleyball": { color: '#8B5CF6', emoji: '🏐' },
-    "Swimming": { color: '#3B82F6', emoji: '🏊' },
-    "Fitness": { color: '#06B6D4', emoji: '💪' },
-    "Gym": { color: '#06B6D4', emoji: '💪' },
-    "Running": { color: '#EC4899', emoji: '🏃' },
-    "Skating": { color: '#64748B', emoji: '🛹' },
-    "Multi-sport": { color: '#059669', emoji: '🌳' },
-    "Public Park": { color: '#059669', emoji: '🌳' },
+    Basketball: { color: "#F97316", emoji: "🏀" },
+    Soccer: { color: "#10B981", emoji: "⚽" },
+    Tennis: { color: "#84CC16", emoji: "🎾" },
+    Baseball: { color: "#EF4444", emoji: "⚾" },
+    Volleyball: { color: "#8B5CF6", emoji: "🏐" },
+    Swimming: { color: "#3B82F6", emoji: "🏊" },
+    Fitness: { color: "#06B6D4", emoji: "💪" },
+    Gym: { color: "#06B6D4", emoji: "💪" },
+    Running: { color: "#EC4899", emoji: "🏃" },
+    Skating: { color: "#64748B", emoji: "🛹" },
+    "Multi-sport": { color: "#059669", emoji: "♾️" },
+    "Public Park": { color: "#059669", emoji: "🌳" },
   };
 
   // 1. First: Try to get User Location before loading map
@@ -90,7 +93,7 @@ export default function Map({
         }
         setIsLocating(false);
       },
-      { timeout: 3500 }
+      { timeout: 3500 },
     );
   }, [minimal, onLocationUnavailable, onUserLocationFound]);
 
@@ -104,8 +107,8 @@ export default function Map({
       if (mapInstanceRef.current) return; // Already initialized
 
       try {
-        const L = (await import('leaflet')).default;
-        await import('leaflet/dist/leaflet.css');
+        const L = (await import("leaflet")).default;
+        await import("leaflet/dist/leaflet.css");
 
         if (!isMounted) return;
         // Double check ref after async wait
@@ -114,9 +117,9 @@ export default function Map({
         if (mapRef.current?._leaflet_id) return;
 
         // Styles
-        if (!document.getElementById('pin-animation-style')) {
-          const style = document.createElement('style');
-          style.id = 'pin-animation-style';
+        if (!document.getElementById("pin-animation-style")) {
+          const style = document.createElement("style");
+          style.id = "pin-animation-style";
           style.innerHTML = `
                  @keyframes pinPopReveal {
                      0% { opacity: 0; transform: scale(0.5); }
@@ -140,31 +143,42 @@ export default function Map({
         // Fix Icon
         delete L.Icon.Default.prototype._getIconUrl;
         L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+          iconRetinaUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+          iconUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+          shadowUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
         });
 
         // Map Instance
         const map = L.map(mapRef.current, {
           attributionControl: false,
           zoomControl: !minimal,
-          maxBounds: [[-90, -180], [90, 180]],
+          maxBounds: [
+            [-90, -180],
+            [90, 180],
+          ],
           maxBoundsViscosity: 1.0,
-          worldCopyJump: false
+          worldCopyJump: false,
         }).setView(initCenter, initialZoom);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap &copy; CARTO',
-          subdomains: 'abcd',
-          maxZoom: 20,
-          noWrap: true,
-          bounds: [[-90, -180], [90, 180]]
-        }).addTo(map);
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          {
+            attribution: "&copy; OpenStreetMap &copy; CARTO",
+            subdomains: "abcd",
+            maxZoom: 20,
+            noWrap: true,
+            bounds: [
+              [-90, -180],
+              [90, 180],
+            ],
+          },
+        ).addTo(map);
 
         mapInstanceRef.current = map;
         setMapReady(true);
-
       } catch (error) {
         console.error("Error initializing map:", error);
       }
@@ -192,15 +206,16 @@ export default function Map({
   }, [mapReady, center, zoom]);
 
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && initCenter && !center) { // Only use initCenter if no external center provided
+    if (mapReady && mapInstanceRef.current && initCenter && !center) {
+      // Only use initCenter if no external center provided
       mapInstanceRef.current.flyTo(initCenter, initialZoom);
     }
   }, [mapReady, initCenter, initialZoom]);
 
-
   // 3. Handle User Location Marker (Separate Effect)
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current || minimal || !userLocation) return;
+    if (!mapReady || !mapInstanceRef.current || minimal || !userLocation)
+      return;
 
     // Hide user location if in global view
     const map = mapInstanceRef.current;
@@ -213,23 +228,161 @@ export default function Map({
     }
 
     const renderUserMarker = async () => {
-      const L = (await import('leaflet')).default;
+      const L = (await import("leaflet")).default;
 
       if (userMarkerRef.current) map.removeLayer(userMarkerRef.current);
 
       const userIcon = L.divIcon({
-        className: 'user-location-marker',
+        className: "user-location-marker",
         html: `<div style="width: 16px; height: 16px; background-color: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);"></div>`,
         iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        iconAnchor: [12, 12],
       });
 
-      userMarkerRef.current = L.marker(userLocation, { icon: userIcon }).addTo(map);
+      userMarkerRef.current = L.marker(userLocation, { icon: userIcon }).addTo(
+        map,
+      );
       userMarkerRef.current.bindPopup("You are here");
     };
     renderUserMarker();
   }, [mapReady, minimal, userLocation, isGlobalView]);
 
+  // 3.5 Parks Overlay (green)
+  useEffect(() => {
+    if (
+      !mapReady ||
+      !mapInstanceRef.current ||
+      minimal ||
+      isGlobalView ||
+      !parksOverlaySupported
+    )
+      return undefined;
+
+    const map = mapInstanceRef.current;
+    let disposed = false;
+    let debounceTimer = null;
+
+    const clearOverlay = () => {
+      if (parksOverlayAbortRef.current) {
+        parksOverlayAbortRef.current.abort();
+        parksOverlayAbortRef.current = null;
+      }
+      if (parksOverlayRef.current) {
+        map.removeLayer(parksOverlayRef.current);
+        parksOverlayRef.current = null;
+      }
+    };
+
+    const fetchParks = async () => {
+      try {
+        const L = (await import("leaflet")).default;
+        if (disposed || !mapInstanceRef.current) return;
+
+        const bounds = map.getBounds();
+        const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+
+        if (parksOverlayAbortRef.current) {
+          parksOverlayAbortRef.current.abort();
+        }
+        const controller = new AbortController();
+        parksOverlayAbortRef.current = controller;
+
+        const query = `
+          [out:json][timeout:20];
+          (
+            nwr["leisure"="park"](${bbox});
+          );
+          out geom;
+        `;
+
+        const response = await fetch(
+          "https://overpass-api.de/api/interpreter",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/x-www-form-urlencoded; charset=UTF-8",
+            },
+            body: `data=${encodeURIComponent(query)}`,
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) {
+          if (response.status >= 400) setParksOverlaySupported(false);
+          return;
+        }
+
+        const data = await response.json();
+        if (disposed || !data?.elements) return;
+
+        const features = data.elements
+          .map((el) => {
+            if (!Array.isArray(el.geometry) || el.geometry.length < 3)
+              return null;
+            const coords = el.geometry.map((p) => [p.lon, p.lat]);
+            const first = coords[0];
+            const last = coords[coords.length - 1];
+            const isClosed =
+              first && last && first[0] === last[0] && first[1] === last[1];
+
+            return {
+              type: "Feature",
+              geometry: {
+                type: isClosed ? "Polygon" : "LineString",
+                coordinates: isClosed ? [coords] : coords,
+              },
+              properties: {
+                name: el.tags?.name || "Park",
+              },
+            };
+          })
+          .filter(Boolean);
+
+        if (parksOverlayRef.current) {
+          map.removeLayer(parksOverlayRef.current);
+        }
+
+        parksOverlayRef.current = L.geoJSON(
+          { type: "FeatureCollection", features },
+          {
+            style: {
+              color: "#22c55e",
+              weight: 1.2,
+              opacity: 0.72,
+              fillColor: "#16a34a",
+              fillOpacity: 0.18,
+            },
+          },
+        ).addTo(map);
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        if (
+          error instanceof TypeError ||
+          /Failed to fetch/i.test(String(error?.message || ""))
+        ) {
+          setParksOverlaySupported(false);
+        }
+      }
+    };
+
+    const scheduleFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fetchParks, 500);
+    };
+
+    scheduleFetch();
+    map.on("moveend", scheduleFetch);
+    map.on("zoomend", scheduleFetch);
+
+    return () => {
+      disposed = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      map.off("moveend", scheduleFetch);
+      map.off("zoomend", scheduleFetch);
+      clearOverlay();
+    };
+  }, [mapReady, minimal, isGlobalView, parksOverlaySupported]);
 
   // 4. Handle Venue Markers (Smart Diffing - ONLY renders changes)
   const venueMarkersRef = useRef({}); // Store markers by venue ID: { [id]: marker }
@@ -244,20 +397,25 @@ export default function Map({
     if (viewModeChanged) {
       // Clear all markers to force full re-render with new style
       const map = mapInstanceRef.current;
-      Object.values(venueMarkersRef.current).forEach(marker => map.removeLayer(marker));
+      Object.values(venueMarkersRef.current).forEach((marker) =>
+        map.removeLayer(marker),
+      );
       venueMarkersRef.current = {};
       lastViewModeRef.current = isGlobalView;
     }
 
     const renderVenues = async () => {
-      const L = (await import('leaflet')).default;
+      const L = (await import("leaflet")).default;
       const map = mapInstanceRef.current;
       const currentMarkers = venueMarkersRef.current;
-      const newVenuesSet = new Set(venues.map(v => v.id));
+      const newVenuesSet = new Set(venues.map((v) => v.id));
 
       // 1. Remove markers that are no longer in the list
-      Object.keys(currentMarkers).forEach(venueId => {
-        if (!newVenuesSet.has(venueId) && !newVenuesSet.has(parseInt(venueId))) {
+      Object.keys(currentMarkers).forEach((venueId) => {
+        if (
+          !newVenuesSet.has(venueId) &&
+          !newVenuesSet.has(parseInt(venueId))
+        ) {
           map.removeLayer(currentMarkers[venueId]);
           delete currentMarkers[venueId];
         }
@@ -285,7 +443,8 @@ export default function Map({
             const existingLatLng = existingMarker.getLatLng();
 
             // Check if moved (simple epsilon check)
-            const isSamePos = Math.abs(existingLatLng.lat - lat) < 0.0001 &&
+            const isSamePos =
+              Math.abs(existingLatLng.lat - lat) < 0.0001 &&
               Math.abs(existingLatLng.lng - lng) < 0.0001;
 
             if (isSamePos) {
@@ -296,28 +455,35 @@ export default function Map({
             }
           }
 
-          let sportKey = 'Multi-sport';
-          let emoji = '📍';
-          const sportsList = Array.isArray(venue.sports) ? venue.sports : (venue.sport ? [venue.sport] : []);
+          let sportKey = "Multi-sport";
+          let emoji = "📍";
+          const sportsList = Array.isArray(venue.sports)
+            ? venue.sports
+            : venue.sport
+              ? [venue.sport]
+              : [];
 
           if (sportsList.length > 1) {
-            sportKey = 'Multi-sport';
-            emoji = '🏟️';
+            sportKey = "Multi-sport";
+            emoji = "♾️";
           } else if (sportsList.length === 1) {
             sportKey = sportsList[0];
-            emoji = sportConfig[sportKey]?.emoji || '📍';
+            emoji = sportConfig[sportKey]?.emoji || "📍";
           } else {
-            sportKey = venue.type || 'Venue';
+            sportKey = venue.type || "Venue";
           }
 
-          const config = sportConfig[sportKey] || { color: '#6366f1', emoji: emoji };
-          if (sportKey === 'Multi-sport') {
-            config.color = '#8b5cf6';
-            config.emoji = '🏟️';
+          const config = sportConfig[sportKey] || {
+            color: "#6366f1",
+            emoji: emoji,
+          };
+          if (sportKey === "Multi-sport") {
+            config.color = "#8b5cf6";
+            config.emoji = "♾️";
           }
 
           const isCommunity = !!venue.created_by;
-          const borderColor = isCommunity ? '#14b8a6' : 'white';
+          const borderColor = isCommunity ? "#14b8a6" : "white";
 
           // Optimized delay: Cap it so large lists don't wait forever. Waves of 15.
           const delay = (index % 15) * 0.05;
@@ -326,7 +492,7 @@ export default function Map({
           let customIcon;
           if (isGlobalView) {
             customIcon = L.divIcon({
-              className: 'custom-venue-marker-global',
+              className: "custom-venue-marker-global",
               html: `<div class="marker-pin-global" style="
                       background-color: ${config.color};
                       width: 8px;
@@ -337,58 +503,59 @@ export default function Map({
                     "></div>`,
               iconSize: [8, 8],
               iconAnchor: [4, 4],
-              popupAnchor: [0, -5]
+              popupAnchor: [0, -5],
             });
           } else {
             // NORMAL MARKER
             customIcon = L.divIcon({
-              className: 'custom-venue-marker',
+              className: "custom-venue-marker",
               html: `<div class="marker-pin" style="
                       background-color: ${config.color};
-                      width: 32px;
-                      height: 32px;
+                      width: 28px;
+                      height: 28px;
                       border-radius: 50%;
                       display: flex;
                       align-items: center;
                       justify-content: center;
                       border: 2px solid ${borderColor};
                       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                      font-size: 18px;
+                      font-size: 19px;
                       animation-delay: ${delay}s;
                     ">${config.emoji}</div>`,
-              iconSize: [32, 32],
-              iconAnchor: [16, 16],
-              popupAnchor: [0, -20]
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
+              popupAnchor: [0, -20],
             });
           }
 
-
           const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
 
-          if (!minimal && !isGlobalView) { // Disable popups in global view to keep it clean? Or keep them?
+          if (!minimal && !isGlobalView) {
+            // Disable popups in global view to keep it clean? Or keep them?
             // User didn't ask to disable popups, but "reduce pins" implies simpler view.
             // Let's keep popups but maybe cleaner.
             // For now, attaching popup is fine.
 
-            const detailUrl = `/locations/${venue.id}${isCommunity ? '?type=community' : '?type=business'}`;
-            const sportsDisplay = sportsList.length > 1
-              ? `${sportsList.length} Sports: ${sportsList.slice(0, 2).join(', ')}${sportsList.length > 2 ? '...' : ''}`
-              : sportKey;
+            const detailUrl = `/locations/${venue.id}${isCommunity ? "?type=community" : "?type=business"}`;
+            const sportsDisplay =
+              sportsList.length > 1
+                ? `${sportsList.length} Sports: ${sportsList.slice(0, 2).join(", ")}${sportsList.length > 2 ? "..." : ""}`
+                : sportKey;
 
-            const popupContent = document.createElement('div');
+            const popupContent = document.createElement("div");
             popupContent.innerHTML = `
                       <div style="color: black; padding: 5px; min-width: 150px;">
                         <strong style="font-size: 1.1em">${venue.name}</strong><br/>
                         <span style="color: ${config.color}; font-weight: 600; font-size: 0.9em">${sportsDisplay}</span><br/>
-                        ${isCommunity ? '<span style="font-size:0.75rem; background:#14b8a6; color:white; padding:2px 6px; border-radius:10px;">Community</span>' : ''}
+                        ${isCommunity ? '<span style="font-size:0.75rem; background:#14b8a6; color:white; padding:2px 6px; border-radius:10px;">Community</span>' : ""}
                         <br/>
                         <button id="btn-${venue.id}" style="margin-top: 8px; background: ${config.color}; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.9em">
-                          ${isCommunity ? 'Join Activity' : 'View Details'}
+                          ${isCommunity ? "Join Activity" : "View Details"}
                         </button>
                       </div>
                     `;
             marker.bindPopup(popupContent);
-            marker.on('popupopen', () => {
+            marker.on("popupopen", () => {
               const btn = document.getElementById(`btn-${venue.id}`);
               if (btn) btn.onclick = () => router.push(detailUrl);
             });
@@ -420,8 +587,10 @@ export default function Map({
       }
     };
 
-    map.on('click', handleMapClickEvent);
-    return () => { map.off('click', handleMapClickEvent); };
+    map.on("click", handleMapClickEvent);
+    return () => {
+      map.off("click", handleMapClickEvent);
+    };
   }, [isAddingLocation, onMapClick, mapReady]);
 
   // Marker Rendering Effect - Same as before
@@ -429,10 +598,10 @@ export default function Map({
     if (!mapInstanceRef.current || !selectedLocation) return;
     const map = mapInstanceRef.current;
     const renderMarker = async () => {
-      const L = (await import('leaflet')).default;
+      const L = (await import("leaflet")).default;
       if (tempMarkerRef.current) map.removeLayer(tempMarkerRef.current);
       const selectionIcon = L.divIcon({
-        className: 'selection-pin-marker',
+        className: "selection-pin-marker",
         html: `<div class="selection-pin" style="transform: translate(0, -5px);">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="#EF4444" stroke="white" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); display: block;">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
@@ -440,11 +609,11 @@ export default function Map({
                 </svg>
             </div>`,
         iconSize: [36, 36],
-        iconAnchor: [18, 36]
+        iconAnchor: [18, 36],
       });
       const marker = L.marker([selectedLocation.lat, selectedLocation.lng], {
         icon: selectionIcon,
-        zIndexOffset: 1000
+        zIndexOffset: 1000,
       }).addTo(map);
       tempMarkerRef.current = marker;
     };
@@ -457,7 +626,9 @@ export default function Map({
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`,
+      );
       const data = await response.json();
       if (data && data.length > 0) {
         const { lat, lon } = data[0];
@@ -471,7 +642,7 @@ export default function Map({
           }
         }
       } else {
-        alert('Location not found');
+        alert("Location not found");
       }
     } catch (error) {
       console.error("Search failed:", error);
@@ -482,26 +653,29 @@ export default function Map({
 
   const handleLocateMe = () => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLocation([latitude, longitude]);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
 
-        // Notify parent if prop provided
-        if (onUserLocationFound) {
-          onUserLocationFound(latitude, longitude);
-        }
+          // Notify parent if prop provided
+          if (onUserLocationFound) {
+            onUserLocationFound(latitude, longitude);
+          }
 
-        // Parent will update center/zoom via props, but we can also fly locally to be responsive
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo([latitude, longitude], 14);
-        }
-      }, (error) => {
-        console.error("Error getting location:", error);
-        if (onLocationUnavailable) {
-          onLocationUnavailable({ reason: "error", error });
-        }
-        alert("Could not get your location.");
-      });
+          // Parent will update center/zoom via props, but we can also fly locally to be responsive
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo([latitude, longitude], 14);
+          }
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          if (onLocationUnavailable) {
+            onLocationUnavailable({ reason: "error", error });
+          }
+          alert("Could not get your location.");
+        },
+      );
     }
   };
 
@@ -509,136 +683,154 @@ export default function Map({
     <div
       className={`glass-panel ${className}`}
       style={{
-        position: 'relative',
-        height: '500px',
-        width: '100%',
-        borderRadius: '16px',
-        overflow: 'hidden',
+        position: "relative",
+        height: "500px",
+        width: "100%",
+        borderRadius: "16px",
+        overflow: "hidden",
         zIndex: 0,
-        ...style
+        ...style,
       }}
     >
-      <div ref={mapRef} style={{ height: '100%', width: '100%', zIndex: 0, backgroundColor: '#0f0f0fff' }} />
+      <div
+        ref={mapRef}
+        style={{
+          height: "100%",
+          width: "100%",
+          zIndex: 0,
+          backgroundColor: "#0f0f0fff",
+        }}
+      />
 
       {/* Locating Overlay */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        background: '#0f0f0f',
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
-        zIndex: 600,
-        transition: 'opacity 0.8s ease, visibility 0.8s ease',
-        opacity: isLocating ? 1 : 0,
-        visibility: isLocating ? 'visible' : 'hidden',
-        pointerEvents: isLocating ? 'auto' : 'none'
-      }}>
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          <p className="pulse-text" style={{ fontSize: '1.2rem', marginBottom: '10px' }}>📍</p>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "#0f0f0f",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 600,
+          transition: "opacity 0.8s ease, visibility 0.8s ease",
+          opacity: isLocating ? 1 : 0,
+          visibility: isLocating ? "visible" : "hidden",
+          pointerEvents: isLocating ? "auto" : "none",
+        }}
+      >
+        <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+          <p
+            className="pulse-text"
+            style={{ fontSize: "1.2rem", marginBottom: "10px" }}
+          >
+            📍
+          </p>
           <p>Locating you...</p>
         </div>
       </div>
 
-      {
-        !minimal && (
-          <>
-            <form
-              onSubmit={handleSearch}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                zIndex: 500,
-                background: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                display: 'flex',
-                overflow: 'hidden',
-                width: '260px'
-              }}
-            >
-              <input
-                type="text"
-                placeholder="Search places..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                suppressHydrationWarning
-                style={{
-                  border: 'none',
-                  padding: '10px 14px',
-                  outline: 'none',
-                  flex: 1,
-                  color: '#333'
-                }}
-              />
-              <button
-                type="submit"
-                suppressHydrationWarning
-                style={{
-                  background: 'var(--color-primary, #3b82f6)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '0 12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                {isSearching ? '...' : '🔍'}
-              </button>
-            </form>
-
-            <button
-              onClick={handleLocateMe}
+      {!minimal && (
+        <>
+          <form
+            onSubmit={handleSearch}
+            style={{
+              position: "absolute",
+              top: "20px",
+              right: "20px",
+              zIndex: 500,
+              background: "white",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              display: "flex",
+              overflow: "hidden",
+              width: "260px",
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Search places..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               suppressHydrationWarning
               style={{
-                position: 'absolute',
-                bottom: '20px',
-                right: '20px',
-                zIndex: 400,
-                background: 'white',
-                color: '#333',
-                border: 'none',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                cursor: 'pointer',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
+                border: "none",
+                padding: "10px 14px",
+                outline: "none",
+                flex: 1,
+                color: "#333",
               }}
-              type="button"
+            />
+            <button
+              type="submit"
+              suppressHydrationWarning
+              style={{
+                background: "var(--color-primary, #3b82f6)",
+                color: "white",
+                border: "none",
+                padding: "0 12px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
             >
-              📍 Locate Me
+              {isSearching ? "..." : "🔍"}
             </button>
-          </>
-        )
-      }
+          </form>
 
-      {
-        isAddingLocation && (
-          <div style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
+          <button
+            onClick={handleLocateMe}
+            suppressHydrationWarning
+            style={{
+              position: "absolute",
+              bottom: "20px",
+              right: "20px",
+              zIndex: 400,
+              background: "white",
+              color: "#333",
+              border: "none",
+              padding: "10px 16px",
+              borderRadius: "8px",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+              cursor: "pointer",
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+            type="button"
+          >
+            📍 Locate Me
+          </button>
+        </>
+      )}
+
+      {isAddingLocation && (
+        <div
+          style={{
+            position: "absolute",
+            top: "20px",
+            left: "50%",
+            transform: "translateX(-50%)",
             zIndex: 400,
-            background: 'rgba(20, 184, 166, 0.9)',
-            backdropFilter: 'blur(8px)',
-            color: 'white',
-            padding: '8px 20px',
-            borderRadius: '24px',
-            fontWeight: '600',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none'
-          }}>
-            <span>📍 Tap map to place pin</span>
-          </div>
-        )
-      }
-    </div >
+            background: "rgba(20, 184, 166, 0.9)",
+            backdropFilter: "blur(8px)",
+            color: "white",
+            padding: "8px 20px",
+            borderRadius: "24px",
+            fontWeight: "600",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.3)",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          <span>📍 Tap map to place pin</span>
+        </div>
+      )}
+    </div>
   );
 }

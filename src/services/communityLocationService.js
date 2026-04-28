@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { sanitizeQueryTerm, sanitizeText } from "@/lib/security/inputSanitizer";
 
 /**
  * Community Location Service
@@ -20,8 +21,12 @@ export const communityLocationService = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Must be logged in to add a location");
 
+        const safeName = sanitizeText(name, 120);
+        const safeDescription = sanitizeText(description, 1200);
+        const safeAddress = sanitizeText(address, 300);
+
         // Validate inputs
-        if (!name || name.trim().length < 3) {
+        if (!safeName || safeName.length < 3) {
             throw new Error("Location name must be at least 3 characters");
         }
         if (!lat || !lng) {
@@ -37,9 +42,9 @@ export const communityLocationService = {
             .insert({
                 lat,
                 lng,
-                name: name.trim(),
-                description: description?.trim() || null,
-                address: address?.trim() || null, // Save address
+                name: safeName,
+                description: safeDescription || null,
+                address: safeAddress || null, // Save address
                 sports,
                 created_by: user.id,
                 status: 'active' // Explicitly set active so it shows up
@@ -135,7 +140,7 @@ export const communityLocationService = {
         // Prepare variations: 
         // 1. Exact input (e.g. "Akhmet'a")
         // 2. Normalized (e.g. "akhmeta")
-        const rawName = cityName.trim();
+        const rawName = sanitizeQueryTerm(cityName, 80);
         const normalizedName = rawName.toLowerCase().replace(/['’]/g, "");
 
         console.log(`Searching locations for: "${rawName}" OR "${normalizedName}"`);
@@ -171,6 +176,15 @@ export const communityLocationService = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Must be logged in to edit");
 
+        const allowedFields = ['name', 'description', 'sports', 'address'];
+        if (!allowedFields.includes(field)) {
+            throw new Error("Invalid field update");
+        }
+
+        const normalizedValue = typeof newValue === 'string'
+            ? sanitizeText(newValue, field === 'description' ? 1200 : 300)
+            : newValue;
+
         // Calculate user's weight for this location
         const weight = await communityLocationService.getUserWeight(user.id, locationId);
 
@@ -195,7 +209,7 @@ export const communityLocationService = {
                 user_id: user.id,
                 edit_type: field,
                 old_value: JSON.stringify(oldValue),
-                new_value: JSON.stringify(newValue),
+                new_value: JSON.stringify(normalizedValue),
                 weight,
                 status: (weight >= 2.0 || isCreator) ? 'applied' : 'pending' // Auto-apply if high weight or creator
             })
@@ -208,7 +222,7 @@ export const communityLocationService = {
         if (edit.status === 'applied') {
             await supabase
                 .from('community_locations')
-                .update({ [field]: newValue, updated_at: new Date().toISOString() })
+                .update({ [field]: normalizedValue, updated_at: new Date().toISOString() })
                 .eq('id', locationId);
         }
 
@@ -290,10 +304,13 @@ export const communityLocationService = {
      * @returns {Promise<Array>} Matching locations
      */
     searchLocations: async (query) => {
+        const safeQuery = sanitizeQueryTerm(query, 80);
+        if (!safeQuery) return [];
+
         const { data, error } = await supabase
             .from('community_locations')
             .select('*')
-            .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+            .or(`name.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`)
             .eq('status', 'active')
             .limit(20);
 

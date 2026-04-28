@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:security": "node --test tests/security/*.test.mjs"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.9.0",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.0.10"
+    "eslint-config-next": "16.0.10",
+    "typescript": "^6.0.3"
   }
 }

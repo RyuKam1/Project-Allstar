@@ -197,8 +197,12 @@ export default function VenuesPage() {
 
   const detectUserCountry = async (lat, lng) => {
     try {
+      const reverseGeoUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`;
       // Use free reverse geocoding API to get country code & city
-      const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`);
+      const response = await fetch(reverseGeoUrl);
+      if (!response.ok) {
+        throw new Error(`Country detection failed with status ${response.status}`);
+      }
       const data = await response.json();
 
       if (data && data.countryCode) {

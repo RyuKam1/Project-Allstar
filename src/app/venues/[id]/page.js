@@ -299,7 +299,7 @@ export default function VenueDetails() {
             {/* User's existing review */}
             {userReview && !showReviewForm && (
               <div className={styles.userReviewNotice}>
-                <p>You've already reviewed this venue. <button onClick={() => handleReviewEdit(userReview)} className={styles.editLink}>Edit your review</button></p>
+                <p>You&apos;ve already reviewed this venue. <button onClick={() => handleReviewEdit(userReview)} className={styles.editLink}>Edit your review</button></p>
               </div>
             )}
 
@@ -390,9 +390,9 @@ function PlayIntentWidget({ venueId, user }) {
 
     return (
         <div className={`glass-panel ${styles.bookingCard}`} style={{ marginTop: '20px' }}>
-            <h3 className={styles.bookingTitle}>Who's Playing?</h3>
+            <h3 className={styles.bookingTitle}>Who&apos;s Playing?</h3>
             <p className={styles.bookingSubtitle}>
-                Let the community know you'll be here.
+                Let the community know you&apos;ll be here.
             </p>
             
             {sent ? (
