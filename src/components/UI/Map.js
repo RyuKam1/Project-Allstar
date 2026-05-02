@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 export default function Map({
   venues = [],
   onUserLocationFound,
+  onUserLocationUpdate,
   onLocationUnavailable,
+  onGeolocationStatusChange,
   isAddingLocation,
   onMapClick,
   minimal = false,
@@ -16,25 +18,36 @@ export default function Map({
   center = null, // New prop for external control
   zoom = 14, // New prop for dynamic zoom control
   isGlobalView = false, // New prop for global view styling
+  cityHighlightGeoJSON = null,
+  cityHighlightCircle = null,
+  hideInternalPlaceSearch = false,
 }) {
+  const GEO_RETRY_DEBOUNCE_MS = 1200;
+  const LOCATION_REFRESH_MS = 1500;
+
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const userMarkerRef = useRef(null);
-  const initialCenterRef = useRef(false); // Track if we've auto-centered
-  const openUserPopupRef = useRef(false); // Track if we should open the popup (only on click)
+  const initialCenterRef = useRef(false);
   const router = useRouter();
   const [userLocation, setUserLocation] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const tempMarkerRef = useRef(null); // Ref to hold the Leaflet marker instance
+  const tempMarkerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [parksOverlaySupported, setParksOverlaySupported] = useState(true);
   const parksOverlayRef = useRef(null);
   const parksOverlayAbortRef = useRef(null);
+  const highlightLayerRef = useRef(null);
+  const permissionStatusRef = useRef(null);
+  const locationIntervalRef = useRef(null);
+  const lastRetryRef = useRef(0);
 
-  const [isLocating, setIsLocating] = useState(!minimal); // Start locating unless minimal mode
+  const [isLocating, setIsLocating] = useState(!minimal);
+  const [geoStatus, setGeoStatus] = useState(minimal ? "idle" : "pending");
   const [initCenter, setInitCenter] = useState(initialCenter);
+  const [themeRefreshKey, setThemeRefreshKey] = useState(0);
 
   // Sport Configuration for Markers
   const sportConfig = {
@@ -52,55 +65,135 @@ export default function Map({
     "Public Park": { color: "#059669", emoji: "🌳" },
   };
 
-  // 1. First: Try to get User Location before loading map
-  useEffect(() => {
-    if (minimal) return;
+  const emitGeoStatus = (status, payload = {}) => {
+    setGeoStatus(status);
+    if (onGeolocationStatusChange) {
+      onGeolocationStatusChange({ status, ...payload });
+    }
+  };
 
+  const clearLocationInterval = () => {
+    if (locationIntervalRef.current) {
+      clearInterval(locationIntervalRef.current);
+      locationIntervalRef.current = null;
+    }
+  };
+
+  const startLiveLocationUpdates = () => {
+    if (minimal || isGlobalView || !("geolocation" in navigator)) return;
+    clearLocationInterval();
+    locationIntervalRef.current = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+          if (onUserLocationUpdate) {
+            onUserLocationUpdate(latitude, longitude);
+          }
+        },
+        () => {
+          // Silent in interval loop; state transitions are handled by explicit retries and Locate Me.
+        },
+        {
+          timeout: 2500,
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+        },
+      );
+    }, LOCATION_REFRESH_MS);
+  };
+
+  const applyLocationFix = (
+    latitude,
+    longitude,
+    { notifyInitial = false, flyTo = false } = {},
+  ) => {
+    setUserLocation([latitude, longitude]);
+    setInitCenter([latitude, longitude]);
+    if (!initialCenterRef.current) {
+      initialCenterRef.current = true;
+    }
+    emitGeoStatus("granted");
+    setIsLocating(false);
+
+    if (notifyInitial && onUserLocationFound) {
+      onUserLocationFound(latitude, longitude);
+    }
+    if (onUserLocationUpdate) {
+      onUserLocationUpdate(latitude, longitude);
+    }
+    if (flyTo && mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([latitude, longitude], 14);
+    }
+  };
+
+  const handleGeoError = (error) => {
+    let reason = "error";
+    let status = "unavailable";
+    if (error?.code === 1) {
+      reason = "denied";
+      status = "denied";
+    } else if (error?.code === 2) {
+      reason = "unavailable";
+      status = "unavailable";
+    } else if (error?.code === 3) {
+      reason = "timeout";
+      status = "timeout";
+    }
+    clearLocationInterval();
+    setIsLocating(false);
+    emitGeoStatus(status, { reason, errorCode: error?.code });
+    if (onLocationUnavailable) {
+      onLocationUnavailable({ reason, error });
+    }
+  };
+
+  const requestLocation = ({
+    notifyInitial = false,
+    flyTo = false,
+    timeout = 3500,
+  } = {}) => {
+    if (minimal) return;
     if (!("geolocation" in navigator)) {
+      emitGeoStatus("unsupported", { reason: "unsupported" });
+      setIsLocating(false);
+      clearLocationInterval();
       if (onLocationUnavailable) {
         onLocationUnavailable({ reason: "unsupported" });
       }
-      setIsLocating(false);
       return;
     }
 
-    const timer = setTimeout(() => {
-      // Timeout fallback: just load the map at default center
-      console.log("Location timeout - falling back to default");
-      if (onLocationUnavailable) {
-        onLocationUnavailable({ reason: "timeout" });
-      }
-      setIsLocating(false);
-    }, 4000); // 4 second timeout
+    if (notifyInitial) {
+      setIsLocating(true);
+      emitGeoStatus("pending");
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        clearTimeout(timer);
         const { latitude, longitude } = position.coords;
-        setUserLocation([latitude, longitude]);
-        setInitCenter([latitude, longitude]); // Set this so map init uses it
-
-        if (onUserLocationFound) {
-          onUserLocationFound(latitude, longitude);
-        }
-        setIsLocating(false); // Ready to render map
+        applyLocationFix(latitude, longitude, { notifyInitial, flyTo });
       },
       (error) => {
-        clearTimeout(timer);
-        console.log("Auto-location failed or denied", error);
-        if (onLocationUnavailable) {
-          onLocationUnavailable({ reason: "error", error });
-        }
-        setIsLocating(false);
+        handleGeoError(error);
       },
-      { timeout: 3500 },
+      {
+        timeout,
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+      },
     );
-  }, [minimal, onLocationUnavailable, onUserLocationFound]);
+  };
 
-  // 2. Initialize Map (Only after isLocating is false)
+  const retryLocationProbe = () => {
+    const now = Date.now();
+    if (now - lastRetryRef.current < GEO_RETRY_DEBOUNCE_MS) return;
+    lastRetryRef.current = now;
+    requestLocation({ notifyInitial: true, timeout: 2500 });
+  };
+
+  // 1. Initialize map immediately; geolocation runs in parallel.
   useEffect(() => {
-    if (isLocating) return;
-
     let isMounted = true;
 
     const initMap = async () => {
@@ -135,6 +228,9 @@ export default function Map({
                      animation: pinPopReveal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
                      animation-iteration-count: 1;
                      transform-origin: bottom center;
+                 }
+                 .city-outline-glow {
+                     filter: drop-shadow(0 0 4px var(--map-highlight-glow, rgba(255, 255, 255, 0.22)));
                  }
              `;
           document.head.appendChild(style);
@@ -189,14 +285,83 @@ export default function Map({
     // Cleanup function
     return () => {
       isMounted = false;
+      clearLocationInterval();
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         setMapReady(false);
       }
     };
+  }, [minimal]);
+
+  // 1.5 Initial location request.
+  useEffect(() => {
+    if (minimal) return;
+    requestLocation({ notifyInitial: true, timeout: 3500 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLocating, minimal]);
+  }, [minimal]);
+
+  // 1.6 Permission API watchers + lifecycle retries.
+  useEffect(() => {
+    if (minimal || !("geolocation" in navigator)) return undefined;
+
+    let cancelled = false;
+    const setupPermissions = async () => {
+      if (!navigator.permissions?.query) return;
+      try {
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        if (cancelled) return;
+        permissionStatusRef.current = status;
+        if (status.state === "denied") {
+          emitGeoStatus("denied", { reason: "denied" });
+        }
+        status.onchange = () => {
+          if (status.state === "granted") {
+            retryLocationProbe();
+          } else if (status.state === "denied") {
+            clearLocationInterval();
+            emitGeoStatus("denied", { reason: "denied" });
+            if (onLocationUnavailable) {
+              onLocationUnavailable({ reason: "denied" });
+            }
+          }
+        };
+      } catch (error) {
+        console.warn("Permissions API not available for geolocation.", error);
+      }
+    };
+
+    setupPermissions();
+
+    const onFocus = () => retryLocationProbe();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") retryLocationProbe();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (permissionStatusRef.current) {
+        permissionStatusRef.current.onchange = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minimal, onLocationUnavailable]);
+
+  // 1.7 Live location refresh loop while granted.
+  useEffect(() => {
+    if (minimal || isGlobalView || geoStatus !== "granted") {
+      clearLocationInterval();
+      return;
+    }
+    startLiveLocationUpdates();
+    return () => clearLocationInterval();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minimal, isGlobalView, geoStatus]);
 
   // 2.5 Handle Center & Zoom Updates (Fly to new center if map exists)
   useEffect(() => {
@@ -211,6 +376,52 @@ export default function Map({
       mapInstanceRef.current.flyTo(initCenter, initialZoom);
     }
   }, [mapReady, initCenter, initialZoom]);
+
+  // Keep map dimensions healthy on mobile rotations/layout shifts.
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !mapRef.current) return;
+
+    const map = mapInstanceRef.current;
+    const resize = () => map.invalidateSize();
+
+    window.addEventListener("resize", resize);
+    const observer = new ResizeObserver(resize);
+    observer.observe(mapRef.current);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      observer.disconnect();
+    };
+  }, [mapReady]);
+
+  // Repaint highlight styles immediately when theme changes.
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const bump = () => setThemeRefreshKey((prev) => prev + 1);
+    const observer = new MutationObserver((mutations) => {
+      const changedTheme = mutations.some(
+        (m) =>
+          m.type === "attributes" &&
+          m.attributeName === "data-theme" &&
+          (m.target === document.documentElement || m.target === document.body),
+      );
+      if (changedTheme) bump();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    if (document.body) {
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["data-theme"],
+      });
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // 3. Handle User Location Marker (Separate Effect)
   useEffect(() => {
@@ -230,8 +441,6 @@ export default function Map({
     const renderUserMarker = async () => {
       const L = (await import("leaflet")).default;
 
-      if (userMarkerRef.current) map.removeLayer(userMarkerRef.current);
-
       const userIcon = L.divIcon({
         className: "user-location-marker",
         html: `<div style="width: 16px; height: 16px; background-color: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);"></div>`,
@@ -239,13 +448,101 @@ export default function Map({
         iconAnchor: [12, 12],
       });
 
-      userMarkerRef.current = L.marker(userLocation, { icon: userIcon }).addTo(
-        map,
-      );
-      userMarkerRef.current.bindPopup("You are here");
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLatLng(userLocation);
+      } else {
+        userMarkerRef.current = L.marker(userLocation, { icon: userIcon }).addTo(
+          map,
+        );
+        userMarkerRef.current.bindPopup("You are here");
+      }
     };
     renderUserMarker();
   }, [mapReady, minimal, userLocation, isGlobalView]);
+
+  // City highlight outline layer.
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || minimal || isGlobalView) {
+      if (highlightLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(highlightLayerRef.current);
+        highlightLayerRef.current = null;
+      }
+      return;
+    }
+
+    const renderHighlight = async () => {
+      const L = (await import("leaflet")).default;
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      const rootStyles = getComputedStyle(document.documentElement);
+      const themedOutlineColor =
+        rootStyles.getPropertyValue("--map-highlight-stroke").trim() ||
+        rootStyles.getPropertyValue("--color-primary").trim() ||
+        rootStyles.getPropertyValue("--text-main").trim() ||
+        "#60a5fa";
+      const themedFillColor =
+        rootStyles.getPropertyValue("--map-highlight-fill").trim() ||
+        `rgba(${rootStyles.getPropertyValue("--color-primary-rgb").trim() || "99,102,241"}, 0.14)`;
+      const strokeWeight = parseFloat(
+        rootStyles.getPropertyValue("--map-highlight-stroke-width").trim() || "1.2",
+      );
+      const strokeOpacity = parseFloat(
+        rootStyles.getPropertyValue("--map-highlight-stroke-opacity").trim() || "0.78",
+      );
+      const polygonFillOpacity = parseFloat(
+        rootStyles.getPropertyValue("--map-highlight-fill-opacity").trim() || "0.08",
+      );
+      const circleFillOpacity = parseFloat(
+        rootStyles.getPropertyValue("--map-highlight-circle-fill-opacity").trim() || "0.06",
+      );
+
+      if (highlightLayerRef.current) {
+        map.removeLayer(highlightLayerRef.current);
+        highlightLayerRef.current = null;
+      }
+
+      if (cityHighlightGeoJSON) {
+        highlightLayerRef.current = L.geoJSON(cityHighlightGeoJSON, {
+          style: {
+            color: themedOutlineColor,
+            weight: Number.isFinite(strokeWeight) ? strokeWeight : 1.2,
+            opacity: Number.isFinite(strokeOpacity) ? strokeOpacity : 0.78,
+            fill: true,
+            fillColor: themedFillColor,
+            fillOpacity: Number.isFinite(polygonFillOpacity)
+              ? polygonFillOpacity
+              : 0.08,
+            className: "city-outline-glow",
+          },
+        }).addTo(map);
+        return;
+      }
+
+      if (cityHighlightCircle?.center && cityHighlightCircle?.radiusMeters) {
+        highlightLayerRef.current = L.circle(cityHighlightCircle.center, {
+          radius: cityHighlightCircle.radiusMeters,
+          color: themedOutlineColor,
+          weight: Number.isFinite(strokeWeight) ? strokeWeight : 1.2,
+          opacity: Number.isFinite(strokeOpacity) ? strokeOpacity : 0.78,
+          fill: true,
+          fillColor: themedFillColor,
+          fillOpacity: Number.isFinite(circleFillOpacity)
+            ? circleFillOpacity
+            : 0.06,
+          className: "city-outline-glow",
+        }).addTo(map);
+      }
+    };
+
+    renderHighlight();
+  }, [
+    mapReady,
+    minimal,
+    isGlobalView,
+    cityHighlightGeoJSON,
+    cityHighlightCircle,
+    themeRefreshKey,
+  ]);
 
   // 3.5 Parks Overlay (green)
   useEffect(() => {
@@ -652,31 +949,7 @@ export default function Map({
   };
 
   const handleLocateMe = () => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation([latitude, longitude]);
-
-          // Notify parent if prop provided
-          if (onUserLocationFound) {
-            onUserLocationFound(latitude, longitude);
-          }
-
-          // Parent will update center/zoom via props, but we can also fly locally to be responsive
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([latitude, longitude], 14);
-          }
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          if (onLocationUnavailable) {
-            onLocationUnavailable({ reason: "error", error });
-          }
-          alert("Could not get your location.");
-        },
-      );
-    }
+    requestLocation({ notifyInitial: true, flyTo: true, timeout: 3500 });
   };
 
   return (
@@ -684,7 +957,7 @@ export default function Map({
       className={`glass-panel ${className}`}
       style={{
         position: "relative",
-        height: "500px",
+        height: "clamp(240px, 50dvh, 560px)",
         width: "100%",
         borderRadius: "16px",
         overflow: "hidden",
@@ -702,95 +975,89 @@ export default function Map({
         }}
       />
 
-      {/* Locating Overlay */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "#0f0f0f",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: 600,
-          transition: "opacity 0.8s ease, visibility 0.8s ease",
-          opacity: isLocating ? 1 : 0,
-          visibility: isLocating ? "visible" : "hidden",
-          pointerEvents: isLocating ? "auto" : "none",
-        }}
-      >
-        <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
-          <p
-            className="pulse-text"
-            style={{ fontSize: "1.2rem", marginBottom: "10px" }}
-          >
-            📍
-          </p>
-          <p>Locating you...</p>
+      {!minimal && (isLocating || geoStatus !== "granted") && (
+        <div
+          style={{
+            position: "absolute",
+            top: "12px",
+            left: "12px",
+            zIndex: 600,
+            background: "rgba(0, 0, 0, 0.55)",
+            border: "1px solid rgba(255,255,255,0.2)",
+            backdropFilter: "blur(8px)",
+            color: "var(--text-main)",
+            borderRadius: "999px",
+            padding: "6px 12px",
+            fontSize: "0.8rem",
+            pointerEvents: "none",
+          }}
+        >
+          {isLocating ? "Locating..." : "Manual city mode"}
         </div>
-      </div>
+      )}
 
       {!minimal && (
         <>
-          <form
-            onSubmit={handleSearch}
-            style={{
-              position: "absolute",
-              top: "20px",
-              right: "20px",
-              zIndex: 500,
-              background: "white",
-              borderRadius: "8px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              display: "flex",
-              overflow: "hidden",
-              width: "260px",
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Search places..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              suppressHydrationWarning
+          {!hideInternalPlaceSearch && (
+            <form
+              onSubmit={handleSearch}
               style={{
-                border: "none",
-                padding: "10px 14px",
-                outline: "none",
-                flex: 1,
-                color: "#333",
-              }}
-            />
-            <button
-              type="submit"
-              suppressHydrationWarning
-              style={{
-                background: "var(--color-primary, #3b82f6)",
-                color: "white",
-                border: "none",
-                padding: "0 12px",
-                cursor: "pointer",
-                fontWeight: "bold",
+                position: "absolute",
+                top: "20px",
+                right: "20px",
+                zIndex: 500,
+                background: "white",
+                borderRadius: "8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                display: "flex",
+                overflow: "hidden",
+                width: "260px",
               }}
             >
-              {isSearching ? "..." : "🔍"}
-            </button>
-          </form>
+              <input
+                type="text"
+                placeholder="Search places..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                suppressHydrationWarning
+                style={{
+                  border: "none",
+                  padding: "10px 14px",
+                  outline: "none",
+                  flex: 1,
+                  color: "#333",
+                }}
+              />
+              <button
+                type="submit"
+                suppressHydrationWarning
+                style={{
+                  background: "var(--color-primary, #3b82f6)",
+                  color: "white",
+                  border: "none",
+                  padding: "0 12px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                {isSearching ? "..." : "🔍"}
+              </button>
+            </form>
+          )}
 
           <button
             onClick={handleLocateMe}
             suppressHydrationWarning
             style={{
               position: "absolute",
-              bottom: "20px",
+              bottom: "max(16px, env(safe-area-inset-bottom))",
               right: "20px",
               zIndex: 400,
               background: "white",
               color: "#333",
               border: "none",
-              padding: "10px 16px",
+              padding: "12px 18px",
+              minHeight: "44px",
               borderRadius: "8px",
               boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
               cursor: "pointer",

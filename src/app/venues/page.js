@@ -1,33 +1,36 @@
 "use client";
 import Navbar from "@/components/Layout/Navbar";
-import VenueCard from "@/components/UI/VenueCard";
 import LocationCard from "@/components/Locations/LocationCard";
 import Map from "@/components/UI/Map";
 import CommunityLocationForm from "@/components/Community/CommunityLocationForm";
 import { communityLocationService } from "@/services/communityLocationService";
 import { venueService } from "@/services/venueService";
 import { isPlaceholderVenueName } from "@/lib/placeholderVenues";
+import { getCityOutline } from "@/lib/nominatimCityOutline";
 import { useState, useRef, useEffect } from "react";
 import { City, Country } from 'country-state-city';
 import styles from './venues.module.css';
 
 export default function VenuesPage() {
-  const [displayVenues, setDisplayVenues] = useState([]);
   const [communityLocations, setCommunityLocations] = useState([]);
   const [officialVenues, setOfficialVenues] = useState([]); // Official Business Venues
   const [filterSport, setFilterSport] = useState('All');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGlobalView, setIsGlobalView] = useState(false);
-  const [mapIsGlobal, setMapIsGlobal] = useState(false); // Controls map visual style (pins, user dot)
 
   // Search State
   const [userCountry, setUserCountry] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("pending");
+  const [locationNotice, setLocationNotice] = useState("");
   const [citySearchTerm, setCitySearchTerm] = useState('');
   const [filteredCities, setFilteredCities] = useState([]);
   const [showCityResults, setShowCityResults] = useState(false);
   const [mapCenter, setMapCenter] = useState(null);
-  const [mapZoom, setMapZoom] = useState(14); // New state for zoom level
+  const [mapZoom, setMapZoom] = useState(2); // New state for zoom level
   const [previousMapState, setPreviousMapState] = useState(null); // Store previous state to restore
+  const [cityHighlightGeoJSON, setCityHighlightGeoJSON] = useState(null);
+  const [cityHighlightCircle, setCityHighlightCircle] = useState(null);
   const [displayLimit, setDisplayLimit] = useState(50); // Progressive loading limit
   const observerTarget = useRef(null); // Ref for infinite scroll
 
@@ -36,11 +39,17 @@ export default function VenuesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLocationCoords, setNewLocationCoords] = useState(null);
 
-  // Use a ref to ensure we don't re-randomize unnecessarily if component re-renders
-  const hasRandomized = useRef(false);
+  const gpsInitializedRef = useRef(false);
+  const lastRealtimeFetchRef = useRef(0);
+  const lastRealtimePositionRef = useRef(null);
+  const outlineRequestIdRef = useRef(0);
+  const outlineDebounceRef = useRef(null);
+  const nearbyRequestIdRef = useRef(0);
   const mapRef = useRef(null); // Ref for scrolling to map
-  const fallbackInitializedRef = useRef(false);
-  const fallbackCenter = [40.7300, -74.0000];
+  const defaultMapCenter = [25, 0];
+  const defaultMapZoom = 2;
+
+  const shouldUseManualCitySelection = locationStatus !== "granted";
 
   // Load Official Venues (Business) on Mount
   useEffect(() => {
@@ -48,6 +57,17 @@ export default function VenuesPage() {
       .then((rows) => setOfficialVenues((rows || []).filter((venue) => !isPlaceholderVenueName(venue?.name))))
       .catch(err => console.error("Error loading official venues:", err));
   }, []);
+
+  useEffect(() => {
+    if (userCountry) return;
+    const localeCountry =
+      typeof navigator !== "undefined" && navigator.language?.includes("-")
+        ? navigator.language.split("-")[1]?.toUpperCase()
+        : null;
+    const validLocaleCountry =
+      localeCountry && Country.getCountryByCode(localeCountry) ? localeCountry : "US";
+    setUserCountry(validLocaleCountry);
+  }, [userCountry]);
 
   // REMOVED: Initial global fetch (user wants local-only by default)
   // useEffect(() => {
@@ -73,7 +93,12 @@ export default function VenuesPage() {
   }, [showCityResults, filteredCities, displayLimit]);
 
   const loadGlobalVenues = async () => {
-    setIsLoading(true);
+    const hasExistingData = communityLocations.length > 0 || officialVenues.length > 0;
+    if (hasExistingData) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       // Load ALL venues (Globe view)
       const locations = await communityLocationService.getNearbyLocations(0, 0, 45000);
@@ -82,55 +107,125 @@ export default function VenuesPage() {
       console.error("Failed to load community locations:", error);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
-  const handleUserLocationFound = async (lat, lng) => {
-    if (!hasRandomized.current) {
-      hasRandomized.current = true;
-      setMapCenter([lat, lng]); // Set initial center
-      setMapZoom(14); // Set initial zoom
-
-      setIsLoading(true); // Restored loading state since we start empty now
-      // 2. Fetch nearby community locations
-      communityLocationService.getNearbyLocations(lat, lng, 20)
-        .then((locations) => {
-          setCommunityLocations(locations);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error(err);
-          setIsLoading(false);
-        });
-
-      // 3. Detect Country
-      detectUserCountry(lat, lng);
+  const loadNearbyForCoords = async (lat, lng) => {
+    const id = ++nearbyRequestIdRef.current;
+    const hasExistingData = communityLocations.length > 0 || officialVenues.length > 0;
+    if (hasExistingData) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
     }
-  };
-
-  const initializeFallbackLocation = async () => {
-    if (fallbackInitializedRef.current || hasRandomized.current) return;
-    fallbackInitializedRef.current = true;
-    hasRandomized.current = true;
-
-    setMapCenter(fallbackCenter);
-    setMapZoom(12);
-    setUserCountry("US");
-    setIsLoading(true);
-
     try {
-      const locations = await communityLocationService.getNearbyLocations(fallbackCenter[0], fallbackCenter[1], 20);
+      const locations = await communityLocationService.getNearbyLocations(lat, lng, 20);
+      if (id !== nearbyRequestIdRef.current) return;
       setCommunityLocations(locations);
     } catch (error) {
-      console.error("Fallback location load failed:", error);
-      setCommunityLocations([]);
+      console.error("Failed to load nearby locations:", error);
+      if (id !== nearbyRequestIdRef.current) return;
+      // Preserve current results on refresh failure to avoid blanking the page.
     } finally {
-      setIsLoading(false);
+      if (id === nearbyRequestIdRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 
-  const handleLocationUnavailable = async () => {
-    await initializeFallbackLocation();
+  const applyCityHighlight = async ({
+    cityName,
+    countryCode,
+    stateCode,
+    lat,
+    lng,
+  }) => {
+    const id = ++outlineRequestIdRef.current;
+    if (outlineDebounceRef.current) {
+      clearTimeout(outlineDebounceRef.current);
+    }
+    outlineDebounceRef.current = setTimeout(async () => {
+      const outline = await getCityOutline({
+        cityName,
+        countryCode,
+        stateCode,
+        lat,
+        lng,
+      });
+      if (id !== outlineRequestIdRef.current) return;
+      setCityHighlightGeoJSON(outline.geoJSON || null);
+      setCityHighlightCircle(outline.circle || null);
+    }, 220);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (outlineDebounceRef.current) {
+        clearTimeout(outlineDebounceRef.current);
+      }
+    };
+  }, []);
+
+  const handleUserLocationFound = async (lat, lng) => {
+    setLocationStatus("granted");
+    setLocationNotice("");
+
+    if (!gpsInitializedRef.current) {
+      gpsInitializedRef.current = true;
+      setMapCenter([lat, lng]);
+      setMapZoom(14);
+      await loadNearbyForCoords(lat, lng);
+      await detectUserCountry(lat, lng);
+    }
+  };
+
+  const handleUserLocationUpdate = async (lat, lng) => {
+    if (isGlobalView || locationStatus !== "granted") return;
+
+    const now = Date.now();
+    const prev = lastRealtimePositionRef.current;
+    lastRealtimePositionRef.current = [lat, lng];
+    if (!prev) return;
+
+    const movedKm = Math.sqrt(
+      Math.pow(lat - prev[0], 2) + Math.pow(lng - prev[1], 2)
+    ) * 111;
+    const enoughTimePassed = now - lastRealtimeFetchRef.current > 12000;
+    if (movedKm <= 0.5 && !enoughTimePassed) return;
+
+    lastRealtimeFetchRef.current = now;
+    await loadNearbyForCoords(lat, lng);
+  };
+
+  const handleLocationUnavailable = ({ reason }) => {
+    setLocationStatus(reason === "denied" ? "denied" : "manual");
+    gpsInitializedRef.current = false;
+    setMapCenter((prev) => prev || defaultMapCenter);
+    setMapZoom((prev) => (prev === 14 ? defaultMapZoom : prev));
+    setCommunityLocations((prev) => (Array.isArray(prev) ? prev : []));
+
+    if (reason === "denied") {
+      setLocationNotice("Location permission is denied. Pick a country and city to browse venues.");
+    } else if (reason === "timeout") {
+      setLocationNotice("Location request timed out. You can still browse by selecting your city.");
+    } else if (reason === "unsupported") {
+      setLocationNotice("Your browser does not support location. Select your city to continue.");
+    } else {
+      setLocationNotice("Live location is unavailable right now. Select your city to continue.");
+    }
+  };
+
+  const handleGeoStatusChange = ({ status }) => {
+    if (status === "granted") {
+      setLocationStatus("granted");
+      setLocationNotice("");
+      return;
+    }
+    if (status === "pending") {
+      setLocationStatus("pending");
+    }
   };
 
   const toggleGlobalView = () => {
@@ -149,12 +244,7 @@ export default function VenuesPage() {
       setMapCenter([25, 0]);
       setMapZoom(2);
 
-      // 3. Delayed Pin Resize (Wait for zoom out to start/progress)
-      setTimeout(() => {
-        setMapIsGlobal(true);
-      }, 800); // 0.8s delay for pin shrink
-
-      // 4. Fetch Data
+      // 3. Fetch Data
       loadGlobalVenues();
 
     } else {
@@ -174,23 +264,24 @@ export default function VenuesPage() {
         setMapZoom(targetZoom);
 
         // Load Local Data
-        setIsLoading(true);
+        setIsRefreshing(true);
         communityLocationService.getNearbyLocations(targetCenter[0], targetCenter[1], 20)
           .then((locations) => {
             setCommunityLocations(locations);
-            setIsLoading(false);
+            setIsRefreshing(false);
+          })
+          .catch((error) => {
+            console.error("Failed to restore local data:", error);
+            setIsRefreshing(false);
           });
       } else {
         // Fallback clearing
         setCommunityLocations([]);
         setIsLoading(false);
+        setIsRefreshing(false);
         setMapZoom(4);
       }
 
-      // 2. Delayed visual restore (wait for zoom in)
-      setTimeout(() => {
-        setMapIsGlobal(false); // Restore large pins and User Dot
-      }, 2000);
     }
   };
 
@@ -213,39 +304,19 @@ export default function VenuesPage() {
         if (data.city || data.locality) {
           const detectedCity = data.city || data.locality;
           setCitySearchTerm(detectedCity);
+          await applyCityHighlight({
+            cityName: detectedCity,
+            countryCode: data.countryCode,
+            stateCode: data.principalSubdivisionCode || data.principalSubdivision || null,
+            lat,
+            lng,
+          });
           console.log("Auto-selected City:", detectedCity);
         }
       }
     } catch (error) {
       console.error("Failed to detect country:", error);
-      // Fallback to US if detection fails (optional)
-      setUserCountry("US");
-    }
-  };
-
-  // Normalize city names: strip apostrophes, trim, lowercase
-  const normalizeCityName = (name) => {
-    return name ? name.toLowerCase().replace(/['’]/g, "").trim() : "";
-  };
-
-  const handleCitySearch = (e) => {
-    const term = e.target.value;
-    setCitySearchTerm(term);
-    setDisplayLimit(50); // Reset limit on search
-
-    if (term.length > 2 && userCountry) {
-      const cities = City.getCitiesOfCountry(userCountry);
-      // Filter ALL matches, do not slice here
-      const normalizedTerm = normalizeCityName(term);
-
-      const matches = cities.filter(city =>
-        normalizeCityName(city.name).includes(normalizedTerm)
-      );
-      setFilteredCities(matches);
-      setShowCityResults(true);
-    } else {
-      setFilteredCities([]);
-      setShowCityResults(false);
+      setUserCountry((prev) => prev || "US");
     }
   };
 
@@ -261,19 +332,20 @@ export default function VenuesPage() {
 
     // Fetch community locations by COORDINATES (Radius match)
     // This is more robust than string matching for "Tbilisi" vs "T'bilisi" logic issues
-    if (lat && lng) {
-      setIsLoading(true);
-      communityLocationService.getNearbyLocations(lat, lng, 20)
-        .then(locations => {
-          console.log(`Found ${locations.length} community locations near ${city.name} (Radius 20km)`);
-          setCommunityLocations(locations);
-        })
-        .catch(console.error)
-        .finally(() => setIsLoading(false));
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      loadNearbyForCoords(lat, lng);
+      applyCityHighlight({
+        cityName: city.name,
+        countryCode: userCountry,
+        stateCode: city.stateCode,
+        lat,
+        lng,
+      });
     }
 
     // Update map view
     setMapCenter([lat, lng]);
+    setMapZoom(14);
   };
 
   const toggleAddLocationMode = () => {
@@ -342,20 +414,52 @@ export default function VenuesPage() {
           <Map
             venues={activeLocations}
             onUserLocationFound={handleUserLocationFound}
+            onUserLocationUpdate={handleUserLocationUpdate}
+            onGeolocationStatusChange={handleGeoStatusChange}
             onLocationUnavailable={handleLocationUnavailable}
             isAddingLocation={isAddingLocation}
             onMapClick={handleMapClick}
+            initialCenter={defaultMapCenter}
+            initialZoom={defaultMapZoom}
             center={mapCenter}
             zoom={mapZoom}
             isGlobalView={isGlobalView}
+            cityHighlightGeoJSON={cityHighlightGeoJSON}
+            cityHighlightCircle={cityHighlightCircle}
+            hideInternalPlaceSearch={true}
           />
         </div>
+        {!isGlobalView && locationNotice && (
+          <div className={styles.locationBanner}>{locationNotice}</div>
+        )}
 
         {/* Controls Area: Combobox + Toggle + Add Button */}
         <div className={styles.controlsArea}>
           <div className={styles.actionRow}>
 
             <div className={styles.searchGroup}>
+              {!isGlobalView && shouldUseManualCitySelection && (
+                <select
+                  className={styles.countrySelect}
+                  value={userCountry || ""}
+                  onChange={(e) => {
+                    setUserCountry(e.target.value);
+                    setCitySearchTerm("");
+                    setFilteredCities([]);
+                    setShowCityResults(false);
+                    setCityHighlightGeoJSON(null);
+                    setCityHighlightCircle(null);
+                    setCommunityLocations([]);
+                  }}
+                >
+                  {Country.getAllCountries().map((country) => (
+                    <option key={country.isoCode} value={country.isoCode}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
               {/* City Search - Disabled when Global View is ON */}
               <div className={`${styles.comboboxContainer} ${isGlobalView ? styles.disabledArea : ''}`}>
                 <div
@@ -377,7 +481,7 @@ export default function VenuesPage() {
                     flex: 1,
                     color: citySearchTerm ? 'var(--text-main)' : 'var(--text-muted)'
                   }}>
-                    {citySearchTerm || (userCountry ? `Searching in ${userCountry}...` : "Detecting location...")}
+                    {citySearchTerm || (userCountry ? `Searching in ${userCountry}...` : "Choose country first")}
                   </span>
                   <span className="icon">▼</span>
                 </div>
@@ -493,7 +597,10 @@ export default function VenuesPage() {
         </div>
 
         <div className="grid-auto-fit">
-          {isLoading ? (
+          {isRefreshing && (
+            <div className={styles.refreshingBadge}>Updating venues...</div>
+          )}
+          {isLoading && activeLocations.length === 0 ? (
             <div className={styles.loaderContainer}>
               <span className={styles.loader}></span>
               <p>Loading venues...</p>
