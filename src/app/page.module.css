@@ -7,36 +7,57 @@
 .heroSection {
   position: relative;
   z-index: 1;
-  padding-top: var(--page-top, 140px);
+  padding-top: var(--page-top);
   padding-bottom: clamp(3rem, 8vw, 80px);
 }
 
 @media (max-width: 768px) {
   .heroSection {
-    padding-top: calc(var(--header-height) + var(--safe-top) + 1rem);
     padding-bottom: 3rem;
   }
 }
 
 .heroGrid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: clamp(1.5rem, 4vw, 3rem);
-  align-items: center;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: clamp(2rem, 5vw, 3.5rem);
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .heroGrid {
     grid-template-columns: 1fr;
+    gap: clamp(2rem, 6vw, 2.75rem);
+    align-items: stretch;
   }
 }
 
 .heroCopy {
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.75rem, 4vw, 2.5rem);
+  max-width: 38rem;
+}
+
+.heroLead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.heroActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 520px;
 }
 
 .heroAside {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .eyebrow {
@@ -44,19 +65,22 @@
   letter-spacing: 0.14em;
   font-size: var(--text-xs);
   color: var(--text-muted);
-  margin: 0 0 var(--space-4);
+  margin-top: 7;
   font-weight: 700;
   font-family: var(--font-header);
 }
 
 .title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08em;
   font-family: var(--font-display, var(--font-header));
-  font-size: clamp(2.75rem, 7vw, 4.5rem);
-  font-weight: 400;
-  line-height: 0.95;
-  margin: 0 0 var(--space-6);
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
+  font-size: clamp(3rem, 8.5vw, 5rem);
+  font-weight: 500;
+  line-height: 1.02;
+  margin: 0;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .titleLine {
@@ -65,19 +89,21 @@
 
 .titleAccent {
   color: var(--color-primary);
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 .subtitle {
-  font-size: var(--text-lg);
+  font-size: clamp(1rem, 2.2vw, var(--text-lg));
   color: var(--text-muted);
-  max-width: 46ch;
-  margin: 0 0 var(--space-6);
+  max-width: 42ch;
+  margin: 0;
   line-height: 1.65;
 }
 
 .searchForm {
-  margin-bottom: var(--space-6);
-  max-width: 520px;
+  margin: 0;
+  width: 100%;
 }
 
 .searchField {
@@ -137,7 +163,8 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   min-height: 44px;
-  transition: transform var(--duration-fast) var(--ease-out),
+  transition:
+    transform var(--duration-fast) var(--ease-out),
     background var(--duration-normal) var(--ease-out);
 }
 
@@ -146,7 +173,8 @@
 }
 
 .previewPanel {
-  padding: var(--space-8);
+  width: 100%;
+  padding: clamp(1.5rem, 3vw, var(--space-8));
   box-shadow: var(--shadow-lg);
 }
 
@@ -164,6 +192,8 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0 0 var(--space-5);
+  line-height: 1.5;
+  max-width: 34ch;
 }
 
 .heroList {
@@ -177,6 +207,11 @@
 .heroList li {
   padding-bottom: var(--space-3);
   border-bottom: 1px dashed var(--chalk-line, rgba(255, 255, 255, 0.1));
+}
+
+.heroList li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .discoveryLink {
@@ -211,6 +246,7 @@
 .discoveryArrow {
   color: var(--color-primary);
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .heroList span {
@@ -225,6 +261,10 @@
   text-transform: uppercase;
   font-size: var(--text-sm);
   letter-spacing: 0.04em;
+}
+
+.heroDivider {
+  margin: clamp(2.5rem, 6vw, 4rem) 0 clamp(1.75rem, 4vw, 2.5rem);
 }
 
 .ctaStrip {
@@ -254,17 +294,31 @@
 .skeletonBlock {
   height: 420px;
   border-radius: var(--border-radius);
-  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.04)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @media (max-width: 480px) {
+  .title {
+    font-size: clamp(2.5rem, 11vw, 3.25rem);
+    line-height: 1.06;
+  }
+
   .searchField {
     flex-direction: column;
   }
@@ -281,5 +335,9 @@
   .primaryButton,
   .secondaryButton {
     width: 100%;
+  }
+
+  .heroActions {
+    max-width: none;
   }
 }
