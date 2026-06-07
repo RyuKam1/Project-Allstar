@@ -10,8 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# testing (local only — not shipped)
+/tests/
 /coverage
+.nyc_output
 
 # next.js
 /.next/
@@ -19,19 +21,26 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
 *.pem
 
-# debug
+# debug / logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+logs/
 
-# env files (can opt-in for committing if needed)
+# env & secrets (never commit)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +48,47 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tooling caches
+.turbo/
+.cache/
+.parcel-cache/
+.eslintcache
+.swc/
+
+# supabase local CLI state
+.supabase/
+.branches/
+
+# database schema & migrations (local only — apply via Supabase dashboard/CLI)
+/supabase/migrations/
+
+# IDE / editor (local only)
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# cursor / local AI workspace (rules, skills, agent scratch)
+.cursor/
+.cursorrules
+.agent/
+*.jsonl
+
+# backup / scratch files
+*.backup
+*.bak
+*~
+
+# planning & internal docs (README.md is the only doc in repo)
+/docs/
+
+# CI / dev automation (not production runtime)
+/.github/
+
+# OS / local overrides
+*.local

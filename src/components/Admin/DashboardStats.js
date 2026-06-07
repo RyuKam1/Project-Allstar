@@ -1,33 +1,30 @@
-import React from 'react';
+import React from "react";
+import Icon from "@/components/UI/Icon";
+import styles from "./dashboard-stats.module.css";
 
-const StatCard = ({ label, value, icon, change, color = 'var(--color-primary)' }) => (
-    <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-        <div style={{ 
-            width: '60px', height: '60px', borderRadius: '12px', 
-            background: color, opacity: 0.9,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '2rem'
-        }}>
-            {icon}
-        </div>
-        <div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '5px' }}>{label}</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', lineHeight: 1 }}>{value}</div>
-            {/* Optional change indicator logic here */}
-        </div>
+function StatCard({ label, value, icon, color = "var(--color-primary)" }) {
+  return (
+    <div className={`glass-panel ticket-card ${styles.card}`}>
+      <div className={styles.iconWrap} style={{ background: color }}>
+        <Icon name={icon} size={26} />
+      </div>
+      <div>
+        <div className={styles.label}>{label}</div>
+        <div className={styles.value}>{value}</div>
+      </div>
     </div>
-);
+  );
+}
 
-const DashboardStats = ({ stats }) => {
-    return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-            <StatCard icon="👥" label="Total Users" value={stats.usersCount} color="#3b82f6" />
-            <StatCard icon="📍" label="Venues" value={stats.venuesCount} color="#8b5cf6" />
-            <StatCard icon="🛡️" label="Teams" value={stats.teamsCount} color="#ec4899" />
-            <StatCard icon="🏆" label="Tournaments" value={stats.tournamentsCount} color="#f59e0b" />
-            <StatCard icon="📝" label="Pending Claims" value={stats.claimsCount} color="#10b981" />
-        </div>
-    );
-};
-
-export default DashboardStats;
+export default function DashboardStats({ stats }) {
+  return (
+    <div className={styles.grid}>
+      <StatCard icon="users" label="Total Users" value={stats.usersCount} color="#3b82f6" />
+      <StatCard icon="location" label="Venues" value={stats.venuesCount} color="#8b5cf6" />
+      <StatCard icon="shield" label="Teams" value={stats.teamsCount} color="#ec4899" />
+      <StatCard icon="trophy" label="Tournaments" value={stats.tournamentsCount} color="#f59e0b" />
+      <StatCard icon="document" label="Pending Claims" value={stats.claimsCount} color="#10b981" />
+      <StatCard icon="warning" label="Review Reports" value={stats.reportsCount} color="#ef4444" />
+    </div>
+  );
+}

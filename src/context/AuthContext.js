@@ -61,7 +61,7 @@ export function AuthProvider({ children }) {
   };
 
   // Role helpers
-  const role = user?.role || user?.account_type || 'user';
+  const role = user?.role || 'user';
   const isBusiness = role === 'business' || role === 'admin'; // Admin has business privileges
   const isAdmin = role === 'admin';
 

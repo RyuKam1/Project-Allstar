@@ -1,6 +1,6 @@
 .card {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -19,15 +19,7 @@
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: rgba(255,255,255,0.1);
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 1px;
-  backdrop-filter: blur(5px);
-  color: var(--text-muted);
+  z-index: 2;
 }
 
 .logoContainer {
@@ -38,6 +30,11 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: visible;
+}
+
+.logoGlow {
+  display: none;
 }
 
 .logoImage {
@@ -48,33 +45,21 @@
   border: 3px solid var(--color-primary);
   position: relative;
   z-index: 2;
-}
-
-.logoGlow {
-  position: absolute;
-  width: 90%;
-  height: 90%;
-  border-radius: 50%;
-  object-fit: cover;
-  filter: blur(20px) saturate(2);
-  opacity: 0.7;
-  z-index: 1;
-  pointer-events: none;
-  transform: translateY(4px);
+  filter: drop-shadow(0 0 18px rgba(var(--color-primary-rgb), 0.42));
 }
 
 .fallbackLogo {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dim));
+  background: var(--color-primary);
   color: white; /* Always white text on colored bg */
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3rem;
   font-weight: 800;
-  box-shadow: 0 0 25px rgba(var(--color-primary-rgb), 0.4);
+  filter: drop-shadow(0 0 18px rgba(var(--color-primary-rgb), 0.42));
 }
 
 .content {
@@ -132,7 +117,7 @@
 
 .joinButton {
   background: var(--color-primary);
-  color: white; 
+  color: var(--color-on-primary, #ffffff); 
   border: none;
   padding: 8px 16px;
   border-radius: 6px;

@@ -1,349 +1,525 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Navbar from "@/components/Layout/Navbar";
+
+import React, { useState, useEffect } from "react";
 import AdminSidebar from "@/components/Admin/AdminSidebar";
 import DashboardStats from "@/components/Admin/DashboardStats";
+import AdminDataTable from "@/components/Admin/AdminDataTable";
 import { authService } from "@/services/authService";
 import { teamService } from "@/services/teamService";
 import { tournamentService } from "@/services/tournamentService";
 import { venueService } from "@/services/venueService";
 import { businessService } from "@/services/businessService";
+import { adminReviewReportService } from "@/services/adminReviewReportService";
 import { placeholderVenueCleanupService } from "@/services/placeholderVenueCleanupService";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import Icon from "@/components/UI/Icon";
+import tableStyles from "@/components/Admin/admin-data-table.module.css";
+import styles from "./admin.module.css";
 
-// Generic Table Component
-const DataTable = ({ columns, data, onEdit, onDelete, actions }) => {
-    const [search, setSearch] = useState('');
-    const filteredData = data.filter(item => 
-        Object.values(item).some(val => 
-            String(val).toLowerCase().includes(search.toLowerCase())
-        )
-    );
+function PanelHeader({ title, onRefresh, rightActions = null }) {
+  return (
+    <div className={styles.panelHeader}>
+      <h2 className={styles.panelTitle}>{title}</h2>
+      <div className={styles.panelActions}>
+        {rightActions}
+        <button type="button" onClick={onRefresh} className={styles.refreshBtn}>
+          <Icon name="clock" size={16} />
+          Refresh
+        </button>
+      </div>
+    </div>
+  );
+}
 
-    return (
-        <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between' }}>
-                <input 
-                    type="text" 
-                    placeholder="Search..." 
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    style={{ padding: '10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)', color: 'white', width: '300px' }}
-                />
-                <div style={{ color: 'var(--text-muted)' }}>{filteredData.length} entries</div>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
-                        <tr>
-                            {columns.map(col => <th key={col.key} style={{ padding: '1rem' }}>{col.label}</th>)}
-                            <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredData.map((item, idx) => (
-                            <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                                {columns.map(col => (
-                                    <td key={col.key} style={{ padding: '1rem' }}>
-                                        {col.render ? col.render(item) : item[col.key]}
-                                    </td>
-                                ))}
-                                <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                                    {actions && actions(item)}
-                                    {onEdit && <button onClick={() => onEdit(item)} className="btn-icon">✏️</button>}
-                                    {onDelete && <button onClick={() => onDelete(item)} className="btn-icon-danger">🗑️</button>}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
+function StatusBadge({ status }) {
+  const classMap = {
+    pending: tableStyles.statusPending,
+    reviewed: tableStyles.statusReviewed,
+    dismissed: tableStyles.statusDismissed,
+    approved: tableStyles.statusReviewed,
+    rejected: tableStyles.statusDismissed,
+  };
+  return (
+    <span className={classMap[status] || tableStyles.statusDismissed}>
+      {String(status || "unknown").toUpperCase()}
+    </span>
+  );
+}
 
 export default function AdminPage() {
-    const router = useRouter();
-    // Default to 'dashboard' but wait for mount/searchParams to be sure
-    const [activeTab, setActiveTabState] = useState('dashboard');
-    const [loading, setLoading] = useState(true);
-    const [data, setData] = useState({ users: [], teams: [], tournaments: [], venues: [], claims: [] });
-    const [currentUser, setCurrentUser] = useState(null);
-    const [cleanupRunning, setCleanupRunning] = useState(false);
+  const router = useRouter();
+  const { notify, confirm } = useNotificationCenter();
+  const [activeTab, setActiveTabState] = useState("dashboard");
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    users: [],
+    teams: [],
+    tournaments: [],
+    venues: [],
+    claims: [],
+    reports: [],
+  });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [cleanupRunning, setCleanupRunning] = useState(false);
 
-    // Sync state with URL params manually to avoid hook complexity if we wanted, 
-    // but using window.location or searchParams is standard.
-    // We'll use a simple useEffect on mount to read URL, and router.push on change.
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search);
-            const tab = params.get('tab');
-            if (tab) setActiveTabState(tab);
-        }
-        loadData();
-        checkUser();
-    }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab) setActiveTabState(tab);
+    }
+    loadData();
+    checkUser();
+  }, []);
 
-    const setActiveTab = (tab) => {
-        setActiveTabState(tab);
-        router.push(`?tab=${tab}`, { scroll: false });
-    };
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    router.push(`?tab=${tab}`, { scroll: false });
+  };
 
-    const checkUser = async () => {
-        const user = await authService.getCurrentUser();
-        setCurrentUser(user);
-    };
+  const checkUser = async () => {
+    const user = await authService.getCurrentUser();
+    setCurrentUser(user);
+  };
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            // Use allSettled to prevent one failure from blocking all data
-            const results = await Promise.allSettled([
-                authService.getAllUsers(),
-                teamService.getAllTeams(),
-                tournamentService.getAllTournaments(),
-                venueService.getAllVenues(),
-                businessService.getAllClaims()
-            ]);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const results = await Promise.allSettled([
+        authService.getAllUsers(),
+        teamService.getAllTeams(),
+        tournamentService.getAllTournaments(),
+        venueService.getAllVenues(),
+        businessService.getAllClaims(),
+        adminReviewReportService.getAllReports(),
+      ]);
 
-            const [usersRes, teamsRes, tournRes, venuesRes, claimsRes] = results;
+      const [usersRes, teamsRes, tournRes, venuesRes, claimsRes, reportsRes] =
+        results;
 
-            // Log errors for debugging
-            if (usersRes.status === 'rejected') console.error("Users load failed:", usersRes.reason);
-            if (teamsRes.status === 'rejected') console.error("Teams load failed:", teamsRes.reason);
-            if (tournRes.status === 'rejected') console.error("Tourn load failed:", tournRes.reason);
-            if (venuesRes.status === 'rejected') console.error("Venues load failed:", venuesRes.reason);
-            if (claimsRes.status === 'rejected') console.error("Claims load failed:", claimsRes.reason);
+      if (usersRes.status === "rejected") console.error("Users load failed:", usersRes.reason);
+      if (teamsRes.status === "rejected") console.error("Teams load failed:", teamsRes.reason);
+      if (tournRes.status === "rejected") console.error("Tourn load failed:", tournRes.reason);
+      if (venuesRes.status === "rejected") console.error("Venues load failed:", venuesRes.reason);
+      if (claimsRes.status === "rejected") console.error("Claims load failed:", claimsRes.reason);
+      if (reportsRes.status === "rejected") console.error("Reports load failed:", reportsRes.reason);
 
-            setData({ 
-                users: usersRes.status === 'fulfilled' ? usersRes.value : [], 
-                teams: teamsRes.status === 'fulfilled' ? teamsRes.value : [], 
-                tournaments: tournRes.status === 'fulfilled' ? tournRes.value : [], 
-                venues: venuesRes.status === 'fulfilled' ? venuesRes.value : [], 
-                claims: claimsRes.status === 'fulfilled' ? claimsRes.value : [] 
-            });
-        } catch (e) {
-            console.error("Admin load critical error", e);
-        } finally {
-            setLoading(false);
-        }
-    };
+      setData({
+        users: usersRes.status === "fulfilled" ? usersRes.value : [],
+        teams: teamsRes.status === "fulfilled" ? teamsRes.value : [],
+        tournaments: tournRes.status === "fulfilled" ? tournRes.value : [],
+        venues: venuesRes.status === "fulfilled" ? venuesRes.value : [],
+        claims: claimsRes.status === "fulfilled" ? claimsRes.value : [],
+        reports: reportsRes.status === "fulfilled" ? reportsRes.value : [],
+      });
+    } catch (e) {
+      console.error("Admin load critical error", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // --- Actions ---
-    const handleDelete = async (type, id) => {
-        if (!confirm("Are you sure? This is irreversible.")) return;
-        try {
-            const res = await fetch('/api/admin/resources', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, id })
-            });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload.error || 'Deletion failed');
-            loadData(); // Refresh
-        } catch (e) {
-            alert("Error: " + e.message);
-        }
-    };
+  const handleDelete = async (type, id) => {
+    const approved = await confirm("Are you sure? This is irreversible.", {
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+    });
+    if (!approved) return;
+    try {
+      const res = await fetch("/api/admin/resources", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || "Deletion failed");
+      loadData();
+      notify("Resource deleted.", "success");
+    } catch (e) {
+      notify(`Error: ${e.message}`, "error");
+    }
+  };
 
-    const handleClaim = async (claimId, status) => {
-        try {
-            const res = await fetch(`/api/admin/claims/${claimId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status })
-            });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload.error || 'Claim update failed');
-            loadData();
-        } catch (e) {
-            alert("Error: " + e.message);
-        }
-    };
+  const handleClaim = async (claimId, status) => {
+    try {
+      const res = await fetch(`/api/admin/claims/${claimId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || "Claim update failed");
+      loadData();
+      notify(`Claim ${status}.`, "success");
+    } catch (e) {
+      notify(`Error: ${e.message}`, "error");
+    }
+  };
 
-    const handlePlaceholderVenueCleanup = async () => {
-        const confirmed = confirm("Remove placeholder venues and attempt to delete their storage images?");
-        if (!confirmed) return;
+  const handleReportAction = async (reportId, { status, deleteReview = false }) => {
+    const label = deleteReview ? "delete this review" : status;
+    const approved = await confirm(`Confirm: ${label}?`, {
+      confirmLabel: deleteReview ? "Delete review" : "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (!approved) return;
 
-        setCleanupRunning(true);
-        try {
-            const result = await placeholderVenueCleanupService.cleanup();
-            await loadData();
-            alert(
-                `Cleanup complete.\n` +
-                `Matched venues: ${result.matchedVenues}\n` +
-                `Deleted venues: ${result.deletedVenues}\n` +
-                `Deleted location_images rows: ${result.deletedLocationImages}\n` +
-                `Storage attempted: ${result.storage.attempted}\n` +
-                `Storage deleted: ${result.storage.deleted}\n` +
-                `Storage failed: ${result.storage.failed}`
-            );
-        } catch (e) {
-            alert("Cleanup failed: " + e.message);
-        } finally {
-            setCleanupRunning(false);
-        }
-    };
+    try {
+      await adminReviewReportService.resolveReport(reportId, { status, deleteReview });
+      loadData();
+      notify(deleteReview ? "Review removed." : "Report updated.", "success");
+    } catch (e) {
+      notify(`Error: ${e.message}`, "error");
+    }
+  };
 
-    // --- Renderers ---
-    const renderContent = () => {
-        if (loading) return <div className="loading-spinner"></div>;
+  const handlePlaceholderVenueCleanup = async () => {
+    const confirmed = await confirm(
+      "Remove placeholder venues and attempt to delete their storage images?",
+      { confirmLabel: "Run cleanup", cancelLabel: "Cancel" },
+    );
+    if (!confirmed) return;
 
-        // Header for the panel content with Refresh Button
-        const PanelHeader = ({ title, rightActions = null }) => (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0 }}>{title}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {rightActions}
-                    <button 
-                        onClick={loadData}
-                        className="hover-bg"
-                        style={{ 
-                            background: 'rgba(255,255,255,0.05)', 
-                            border: '1px solid var(--border-glass)', 
-                            borderRadius: '6px', 
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}
-                    >
-                        🔄 Refresh Data
-                    </button>
-                </div>
-            </div>
+    setCleanupRunning(true);
+    try {
+      const result = await placeholderVenueCleanupService.cleanup();
+      await loadData();
+      notify(
+        `Cleanup complete. Deleted venues: ${result.deletedVenues}. Storage deleted: ${result.storage.deleted}.`,
+        "success",
+      );
+    } catch (e) {
+      notify(`Cleanup failed: ${e.message}`, "error");
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className={styles.loading}>
+          <div className="loading-spinner" />
+        </div>
+      );
+    }
+
+    switch (activeTab) {
+      case "dashboard":
+        return (
+          <div>
+            <PanelHeader title="System Overview" onRefresh={loadData} />
+            <DashboardStats
+              stats={{
+                usersCount: data.users.length,
+                teamsCount: data.teams.length,
+                tournamentsCount: data.tournaments.length,
+                venuesCount: data.venues.length,
+                claimsCount: data.claims.filter((c) => c.status === "pending").length,
+                reportsCount: data.reports.filter((r) => r.status === "pending").length,
+              }}
+            />
+          </div>
         );
 
-        switch (activeTab) {
-            case 'dashboard':
-                return (
-                    <div>
-                        <PanelHeader title="System Overview" />
-                        <DashboardStats stats={{
-                            usersCount: data.users.length,
-                            teamsCount: data.teams.length,
-                            tournamentsCount: data.tournaments.length,
-                            venuesCount: data.venues.length,
-                            claimsCount: data.claims.filter(c => c.status === 'pending').length
-                        }} />
-                        {/* Recent Activity / Quick Actions could go here */}
-                    </div>
-                );
-            case 'users':
-                return (
-                    <div>
-                        <PanelHeader title="User Management" />
-                         <DataTable 
-                            columns={[
-                                { key: 'name', label: 'Name', render: u => <div style={{fontWeight:'bold'}}>{u.name}</div> },
-                                { key: 'email', label: 'Email' },
-                                { key: 'role', label: 'Role', render: u => <span className={`badge badge-${u.role || 'user'}`}>{(u.role || 'User').toUpperCase()}</span> },
-                                { key: 'created_at', label: 'Joined', render: u => new Date(u.created_at || Date.now()).toLocaleDateString() }
-                            ]}
-                            data={data.users}
-                            // onEdit={(u) => alert("Edit User ID: " + u.id)}
-                            onDelete={(u) => alert("Deletion Disabled for safety in this demo")}
-                         />
-                    </div>
-                );
-            case 'venues':
-                return (
-                    <div>
-                        <PanelHeader
-                            title="Venue Management"
-                            rightActions={
-                                <button
-                                    onClick={handlePlaceholderVenueCleanup}
-                                    className="btn-secondary"
-                                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-                                    disabled={cleanupRunning}
-                                >
-                                    {cleanupRunning ? 'Cleaning...' : 'Remove Placeholder Venues'}
-                                </button>
-                            }
-                        />
-                        <DataTable 
-                            columns={[
-                                { key: 'name', label: 'Venue' },
-                                { key: 'sport', label: 'Sport' },
-                                { key: 'location', label: 'Location' },
-                                { key: 'owner_id', label: 'Status', render: v => v.owner_id ? <span style={{color:'#4ade80'}}>Owner Claimed</span> : <span style={{color:'#9ca3af'}}>Unclaimed</span> }
-                            ]}
-                            data={data.venues}
-                            onDelete={(v) => handleDelete('venue', v.id)}
-                            actions={(v) => (
-                                <button className="btn-secondary" style={{fontSize:'0.8rem', padding:'5px 10px'}} onClick={() => window.open(`/venues/${v.id}`, '_blank')}>View</button>
-                            )}
-                        />
-                    </div>
-                );
-            case 'teams':
-                return (
-                    <div>
-                         <PanelHeader title="Team Registry" />
-                        <DataTable 
-                            columns={[
-                                { key: 'name', label: 'Team Name' },
-                                { key: 'sport', label: 'Sport' },
-                                { key: 'members', label: 'Size', render: t => t.members?.length || 0 }
-                            ]}
-                            data={data.teams}
-                            onDelete={(t) => handleDelete('team', t.id)}
-                        />
-                    </div>
-                );
-            case 'claims':
-                return (
-                    <div>
-                        <PanelHeader title="Business Verification Requests" />
-                         <DataTable 
-                            columns={[
-                                { key: 'business_name', label: 'Business' },
-                                { key: 'requester', label: 'Requester', render: c => c.profile?.name || c.contact_email },
-                                { key: 'venue', label: 'Target Venue', render: c => c.venue?.name || 'Unknown Venue' },
-                                { key: 'status', label: 'Status', render: c => (
-                                    <span style={{ 
-                                        color: c.status === 'pending' ? '#f59e0b' : c.status === 'approved' ? '#4ade80' : '#ef4444',
-                                        fontWeight: 'bold' 
-                                    }}>{c.status.toUpperCase()}</span>
-                                )}
-                            ]}
-                            data={data.claims}
-                            actions={(c) => c.status === 'pending' && (
-                                <>
-                                    <button onClick={() => handleClaim(c.id, 'approved')} style={{ background: '#064e3b', color: '#6ee7b7', border:'none', borderRadius:'4px', padding:'5px 10px', marginRight:'5px', cursor:'pointer' }}>Approve</button>
-                                    <button onClick={() => handleClaim(c.id, 'rejected')} style={{ background: '#450a0a', color: '#fca5a5', border:'none', borderRadius:'4px', padding:'5px 10px', cursor:'pointer' }}>Reject</button>
-                                </>
-                            )}
-                         />
-                    </div>
-                );
-            default:
-                return <div>Select a tab</div>;
-        }
-    };
+      case "users":
+        return (
+          <div>
+            <PanelHeader title="User Management" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                {
+                  key: "name",
+                  label: "Name",
+                  render: (u) => <span className={tableStyles.cellStrong}>{u.name}</span>,
+                },
+                { key: "email", label: "Email" },
+                {
+                  key: "role",
+                  label: "Role",
+                  render: (u) => (
+                    <span className={`badge badge-${u.role || "user"}`}>
+                      {(u.role || "User").toUpperCase()}
+                    </span>
+                  ),
+                },
+                {
+                  key: "created_at",
+                  label: "Joined",
+                  render: (u) =>
+                    new Date(u.created_at || Date.now()).toLocaleDateString(),
+                },
+              ]}
+              data={data.users}
+              onDelete={() => notify("Deletion disabled for safety in this demo.", "warning")}
+              emptyMessage="No users found."
+            />
+          </div>
+        );
 
-    return (
-        <main style={{ minHeight: '100vh', display: 'flex' }}>
-            {/* Sidebar only visible on desktop usually, but for admin we force it */}
-            <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-            
-            <div style={{ flex: 1, padding: '40px', background: 'var(--background)', overflowY: 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                         {/* Empty Left Header Space or Breadcrumb */}
-                    </div>
+      case "venues":
+        return (
+          <div>
+            <PanelHeader
+              title="Venue Management"
+              onRefresh={loadData}
+              rightActions={
+                <button
+                  type="button"
+                  onClick={handlePlaceholderVenueCleanup}
+                  className={`btn-secondary ${tableStyles.actionBtn}`}
+                  disabled={cleanupRunning}
+                >
+                  {cleanupRunning ? "Cleaning..." : "Remove Placeholder Venues"}
+                </button>
+              }
+            />
+            <AdminDataTable
+              columns={[
+                { key: "name", label: "Venue" },
+                { key: "sport", label: "Sport" },
+                { key: "location", label: "Location" },
+                {
+                  key: "owner_id",
+                  label: "Status",
+                  render: (v) =>
+                    v.owner_id ? (
+                      <span className={styles.ownerClaimed}>Owner claimed</span>
+                    ) : (
+                      <span className={styles.ownerUnclaimed}>Unclaimed</span>
+                    ),
+                },
+              ]}
+              data={data.venues}
+              onDelete={(v) => handleDelete("venue", v.id)}
+              actions={(v) => (
+                <button
+                  type="button"
+                  className={`btn-secondary ${tableStyles.actionBtn}`}
+                  onClick={() =>
+                    window.open(`/venues/${v.id}`, "_blank", "noopener,noreferrer")
+                  }
+                >
+                  View
+                </button>
+              )}
+              emptyMessage="No venues found."
+            />
+          </div>
+        );
 
-                    {currentUser && (
-                        <div className="glass-panel" style={{ padding: '8px 16px', display: 'flex', gap: '8px', alignItems: 'center', fontSize: '0.9rem' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: currentUser.role === 'admin' ? '#4ade80' : '#f59e0b' }}></div>
-                            <span style={{opacity: 0.8}}>{currentUser.name} ({currentUser.role || 'user'})</span>
+      case "teams":
+        return (
+          <div>
+            <PanelHeader title="Team Registry" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                { key: "name", label: "Team Name" },
+                { key: "sport", label: "Sport" },
+                {
+                  key: "members",
+                  label: "Size",
+                  render: (t) => t.members?.length || 0,
+                },
+              ]}
+              data={data.teams}
+              onDelete={(t) => handleDelete("team", t.id)}
+              emptyMessage="No teams found."
+            />
+          </div>
+        );
+
+      case "tournaments":
+        return (
+          <div>
+            <PanelHeader title="Tournament Registry" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                { key: "name", label: "Name" },
+                { key: "sport", label: "Sport" },
+                {
+                  key: "teams",
+                  label: "Teams",
+                  render: (t) => t.teams?.length || 0,
+                },
+              ]}
+              data={data.tournaments}
+              onDelete={(t) => handleDelete("tournament", t.id)}
+              emptyMessage="No tournaments found."
+            />
+          </div>
+        );
+
+      case "claims":
+        return (
+          <div>
+            <PanelHeader title="Business Verification Requests" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                { key: "business_name", label: "Business" },
+                {
+                  key: "requester",
+                  label: "Requester",
+                  render: (c) => c.profile?.name || c.contact_email,
+                },
+                {
+                  key: "venue",
+                  label: "Target Venue",
+                  render: (c) => c.venue?.name || "Unknown Venue",
+                },
+                {
+                  key: "status",
+                  label: "Status",
+                  render: (c) => <StatusBadge status={c.status} />,
+                },
+              ]}
+              data={data.claims}
+              actions={(c) =>
+                c.status === "pending" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleClaim(c.id, "approved")}
+                      className={tableStyles.approveBtn}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleClaim(c.id, "rejected")}
+                      className={tableStyles.rejectBtn}
+                    >
+                      Reject
+                    </button>
+                  </>
+                )
+              }
+              emptyMessage="No claim requests."
+            />
+          </div>
+        );
+
+      case "reports":
+        return (
+          <div>
+            <PanelHeader title="Review Reports Queue" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                {
+                  key: "reason",
+                  label: "Report reason",
+                  render: (r) => (
+                    <div className={styles.reportReason}>{r.reason}</div>
+                  ),
+                },
+                {
+                  key: "review",
+                  label: "Review content",
+                  render: (r) =>
+                    r.review ? (
+                      <div>
+                        <div className={tableStyles.cellStrong}>
+                          {r.review.rating}/5 · {r.review.comment?.slice(0, 120)}
+                          {r.review.comment?.length > 120 ? "…" : ""}
                         </div>
+                        <div className={styles.reportMeta}>
+                          By {r.review.author?.name || "Unknown"} ·{" "}
+                          {r.review.location_type} #{r.review.location_id}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className={tableStyles.cellMuted}>Review removed</span>
+                    ),
+                },
+                {
+                  key: "reporter",
+                  label: "Reporter",
+                  render: (r) => r.reporter?.name || r.reporter?.email || "Unknown",
+                },
+                {
+                  key: "status",
+                  label: "Status",
+                  render: (r) => <StatusBadge status={r.status} />,
+                },
+                {
+                  key: "created_at",
+                  label: "Filed",
+                  render: (r) => new Date(r.created_at).toLocaleDateString(),
+                },
+              ]}
+              data={data.reports}
+              actions={(r) =>
+                r.status === "pending" && (
+                  <>
+                    <button
+                      type="button"
+                      className={tableStyles.dismissBtn}
+                      onClick={() =>
+                        handleReportAction(r.id, { status: "dismissed" })
+                      }
+                    >
+                      Dismiss
+                    </button>
+                    {r.review && (
+                      <button
+                        type="button"
+                        className={tableStyles.deleteBtn}
+                        onClick={() =>
+                          handleReportAction(r.id, {
+                            status: "reviewed",
+                            deleteReview: true,
+                          })
+                        }
+                      >
+                        Delete review
+                      </button>
                     )}
-                </div>
-                {renderContent()}
+                    <button
+                      type="button"
+                      className={tableStyles.approveBtn}
+                      onClick={() =>
+                        handleReportAction(r.id, { status: "reviewed" })
+                      }
+                    >
+                      Mark reviewed
+                    </button>
+                  </>
+                )
+              }
+              emptyMessage="No review reports in the queue."
+            />
+          </div>
+        );
+
+      default:
+        return <div>Select a tab</div>;
+    }
+  };
+
+  return (
+    <main className={styles.main}>
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <div className={styles.content}>
+        <div className={styles.topBar}>
+          {currentUser && (
+            <div className={`glass-panel ticket-card ${styles.userBadge}`}>
+              <div
+                className={`${styles.statusDot} ${
+                  currentUser.role === "admin"
+                    ? styles.statusDotAdmin
+                    : styles.statusDotUser
+                }`}
+              />
+              <span className={styles.userName}>
+                {currentUser.name} ({currentUser.role || "user"})
+              </span>
             </div>
-        </main>
-    );
+          )}
+        </div>
+        {renderContent()}
+      </div>
+    </main>
+  );
 }

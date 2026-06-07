@@ -1,5 +1,5 @@
 .main {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 4rem;
 }
 
@@ -108,7 +108,7 @@
   border-radius: 12px;
   border: 1px solid var(--border-glass);
   background: rgba(255, 255, 255, 0.05);
-  color: white;
+  color: var(--text-main);
   font-size: 1rem;
   transition: all 0.2s;
 }
@@ -125,7 +125,7 @@
 }
 
 .select {
-  background: #1a1a2e; /* Support for dark themed select */
+  background: var(--surface-elevated, var(--bg-card));
 }
 
 .logoUploadSection {
@@ -234,7 +234,7 @@
 .filterButtonActive {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: white !important;
+  color: var(--color-on-primary, #ffffff) !important;
   font-weight: 700;
   box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }

@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Navbar from "@/components/Layout/Navbar";
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
 
 export default function AddBusinessVenuePage() {
     const router = useRouter();
+    const { notify } = useNotificationCenter();
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -34,7 +36,7 @@ export default function AddBusinessVenuePage() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                alert("Please login first.");
+                notify("Please login first.", "warning");
                 return;
             }
 
@@ -49,12 +51,12 @@ export default function AddBusinessVenuePage() {
             // Let's implement a direct insert into community_locations if we can get coords.
             // Since we don't have a map picker here yet, let's keep it simple:
 
-            alert("To add a new venue, please drop a pin on the map. Redirecting you there...");
+            notify("To add a new venue, please drop a pin on the map. Redirecting you now.", "info");
             router.push('/map?mode=add'); // We can enhance the map to handle "add business" intent later.
 
         } catch (error) {
             console.error(error);
-            alert("Error: " + error.message);
+            notify(`Error: ${error.message}`, "error");
         } finally {
             setLoading(false);
         }
@@ -78,8 +80,8 @@ export default function AddBusinessVenuePage() {
                             To ensure your venue appears correctly for players,
                             please drop a pin on its exact location.
                         </p>
-                        <button onClick={handleSubmit} className="btn-primary">
-                            Open Map to Add Venue
+                        <button type="button" onClick={handleSubmit} className="btn-primary" disabled={loading}>
+                            {loading ? 'Preparing map...' : 'Open Map to Add Venue'}
                         </button>
                     </div>
                 </div>

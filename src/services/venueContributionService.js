@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { getPublicProfilesMap } from "./publicProfileService";
 
 const VENUE_EDIT_PREFIX = "venue_";
 const FIELD_MAP = {
@@ -6,15 +7,6 @@ const FIELD_MAP = {
   description: "description",
   address: "location"
 };
-
-function toEditType(field) {
-  return `${VENUE_EDIT_PREFIX}${field}`;
-}
-
-function fromEditType(editType) {
-  if (!editType?.startsWith(VENUE_EDIT_PREFIX)) return null;
-  return editType.replace(VENUE_EDIT_PREFIX, "");
-}
 
 export const venueContributionService = {
   submitEdit: async (venueId, field, newValue) => {
@@ -44,19 +36,11 @@ export const venueContributionService = {
       throw new Error("No changes detected");
     }
 
-    const { data, error } = await supabase
-      .from("location_edits")
-      .insert({
-        location_id: venueId,
-        user_id: user.id,
-        edit_type: toEditType(field),
-        old_value: JSON.stringify(oldValue),
-        new_value: JSON.stringify(newValue),
-        weight: 1,
-        status: "pending"
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc("submit_venue_edit", {
+      p_venue_id: Number(venueId),
+      p_field: field,
+      p_new_value: String(newValue ?? ""),
+    });
 
     if (error) throw new Error(error.message);
     return data;
@@ -78,17 +62,18 @@ export const venueContributionService = {
 
     const { data, error } = await supabase
       .from("location_edits")
-      .select(`
-        *,
-        profiles:user_id (name, avatar)
-      `)
+      .select("*")
       .eq("location_id", venueId)
       .eq("status", "pending")
       .like("edit_type", `${VENUE_EDIT_PREFIX}%`)
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message);
-    return data || [];
+    const profileMap = await getPublicProfilesMap((data || []).map((edit) => edit.user_id));
+    return (data || []).map((edit) => ({
+      ...edit,
+      profiles: profileMap.get(edit.user_id) || null
+    }));
   },
 
   processEdit: async (editId, decision) => {
@@ -96,55 +81,11 @@ export const venueContributionService = {
       throw new Error("Invalid decision");
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Must be logged in");
-
-    const { data: edit, error: editError } = await supabase
-      .from("location_edits")
-      .select("*")
-      .eq("id", editId)
-      .single();
-
-    if (editError || !edit) throw new Error("Contribution not found");
-
-    const targetField = fromEditType(edit.edit_type);
-    if (!targetField) throw new Error("Invalid contribution type");
-
-    const mappedField = FIELD_MAP[targetField];
-    if (!mappedField) throw new Error("Unsupported contribution field");
-
-    const { data: venue } = await supabase
-      .from("venues")
-      .select("id, owner_id")
-      .eq("id", edit.location_id)
-      .single();
-
-    if (!venue || venue.owner_id !== user.id) {
-      throw new Error("Only venue owner can process contributions");
-    }
-
-    const { error: updateEditError } = await supabase
-      .from("location_edits")
-      .update({
-        status: decision,
-        applied_at: decision === "applied" ? new Date().toISOString() : null
-      })
-      .eq("id", editId);
-
-    if (updateEditError) throw new Error(updateEditError.message);
-
-    if (decision === "applied") {
-      const parsedValue = JSON.parse(edit.new_value);
-      const { error: venueUpdateError } = await supabase
-        .from("venues")
-        .update({
-          [mappedField]: parsedValue,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", edit.location_id);
-
-      if (venueUpdateError) throw new Error(venueUpdateError.message);
-    }
+    const { error } = await supabase.rpc("process_location_edit", {
+      p_edit_id: editId,
+      p_decision: decision,
+    });
+    if (error) throw new Error(error.message);
 
     return true;
   }

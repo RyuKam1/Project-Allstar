@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/server/adminAuth';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 import { logAdminAudit } from '@/lib/server/adminAudit';
+import { sanitizeText, sanitizeUuid } from '@/lib/security/inputSanitizer';
 
 export async function PATCH(request, { params }) {
-  const rateLimitResponse = enforceRateLimit(request, 'admin-claims-patch', 40, 60_000);
+  const rateLimitResponse = await enforceRateLimit(request, 'admin-claims-patch', 40, 60_000);
   if (rateLimitResponse) return rateLimitResponse;
 
   const authz = await requireAdmin(request);
@@ -13,10 +14,11 @@ export async function PATCH(request, { params }) {
 
   try {
     const { id } = await params;
+    const safeClaimId = sanitizeUuid(id);
     const body = await request.json();
-    const status = body?.status;
+    const status = sanitizeText(body?.status, 20).toLowerCase();
 
-    if (!id) return NextResponse.json({ error: 'Missing claim id' }, { status: 400 });
+    if (!safeClaimId) return NextResponse.json({ error: 'Missing claim id' }, { status: 400 });
     if (!['approved', 'rejected'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
@@ -24,7 +26,7 @@ export async function PATCH(request, { params }) {
     const { data: claim, error: claimError } = await supabaseAdmin
       .from('claim_requests')
       .update({ status })
-      .eq('id', id)
+      .eq('id', safeClaimId)
       .select('*')
       .single();
 
@@ -57,7 +59,7 @@ export async function PATCH(request, { params }) {
       action: 'resolve_claim',
       actorId: user.id,
       targetType: 'claim_request',
-      targetId: id,
+      targetId: safeClaimId,
       metadata: { status, requesterId: claim.requester_id }
     });
 

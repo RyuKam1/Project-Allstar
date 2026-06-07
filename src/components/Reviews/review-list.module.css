@@ -30,13 +30,13 @@
 
 .sortSelect {
     padding: 0.5rem 1rem;
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid var(--border-glass);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-primary);
+    background-color: var(--select-bg, rgba(255, 255, 255, 0.05));
+    color: var(--select-text, var(--text-main));
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .sortSelect:hover {

@@ -1,399 +1,381 @@
 import { supabase } from "@/lib/supabaseClient";
-import { sanitizeQueryTerm, sanitizeText } from "@/lib/security/inputSanitizer";
+import { KM_PER_DEG_LAT } from "@/utils/geoUtils";
+import { sanitizeLikeTerm, sanitizeText } from "@/lib/security/inputSanitizer";
+import { getPublicProfilesMap } from "./publicProfileService";
+import {
+  COMMUNITY_IMAGE_MAX_COUNT,
+  deleteLocationImageStorage,
+  enrichLocationImageRow,
+  uploadCompressedCommunityImage,
+} from "@/lib/storageImages";
+
+const LOCATION_IMAGE_SELECT =
+  "id, location_id, object_key, storage_bucket, mime_type, byte_size, image_url, uploaded_by, created_at";
+
+function uniqueById(rows = []) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    if (!row?.id || seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+}
+
+function enrichImages(images = []) {
+  return (images || []).map(enrichLocationImageRow);
+}
+
+async function getLocationImageCount(locationId) {
+  const { count, error } = await supabase
+    .from("location_images")
+    .select("id", { count: "exact", head: true })
+    .eq("location_id", locationId);
+
+  if (error) throw new Error(error.message);
+  return count || 0;
+}
 
 /**
  * Community Location Service
  * Handles user-added informal locations with reputation-based editing
  */
 export const communityLocationService = {
-    /**
-     * Create a new community location
-     * @param {number} lat - Latitude
-     * @param {number} lng - Longitude
-     * @param {string} name - Location name
-     * @param {string} description - Optional description
-     * @param {string} address - Optional address
-     * @param {Array<string>} sports - Array of supported sports
-     * @param {Array<string>} images - Array of base64 image strings
-     * @returns {Promise<Object>} Created location
-     */
-    createLocation: async (lat, lng, name, description, address, sports, images = []) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Must be logged in to add a location");
+  /**
+   * Create a new community location
+   */
+  createLocation: async (lat, lng, name, description, address, sports, images = []) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Must be logged in to add a location");
 
-        const safeName = sanitizeText(name, 120);
-        const safeDescription = sanitizeText(description, 1200);
-        const safeAddress = sanitizeText(address, 300);
+    const safeName = sanitizeText(name, 120);
+    const safeDescription = sanitizeText(description, 1200);
+    const safeAddress = sanitizeText(address, 300);
 
-        // Validate inputs
-        if (!safeName || safeName.length < 3) {
-            throw new Error("Location name must be at least 3 characters");
-        }
-        if (!lat || !lng) {
-            throw new Error("Location coordinates are required");
-        }
-        if (!sports || sports.length === 0) {
-            throw new Error("Please select at least one sport");
-        }
+    if (!safeName || safeName.length < 3) {
+      throw new Error("Location name must be at least 3 characters");
+    }
+    if (!lat || !lng) {
+      throw new Error("Location coordinates are required");
+    }
+    if (!sports || sports.length === 0) {
+      throw new Error("Please select at least one sport");
+    }
+    if (images.length > COMMUNITY_IMAGE_MAX_COUNT) {
+      throw new Error(`Maximum ${COMMUNITY_IMAGE_MAX_COUNT} images allowed`);
+    }
 
-        // Create location
-        const { data: location, error } = await supabase
-            .from('community_locations')
-            .insert({
-                lat,
-                lng,
-                name: safeName,
-                description: safeDescription || null,
-                address: safeAddress || null, // Save address
-                sports,
-                created_by: user.id,
-                status: 'active' // Explicitly set active so it shows up
-            })
-            .select()
-            .single();
+    const { data: location, error } = await supabase
+      .from("community_locations")
+      .insert({
+        lat,
+        lng,
+        name: safeName,
+        description: safeDescription || null,
+        address: safeAddress || null,
+        sports,
+        created_by: user.id,
+        status: "active",
+      })
+      .select()
+      .single();
 
-        if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 
-        // Upload images if provided
-        if (images.length > 0) {
-            const imagePromises = images.map(img =>
-                communityLocationService.uploadImage(location.id, img)
-            );
-            await Promise.all(imagePromises);
-        }
+    if (images.length > 0) {
+      await Promise.all(
+        images.map((img) => communityLocationService.uploadImage(location.id, img)),
+      );
+    }
 
-        return location;
-    },
+    return location;
+  },
 
-    /**
-     * Get location by ID with images and stats
-     * @param {string} locationId - Location UUID
-     * @returns {Promise<Object>} Location with images
-     */
-    getLocationById: async (locationId) => {
-        const { data: location, error } = await supabase
-            .from('community_locations')
-            .select('*')
-            .eq('id', locationId)
-            .single();
+  getLocationById: async (locationId) => {
+    const { data: location, error } = await supabase
+      .from("community_locations")
+      .select("*")
+      .eq("id", locationId)
+      .single();
 
-        if (error) throw new Error(error.message);
-        if (!location) return null;
+    if (error) throw new Error(error.message);
+    if (!location) return null;
 
-        // Fetch images
-        const { data: images } = await supabase
-            .from('location_images')
-            .select('*')
-            .eq('location_id', locationId)
-            .order('created_at', { ascending: true });
+    const { data: images } = await supabase
+      .from("location_images")
+      .select(LOCATION_IMAGE_SELECT)
+      .eq("location_id", locationId)
+      .order("created_at", { ascending: true });
 
-        location.images = images || [];
+    location.images = enrichImages(images || []);
+    return location;
+  },
 
-        return location;
-    },
+  getNearbyLocations: async (lat, lng, radiusKm = 10) => {
+    const cosLat = Math.max(1e-6, Math.cos((lat * Math.PI) / 180));
+    const latDelta = radiusKm / KM_PER_DEG_LAT;
+    const lngDelta = radiusKm / (KM_PER_DEG_LAT * cosLat);
+    const minLat = Math.max(-90, lat - latDelta);
+    const maxLat = Math.min(90, lat + latDelta);
+    const minLng = Math.max(-180, lng - lngDelta);
+    const maxLng = Math.min(180, lng + lngDelta);
 
-    /**
-     * Get nearby community locations
-     * @param {number} lat - Center latitude
-     * @param {number} lng - Center longitude
-     * @param {number} radiusKm - Radius in kilometers
-     * @returns {Promise<Array>} Nearby locations
-     */
-    getNearbyLocations: async (lat, lng, radiusKm = 10) => {
-        // Simple bounding box query (for more accuracy, use PostGIS)
-        const latDelta = radiusKm / 111; // 1 degree lat ≈ 111km
-        const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180));
-
-        const { data, error } = await supabase
-            .from('community_locations')
-            .select(`
-                *,
-                location_images (
-                    image_url
-                )
-            `)
-            .gte('lat', lat - latDelta)
-            .lte('lat', lat + latDelta)
-            .gte('lng', lng - lngDelta)
-            .lte('lng', lng + lngDelta)
-            .eq('status', 'active');
-
-        if (error) throw new Error(error.message);
-
-        // Map location_images to images property for consistency
-        return data?.map(loc => ({
-            ...loc,
-            images: loc.location_images
-        })) || [];
-        return data?.map(loc => ({
-            ...loc,
-            images: loc.location_images
-        })) || [];
-    },
-
-    /**
-     * Get locations by city name (Address search)
-     * @param {string} cityName - Name of the city (can contain special chars)
-     * @returns {Promise<Array>} Locations in that city
-     */
-    getLocationsByCity: async (cityName) => {
-        // Prepare variations: 
-        // 1. Exact input (e.g. "Akhmet'a")
-        // 2. Normalized (e.g. "akhmeta")
-        const rawName = sanitizeQueryTerm(cityName, 80);
-        const normalizedName = rawName.toLowerCase().replace(/['’]/g, "");
-
-        console.log(`Searching locations for: "${rawName}" OR "${normalizedName}"`);
-
-        const { data, error } = await supabase
-            .from('community_locations')
-            .select(`
-                *,
-                location_images (
-                    image_url
-                )
-            `)
-            // Search for EITHER the raw name OR the normalized name in the address
-            .or(`address.ilike.%${rawName}%,address.ilike.%${normalizedName}%`)
-            .eq('status', 'active');
-
-        if (error) throw new Error(error.message);
-
-        return data?.map(loc => ({
-            ...loc,
-            images: loc.location_images
-        })) || [];
-    },
-
-    /**
-     * Submit an edit to a community location
-     * @param {string} locationId - Location UUID
-     * @param {string} field - Field to edit (name, description, sports, coordinates)
-     * @param {any} newValue - New value
-     * @returns {Promise<Object>} Edit record
-     */
-    submitEdit: async (locationId, field, newValue) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Must be logged in to edit");
-
-        const allowedFields = ['name', 'description', 'sports', 'address'];
-        if (!allowedFields.includes(field)) {
-            throw new Error("Invalid field update");
-        }
-
-        const normalizedValue = typeof newValue === 'string'
-            ? sanitizeText(newValue, field === 'description' ? 1200 : 300)
-            : newValue;
-
-        // Calculate user's weight for this location
-        const weight = await communityLocationService.getUserWeight(user.id, locationId);
-
-        // Get current value AND created_by
-        const { data: location } = await supabase
-            .from('community_locations')
-            .select(`${field}, created_by`)
-            .eq('id', locationId)
-            .single();
-
-        const oldValue = location ? location[field] : null;
-
-        // Check if user is creator
-        const isCreator = location && location.created_by === user.id;
-        console.log(`Debug: submitEdit - User: ${user.id}, Creator: ${location?.created_by}, isCreator: ${isCreator}`);
-
-        // Create edit record
-        const { data: edit, error } = await supabase
-            .from('location_edits')
-            .insert({
-                location_id: locationId,
-                user_id: user.id,
-                edit_type: field,
-                old_value: JSON.stringify(oldValue),
-                new_value: JSON.stringify(normalizedValue),
-                weight,
-                status: (weight >= 2.0 || isCreator) ? 'applied' : 'pending' // Auto-apply if high weight or creator
-            })
-            .select()
-            .single();
-
-        if (error) throw new Error(error.message);
-
-        // If auto-applied, update the location
-        if (edit.status === 'applied') {
-            await supabase
-                .from('community_locations')
-                .update({ [field]: normalizedValue, updated_at: new Date().toISOString() })
-                .eq('id', locationId);
-        }
-
-        return edit;
-    },
-
-    /**
-     * Upload image to community location
-     * @param {string} locationId - Location UUID
-     * @param {string} base64Image - Base64 image string
-     * @returns {Promise<Object>} Image record
-     */
-    uploadImage: async (locationId, base64Image) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Must be logged in to upload");
-
-        const { data, error } = await supabase
-            .from('location_images')
-            .insert({
-                location_id: locationId,
-                image_url: base64Image,
-                uploaded_by: user.id
-            })
-            .select()
-            .single();
-
-        if (error) throw new Error(error.message);
-        return data;
-    },
-
-    /**
-     * Get edit history for a location
-     * @param {string} locationId - Location UUID
-     * @returns {Promise<Array>} Edit history
-     */
-    getEditHistory: async (locationId) => {
-        const { data, error } = await supabase
-            .from('location_edits')
-            .select(`
+    let query = supabase
+      .from("community_locations")
+      .select(`
         *,
-        profiles:user_id (
-          id,
-          name,
-          avatar
+        location_images (
+          ${LOCATION_IMAGE_SELECT}
         )
       `)
-            .eq('location_id', locationId)
-            .order('created_at', { ascending: false });
+      .gte("lat", minLat)
+      .lte("lat", maxLat)
+      .gte("lng", minLng)
+      .lte("lng", maxLng)
+      .eq("status", "active");
 
-        if (error) throw new Error(error.message);
-        return data || [];
-    },
-
-    /**
-     * Get user's credibility weight for a location
-     * @param {string} userId - User ID
-     * @param {string} locationId - Location UUID
-     * @returns {Promise<number>} Weight multiplier
-     */
-    getUserWeight: async (userId, locationId) => {
-        const { data, error } = await supabase
-            .rpc('calculate_user_location_weight', {
-                p_user_id: userId,
-                p_location_id: locationId,
-                p_location_type: 'community'
-            });
-
-        if (error) {
-            console.error('Error calculating weight:', error);
-            return 1.0;
-        }
-
-        return data || 1.0;
-    },
-
-    /**
-     * Search community locations by name or sport
-     * @param {string} query - Search query
-     * @returns {Promise<Array>} Matching locations
-     */
-    searchLocations: async (query) => {
-        const safeQuery = sanitizeQueryTerm(query, 80);
-        if (!safeQuery) return [];
-
-        const { data, error } = await supabase
-            .from('community_locations')
-            .select('*')
-            .or(`name.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`)
-            .eq('status', 'active')
-            .limit(20);
-
-        if (error) throw new Error(error.message);
-        return data || [];
-    },
-
-    /**
-     * Get pending edits for a location (for owner review)
-     * @param {string} locationId 
-     */
-    getPendingEdits: async (locationId) => {
-        const { data, error } = await supabase
-            .from('location_edits')
-            .select(`
-                *,
-                profiles:user_id (name, avatar)
-            `)
-            .eq('location_id', locationId)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false });
-
-        if (error) throw new Error(error.message);
-        return data || [];
-    },
-
-    /**
-     * Process an edit (Approve/Reject)
-     * @param {string} editId 
-     * @param {string} decision 'applied' or 'rejected'
-     */
-    processEdit: async (editId, decision) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Must be logged in");
-
-        console.log(`Processing edit ${editId} as ${decision} by ${user.id}`);
-
-        // 1. Get the edit to verify permissions and data
-        const { data: edit } = await supabase
-            .from('location_edits')
-            .select('*, community_locations(created_by)')
-            .eq('id', editId)
-            .single();
-
-        if (!edit) throw new Error("Edit not found");
-
-        // Verify user is the owner of the location
-        if (edit.community_locations.created_by !== user.id) {
-            throw new Error("Only the location owner can process edits");
-        }
-
-        // 2. Update status
-        const { error: updateError } = await supabase
-            .from('location_edits')
-            .update({
-                status: decision,
-                applied_at: decision === 'applied' ? new Date().toISOString() : null
-            })
-            .eq('id', editId);
-
-        if (updateError) {
-            console.error('Error updating edit status:', updateError);
-            throw new Error(updateError.message);
-        }
-
-        // 3. If approved, apply the change to the location
-        if (decision === 'applied') {
-            const field = edit.edit_type;
-            const newValue = JSON.parse(edit.new_value);
-
-            console.log(`Applying change: ${field} = ${newValue}`);
-
-            const { error: locUpdateError } = await supabase
-                .from('community_locations')
-                .update({ [field]: newValue, updated_at: new Date().toISOString() })
-                .eq('id', edit.location_id);
-
-            if (locUpdateError) {
-                console.error('Error applying change to location:', locUpdateError);
-                throw new Error("Failed to apply change to location: " + locUpdateError.message);
-            }
-        }
-
-        return true;
+    if (radiusKm >= 1000) {
+      query = query.limit(1000);
     }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (
+      data?.map((loc) => ({
+        ...loc,
+        images: enrichImages(loc.location_images),
+      })) || []
+    );
+  },
+
+  getLocationsByCity: async (cityName) => {
+    const rawName = sanitizeLikeTerm(cityName, 80);
+    const normalizedName = rawName.toLowerCase().replace(/['’]/g, "");
+    const terms = [...new Set([rawName, normalizedName].filter(Boolean))];
+    if (terms.length === 0) return [];
+
+    const searchResults = await Promise.all(
+      terms.map((term) =>
+        supabase
+          .from("community_locations")
+          .select(`
+            *,
+            location_images (
+              ${LOCATION_IMAGE_SELECT}
+            )
+          `)
+          .ilike("address", `%${term}%`)
+          .eq("status", "active")
+          .limit(200),
+      ),
+    );
+
+    for (const result of searchResults) {
+      if (result.error) throw new Error(result.error.message);
+    }
+
+    const data = uniqueById(searchResults.flatMap((result) => result.data || []));
+
+    return (
+      data?.map((loc) => ({
+        ...loc,
+        images: enrichImages(loc.location_images),
+      })) || []
+    );
+  },
+
+  submitEdit: async (locationId, field, newValue) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Must be logged in to edit");
+
+    const allowedFields = ["name", "description", "sports", "address"];
+    if (!allowedFields.includes(field)) {
+      throw new Error("Invalid field update");
+    }
+
+    const normalizedValue =
+      typeof newValue === "string"
+        ? sanitizeText(newValue, field === "description" ? 1200 : 300)
+        : newValue;
+
+    const { data: edit, error } = await supabase.rpc("submit_location_edit", {
+      p_location_id: locationId,
+      p_field: field,
+      p_new_value: normalizedValue,
+    });
+
+    if (error) throw new Error(error.message);
+    return edit;
+  },
+
+  uploadImage: async (locationId, imageInput) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Must be logged in to upload");
+
+    const existingCount = await getLocationImageCount(locationId);
+    if (existingCount >= COMMUNITY_IMAGE_MAX_COUNT) {
+      throw new Error(`Maximum ${COMMUNITY_IMAGE_MAX_COUNT} images allowed per location`);
+    }
+
+    let uploadResult;
+    if (typeof imageInput === "string" && /^https?:\/\//i.test(imageInput.trim())) {
+      const legacyUrl = sanitizeText(imageInput, 2000);
+      const { data, error } = await supabase
+        .from("location_images")
+        .insert({
+          location_id: locationId,
+          image_url: legacyUrl,
+          uploaded_by: user.id,
+        })
+        .select(LOCATION_IMAGE_SELECT)
+        .single();
+
+      if (error) throw new Error(error.message);
+      return enrichLocationImageRow(data);
+    }
+
+    uploadResult = await uploadCompressedCommunityImage(imageInput, { prefix: "c" });
+
+    const { data, error } = await supabase
+      .from("location_images")
+      .insert({
+        location_id: locationId,
+        object_key: uploadResult.objectKey,
+        storage_bucket: uploadResult.bucket,
+        mime_type: uploadResult.mimeType,
+        byte_size: uploadResult.byteSize,
+        image_url: null,
+        uploaded_by: user.id,
+      })
+      .select(LOCATION_IMAGE_SELECT)
+      .single();
+
+    if (error) {
+      await deleteLocationImageStorage({
+        object_key: uploadResult.objectKey,
+        storage_bucket: uploadResult.bucket,
+      });
+      throw new Error(error.message);
+    }
+
+    return enrichLocationImageRow(data);
+  },
+
+  deleteLocationImage: async (imageId) => {
+    const { data: row, error: fetchError } = await supabase
+      .from("location_images")
+      .select(LOCATION_IMAGE_SELECT)
+      .eq("id", imageId)
+      .single();
+
+    if (fetchError) throw new Error(fetchError.message);
+
+    const { error } = await supabase.from("location_images").delete().eq("id", imageId);
+    if (error) throw new Error(error.message);
+
+    await deleteLocationImageStorage(row);
+    return true;
+  },
+
+  getEditHistory: async (locationId) => {
+    const { data, error } = await supabase
+      .from("location_edits")
+      .select("*")
+      .eq("location_id", locationId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    const profileMap = await getPublicProfilesMap((data || []).map((edit) => edit.user_id));
+    return (data || []).map((edit) => ({
+      ...edit,
+      profiles: profileMap.get(edit.user_id) || null,
+    }));
+  },
+
+  getUserWeight: async (userId, locationId) => {
+    const { data, error } = await supabase.rpc("calculate_user_location_weight", {
+      p_user_id: userId,
+      p_location_id: locationId,
+      p_location_type: "community",
+    });
+
+    if (error) {
+      console.error("Error calculating weight:", error);
+      return 1.0;
+    }
+
+    return data || 1.0;
+  },
+
+  searchLocations: async (query) => {
+    const safeQuery = sanitizeLikeTerm(query, 80);
+    if (!safeQuery) return [];
+
+    const pattern = `%${safeQuery}%`;
+    const searchColumns = ["name", "description", "address"];
+    const searchResults = await Promise.all(
+      searchColumns.map((column) =>
+        supabase
+          .from("community_locations")
+          .select("*")
+          .ilike(column, pattern)
+          .or("status.eq.active,status.is.null")
+          .limit(20),
+      ),
+    );
+
+    const rows = [];
+    for (const result of searchResults) {
+      if (result.error) {
+        if (result.error.code === "42703") continue;
+        throw new Error(result.error.message);
+      }
+      rows.push(...(result.data || []));
+    }
+
+    const needle = safeQuery.toLowerCase();
+    return uniqueById(rows).filter((loc) => {
+      const haystack = [
+        loc.name,
+        loc.description,
+        loc.address,
+        ...(Array.isArray(loc.sports) ? loc.sports : []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(needle);
+    });
+  },
+
+  getPendingEdits: async (locationId) => {
+    const { data, error } = await supabase
+      .from("location_edits")
+      .select("*")
+      .eq("location_id", locationId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    const profileMap = await getPublicProfilesMap((data || []).map((edit) => edit.user_id));
+    return (data || []).map((edit) => ({
+      ...edit,
+      profiles: profileMap.get(edit.user_id) || null,
+    }));
+  },
+
+  processEdit: async (editId, decision) => {
+    if (!["applied", "rejected"].includes(decision)) {
+      throw new Error("Invalid decision");
+    }
+
+    const { error } = await supabase.rpc("process_location_edit", {
+      p_edit_id: editId,
+      p_decision: decision,
+    });
+
+    if (error) throw new Error(error.message);
+    return true;
+  },
 };

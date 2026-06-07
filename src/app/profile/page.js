@@ -7,10 +7,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { teamService } from "@/services/teamService";
 import { authService } from "@/services/authService";
 import { playIntentService } from "@/services/playIntentService";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import { SkeletonProfile } from '@/components/UI/primitives';
+import ShareProfileCard from '@/components/Profile/ShareProfileCard';
 import styles from './profile.module.css';
 
 function ProfileContent() {
   const { user: authUser, loading: authLoading, updateUser } = useAuth();
+  const { notify } = useNotificationCenter();
   const router = useRouter();
   const searchParams = useSearchParams();
   const profileId = searchParams.get('id');
@@ -235,13 +239,13 @@ function ProfileContent() {
     // Upload new avatar if selected
     if (avatarFile) {
       console.log("Starting upload...");
-      const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
-      if (url) {
-        console.log("Upload successful:", url);
-        finalAvatarUrl = url;
+      const upload = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
+      if (upload?.publicUrl) {
+        console.log("Upload successful:", upload.publicUrl);
+        finalAvatarUrl = upload.publicUrl;
       } else {
         console.error("Upload returned null");
-        alert("Failed to upload image. Saving other changes.");
+        notify("Failed to upload image. Saving other changes.", "warning");
       }
     }
 
@@ -257,7 +261,7 @@ function ProfileContent() {
       const convertedInputs = getConvertedStatInputs(payload, isMetric, isMetric);
       setFormData(prev => ({ ...prev, ...convertedInputs, avatar: finalAvatarUrl }));
     } else {
-      alert("Failed to save profile: " + result.error);
+      notify("Failed to save profile: " + result.error, "error");
     }
 
     setIsSaving(false);
@@ -286,7 +290,16 @@ function ProfileContent() {
     }
   };
 
-  if (authLoading || isLoadingProfile) return <div className={styles.main} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading...</div>;
+  if (authLoading || isLoadingProfile) {
+    return (
+      <main className={styles.main}>
+        <Navbar />
+        <div className={`container ${styles.container}`}>
+          <SkeletonProfile />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={styles.main}>
@@ -338,6 +351,10 @@ function ProfileContent() {
                 </>
               )}
             </div>
+
+            {isOwnProfile && !isEditing && authUser?.id && (
+              <ShareProfileCard profileId={authUser.id} />
+            )}
 
             {/* Physical Stats */}
             <div className={`glass-panel ${styles.glassPanel}`}>
@@ -472,7 +489,12 @@ function ProfileContent() {
                   No upcoming games scheduled.
                 </div>
               ) : (
-                <div className={styles.historyList}>
+                <div
+                  className={styles.historyScroll}
+                  tabIndex={0}
+                  aria-label="Upcoming games list"
+                >
+                  <div className={styles.historyList}>
                   {upcomingGames.map(game => (
                     <div
                       key={game.id}
@@ -501,6 +523,7 @@ function ProfileContent() {
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -508,7 +531,7 @@ function ProfileContent() {
             {/* Career Highlights */}
             <div className={`glass-panel ${styles.glassPanel}`}>
               <h2 className={styles.sectionTitle}>
-                🏆 Career History
+                🏆 Career Highlights
                 <span className={styles.winCount}>{careerWins.length} Wins</span>
               </h2>
 
@@ -517,7 +540,12 @@ function ProfileContent() {
                   No wins recorded yet. Join a team and start competing!
                 </div>
               ) : (
-                <div className={styles.historyList}>
+                <div
+                  className={styles.historyScroll}
+                  tabIndex={0}
+                  aria-label="Career highlights list"
+                >
+                  <div className={styles.historyList}>
                   {careerWins.map(win => (
                     <div key={win.id} className={`${styles.historyItem} ${win.category === 'Tournament' ? styles.tournamentItem : styles.matchItem}`}>
                       <div>
@@ -534,6 +562,7 @@ function ProfileContent() {
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -568,7 +597,12 @@ function ProfileContent() {
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={<div className={styles.main} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Profile...</div>}>
+    <Suspense fallback={
+      <main className={styles.main}>
+        <Navbar />
+        <div className={`container ${styles.container}`}><SkeletonProfile /></div>
+      </main>
+    }>
       <ProfileContent />
     </Suspense>
   );

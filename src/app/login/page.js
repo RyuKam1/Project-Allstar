@@ -14,6 +14,7 @@ export default function LoginPage() {
   const { login, user, loading, logout } = useAuth(); // Destructure user, loading, logout
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,43 +44,38 @@ export default function LoginPage() {
       <main className={styles.main}>
         <Navbar />
         <div className={styles.authWrapper}>
-          <div className={`glass-panel ${styles.authCard}`} style={{ textAlign: 'center' }}>
-            <h1 className={styles.title}>Welcome Back</h1>
-            <div style={{ margin: '20px 0', fontSize: '1.2rem' }}>
-              You are already logged in as <br/>
-              <span className="primary-gradient-text" style={{ fontWeight: 'bold' }}>{user.name || user.email}</span>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <button 
-                onClick={() => router.push('/')}
+          <div className={`glass-panel ${styles.authCard} ${styles.loggedInCard}`}>
+            <h1 className={styles.title}>Welcome back</h1>
+            <p className={styles.loggedInMessage}>
+              You are already signed in as{" "}
+              <span className={`primary-gradient-text ${styles.loggedInName}`}>
+                {user.name || user.email}
+              </span>
+            </p>
+
+            <div className={styles.loggedInActions}>
+              <button
+                type="button"
+                onClick={() => router.push("/")}
                 className="btn-secondary"
-                style={{ width: '100%' }}
               >
-                Go Home
+                Go home
               </button>
-              
-              <button 
+
+              <button
+                type="button"
                 onClick={() => router.push(dashboardLink)}
                 className="btn-primary"
-                style={{ width: '100%' }}
               >
-                Go to Dashboard
+                Go to dashboard
               </button>
-              
-              <button 
+
+              <button
+                type="button"
                 onClick={logout}
-                style={{ 
-                  background: 'transparent', 
-                  border: '1px solid #444', 
-                  color: '#aaa', 
-                  padding: '10px', 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  marginTop: '10px'
-                }}
+                className="btn-secondary"
               >
-                Log Out
+                Log out
               </button>
             </div>
           </div>
@@ -91,7 +87,14 @@ export default function LoginPage() {
   return (
     <main className={styles.main}>
       <Navbar />
-      <div className={styles.authWrapper}>
+      <div className={styles.authLayout}>
+        <div className={styles.authStory}>
+          <h2 className={styles.storyTitle}>Your city&apos;s pickup games live here.</h2>
+          <p className={styles.storyText}>
+            Book courts, join teams, and find tournaments without digging through group chats.
+          </p>
+        </div>
+        <div className={styles.authWrapper}>
         <div className={`glass-panel ${styles.authCard}`}>
           <h1 className={styles.title}>
             Welcome <span className="primary-gradient-text">Back</span>
@@ -117,15 +120,26 @@ export default function LoginPage() {
             </div>
 
             <div className={styles.formGroup} style={{ marginBottom: '2.5rem' }}>
-              <label className={styles.label}>Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={styles.input}
-                placeholder="••••••••"
-              />
+              <label className={styles.label} htmlFor="login-password">Password</label>
+              <div className={styles.passwordWrap}>
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={styles.input}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className={styles.passwordToggle}
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
 
             <button
@@ -141,6 +155,7 @@ export default function LoginPage() {
           <p className={styles.footer}>
             Don&apos;t have an account? <Link href="/register" className={styles.link}>Sign Up</Link>
           </p>
+        </div>
         </div>
       </div>
     </main>

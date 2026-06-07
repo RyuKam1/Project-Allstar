@@ -1,5 +1,5 @@
 .main {
-    min-height: 100vh;
+    min-height: 100dvh;
     padding-top: 20px;
     padding-bottom: 60px;
 }
@@ -154,6 +154,47 @@
     gap: 10px;
     justify-content: center;
     margin-top: 20px;
+}
+
+.navColumn {
+    flex-direction: column;
+    margin-top: 30px;
+}
+
+.navActionBtn {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.venueStatus {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.wizardSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.wizardStep {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+}
+
+.wizardStepActive {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .venueList {

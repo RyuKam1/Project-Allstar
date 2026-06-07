@@ -6,6 +6,8 @@ import Navbar from "@/components/Layout/Navbar";
 import { businessService } from '@/services/businessService';
 import { supabase } from '@/lib/supabaseClient';
 import { uploadCompressedImage } from '@/lib/imageOptimizer';
+import { deleteLocationImageStorage, enrichLocationImageRow } from '@/lib/storageImages';
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
 import styles from './venue-editor.module.css';
 
 const SPORT_OPTIONS = ["Basketball", "Soccer", "Tennis", "Baseball", "Volleyball", "Fitness", "Running", "Skating", "Multi-sport", "Pickleball"];
@@ -14,6 +16,7 @@ export default function VenueEditorPage() {
     const params = useParams();
     const router = useRouter();
     const venueId = params.id;
+    const { notify, confirm } = useNotificationCenter();
 
     const [activeTab, setActiveTab] = useState('details');
     const [loading, setLoading] = useState(true);
@@ -88,13 +91,12 @@ export default function VenueEditorPage() {
             // Fetch Images separately from location_images table
             const { data: imageRows } = await supabase
                 .from('location_images')
-                .select('*')
+                .select('id, object_key, storage_bucket, mime_type, byte_size, image_url')
                 .eq('location_id', venueId);
 
-            const loadedImages = imageRows ? imageRows.map(row => ({
-                id: row.id,
-                image_url: row.image_url
-            })) : [];
+            const loadedImages = imageRows
+                ? imageRows.map((row) => enrichLocationImageRow(row))
+                : [];
 
             setFormData({
                 name: targetVenue.name,
@@ -174,33 +176,35 @@ export default function VenueEditorPage() {
         setUploading(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            const url = await uploadCompressedImage(file, 'allstar-assets', `venues/${venueId}`);
+            const upload = await uploadCompressedImage(file, 'allstar-assets', `venues/${venueId}`);
 
-            if (url) {
-                // Insert into DB immediately
+            if (upload) {
                 const { data: newImg, error: dbError } = await supabase
                     .from('location_images')
                     .insert({
                         location_id: venueId,
-                        image_url: url,
+                        object_key: upload.objectKey,
+                        storage_bucket: upload.bucket,
+                        mime_type: upload.mimeType,
+                        byte_size: upload.byteSize,
+                        image_url: null,
                         uploaded_by: user.id
                     })
-                    .select()
+                    .select('id, object_key, storage_bucket, mime_type, byte_size, image_url')
                     .single();
 
                 if (dbError) throw dbError;
 
-                // Update Local State
-                const newImageObj = { id: newImg.id, image_url: url };
+                const newImageObj = enrichLocationImageRow(newImg);
                 const updatedImages = [...formData.images, newImageObj];
                 setFormData(prev => ({ ...prev, images: updatedImages }));
                 // Don't setHasChanges(true) because it's already saved
             } else {
-                alert("Failed to upload image file.");
+                notify("Failed to upload image file.", "error");
             }
         } catch (err) {
             console.error(err);
-            alert("Error saving image: " + err.message);
+            notify(`Error saving image: ${err.message}`, "error");
         } finally {
             setUploading(false);
         }
@@ -208,18 +212,29 @@ export default function VenueEditorPage() {
 
     const removeImage = async (index) => {
         const imageToDelete = formData.images[index];
-        if (!confirm("Delete this image?")) return;
+        const shouldDelete = await confirm("Delete this image?", {
+            confirmLabel: "Delete",
+            cancelLabel: "Cancel",
+        });
+        if (!shouldDelete) return;
 
         try {
             if (imageToDelete.id) {
+                const { data: row } = await supabase
+                    .from('location_images')
+                    .select('id, object_key, storage_bucket, image_url')
+                    .eq('id', imageToDelete.id)
+                    .single();
+
                 await supabase.from('location_images').delete().eq('id', imageToDelete.id);
+                if (row) await deleteLocationImageStorage(row);
             }
 
             const updatedImages = formData.images.filter((_, i) => i !== index);
             setFormData(prev => ({ ...prev, images: updatedImages }));
         } catch (error) {
             console.error("Error deleting image", error);
-            alert("Failed to delete image");
+            notify("Failed to delete image.", "error");
         }
     };
 
@@ -278,18 +293,18 @@ export default function VenueEditorPage() {
             }
 
             setHasChanges(false);
-            alert("Changes saved successfully!");
+            notify("Changes saved successfully.", "success");
             loadVenue();
         } catch (error) {
             console.error(error);
-            alert("Error: " + error.message);
+            notify(`Error: ${error.message}`, "error");
         } finally {
             setSaving(false);
         }
     };
 
     if (loading) {
-        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Editor...</div>;
+        return <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Editor...</div>;
     }
 
     return (

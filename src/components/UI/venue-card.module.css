@@ -23,8 +23,8 @@
   position: relative;
   overflow: hidden;
   background: #2a2a2a;
-  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0, black 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black 72%, transparent 100%);
 }
 
 .image {

@@ -5,6 +5,11 @@ let getAllTeamsCache = null;
 let getAllTeamsCacheAt = 0;
 const TEAM_LIST_CACHE_TTL_MS = 15000;
 
+function invalidateTeamListCache() {
+  getAllTeamsCache = null;
+  getAllTeamsCacheAt = 0;
+}
+
 export const teamService = {
   // Get all teams with their members and owner profile
   getAllTeams: async () => {
@@ -159,6 +164,19 @@ export const teamService = {
         });
 
     if (error) throw new Error(error.message);
+    invalidateTeamListCache();
+    return true;
+  },
+
+  cancelJoinRequest: async (teamId, userId) => {
+    const { error } = await supabase
+      .from("team_requests")
+      .delete()
+      .eq("team_id", teamId)
+      .eq("user_id", userId);
+
+    if (error) throw new Error(error.message);
+    invalidateTeamListCache();
     return true;
   },
 
@@ -183,6 +201,7 @@ export const teamService = {
         });
         
     if (insError) throw new Error(insError.message);
+    invalidateTeamListCache();
     return true;
   },
 
@@ -195,6 +214,7 @@ export const teamService = {
         .eq('user_id', userId);
     
     if (error) throw new Error(error.message);
+    invalidateTeamListCache();
     return true;
   },
 
@@ -236,8 +256,7 @@ export const teamService = {
     // For now, let's create a placeholder profile in the DB for guests? No, that messes up auth.
     // Let's assume for this Refactor: Guests are NOT supported fully unless we change schema.
     // Workaround: We will skip database for guests or warn.
-    alert("Guest System pending schema update. Skipping.");
-    return;
+    throw new Error("Guest system is pending schema update.");
   },
 
   updateTeam: async (teamId, updates) => {

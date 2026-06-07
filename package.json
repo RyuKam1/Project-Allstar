@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test:security": "node --test tests/security/*.test.mjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.9.0",
@@ -16,14 +15,15 @@
     "@supabase/supabase-js": "^2.90.1",
     "browser-image-compression": "^2.0.2",
     "country-state-city": "^3.2.1",
-    "dotenv": "^17.2.3",
     "leaflet": "^1.9.4",
-    "next": "16.0.10",
+    "motion": "^12.40.0",
+    "next": "^16.2.7",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
+    "baseline-browser-mapping": "^2.10.34",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "typescript": "^6.0.3"

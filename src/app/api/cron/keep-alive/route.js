@@ -1,36 +1,24 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
-  // 1. Generate random data
-  const actions = ['ping', 'check', 'sync', 'audit', 'refresh'];
-  const randomAction = actions[Math.floor(Math.random() * actions.length)];
-  const randomId = Math.random().toString(36).substring(7);
-  const timestamp = new Date().toISOString();
+  const expectedSecret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get('authorization') || '';
 
-  // 2. Perform a "random" operation
-  // In a real Supabase implementation, you might update a 'system_health' table
-  // with this random data, then perhaps delete old rows to keep it clean.
-  // For now, we simulate this activity.
-  
-  const payload = {
-    event: 'keep_alive_trigger',
-    action_type: randomAction,
-    trace_id: randomId,
-    executed_at: timestamp,
-    meta: {
-      cpu_load: Math.random().toFixed(2),
-      memory_usage: Math.floor(Math.random() * 1000)
-    }
-  };
+  if (!expectedSecret) {
+    return NextResponse.json(
+      { error: 'CRON_SECRET is not configured' },
+      { status: 500 },
+    );
+  }
 
-  console.log(`[CRON] Keep-Alive executed: ${randomAction} - ${randomId}`);
-  
-  // TODO: connect to Supabase
-  // await supabase.from('system_logs').insert(payload);
+  if (authHeader !== `Bearer ${expectedSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized cron request' }, { status: 401 });
+  }
+
+  console.log('[CRON] Keep-Alive executed');
 
   return NextResponse.json({ 
     success: true, 
-    message: 'System active',
-    trace: payload 
+    message: 'System active'
   });
 }

@@ -5,12 +5,18 @@ import FieldLayout from "@/components/Tournament/FieldLayout";
 import { teamService } from "@/services/teamService";
 import { authService } from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
-import { useParams } from 'next/navigation';
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Icon from '@/components/UI/Icon';
+import { SkeletonList, Breadcrumbs, EmptyState, Tag } from '@/components/UI/primitives';
 import styles from './team-details.module.css';
 
 export default function TeamDetails() {
   const params = useParams();
+  const router = useRouter();
   const { user } = useAuth();
+  const { notify } = useNotificationCenter();
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -28,33 +34,67 @@ export default function TeamDetails() {
     if (params?.id) loadTeam();
   }, [params?.id]);
 
+  const runTeamAction = async (action, fallbackMessage) => {
+    try {
+      await action();
+      await loadTeam();
+      return true;
+    } catch (error) {
+      notify(error?.message || fallbackMessage, "error");
+      return false;
+    }
+  };
+
   const handleAddGuest = async (e) => {
     e.preventDefault();
     if (!guestName) return;
-    await teamService.addGuestMember(team.id, guestName); // Guest starts at Bench
-    setGuestName('');
-    loadTeam();
+    const ok = await runTeamAction(
+      () => teamService.addGuestMember(team.id, guestName),
+      "Could not add guest player.",
+    );
+    if (ok) setGuestName('');
   };
 
   const handleDropPlayer = async (playerId, newPosition) => {
-    await teamService.updateMemberPosition(team.id, playerId, newPosition);
-    loadTeam();
+    await runTeamAction(
+      () => teamService.updateMemberPosition(team.id, playerId, newPosition),
+      "Could not update player position.",
+    );
   };
 
   const handleRequestAccess = async () => {
-    if (!user) return; // Should redirect to login handled by UI usually
-    await teamService.requestJoinTeam(team.id, user);
-    loadTeam();
+    if (!user) {
+      router.push(`/login?redirect=/teams/${params.id}`);
+      return;
+    }
+    const ok = await runTeamAction(
+      () => teamService.requestJoinTeam(team.id, user),
+      "Could not submit join request.",
+    );
+    if (ok) notify("Join request sent. The team owner will review it.", "success");
+  };
+
+  const handleCancelRequest = async () => {
+    if (!user) return;
+    const ok = await runTeamAction(
+      () => teamService.cancelJoinRequest(team.id, user.id),
+      "Could not cancel join request.",
+    );
+    if (ok) notify("Join request cancelled.", "info");
   };
 
   const handleAcceptRequest = async (requesterId, targetPosition = 'Bench') => {
-    await teamService.acceptJoinRequest(team.id, requesterId, targetPosition);
-    loadTeam();
+    await runTeamAction(
+      () => teamService.acceptJoinRequest(team.id, requesterId, targetPosition),
+      "Could not accept join request.",
+    );
   };
 
   const handleRejectRequest = async (requesterId) => {
-    await teamService.rejectJoinRequest(team.id, requesterId);
-    loadTeam();
+    await runTeamAction(
+      () => teamService.rejectJoinRequest(team.id, requesterId),
+      "Could not reject join request.",
+    );
   };
 
   const handleDragStart = (e, playerId) => {
@@ -68,8 +108,10 @@ export default function TeamDetails() {
   const handleDropToBench = async (e) => {
     const playerId = e.dataTransfer.getData("playerId");
     if (playerId) {
-      await teamService.updateMemberPosition(team.id, playerId, 'Bench');
-      loadTeam();
+      await runTeamAction(
+        () => teamService.updateMemberPosition(team.id, playerId, 'Bench'),
+        "Could not move player to bench.",
+      );
     }
   };
 
@@ -77,22 +119,52 @@ export default function TeamDetails() {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 500000) {
-      alert("File too large. Max 500KB.");
+      notify("File is too large. Max 500KB.", "warning");
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = async () => {
-      await teamService.updateTeam(team.id, { logo: reader.result });
-      loadTeam();
+      try {
+        await teamService.updateTeam(team.id, { logo: reader.result });
+        await loadTeam();
+      } catch (error) {
+        notify(error?.message || "Could not update team logo.", "error");
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '100px' }}>Loading...</div>;
-  if (!team) return <div style={{ color: 'white', textAlign: 'center', marginTop: '100px' }}>Team not found</div>;
+  if (loading) {
+    return (
+      <main className={styles.main}>
+        <Navbar />
+        <div className="container" style={{ paddingTop: '120px' }}>
+          <SkeletonList rows={8} />
+        </div>
+      </main>
+    );
+  }
+  if (!team) {
+    return (
+      <main className={styles.main}>
+        <Navbar />
+        <div className={`container ${styles.notFoundWrap}`}>
+          <EmptyState
+            icon="users"
+            title="Team not found"
+            description="This team may have been removed or the link is incorrect."
+            actionLabel="Browse teams"
+            actionHref="/teams"
+          />
+        </div>
+      </main>
+    );
+  }
 
   const isOwner = user && user.id === team.ownerId;
+  const isMember = user && team.members.some(m => m.id === user.id);
+  const hasPendingRequest = user && team.requests?.some(r => r.id === user.id);
   const benchPlayers = team.members.filter(m => m.position === 'Bench');
 
   const handlePlayerClick = async (member) => {
@@ -134,9 +206,17 @@ export default function TeamDetails() {
       <Navbar />
       
       <div className="container">
-        
+        <div className={styles.breadcrumbWrap}>
+          <Breadcrumbs
+            items={[
+              { label: "Teams", href: "/teams" },
+              { label: team.name },
+            ]}
+          />
+        </div>
+
         {/* Header */}
-        <div className={`glass-panel ${styles.teamHeader}`}>
+        <div className={`glass-panel ticket-card ${styles.teamHeader}`}>
           
           {/* Logo Section */}
           <div className={styles.logoContainer}>
@@ -152,7 +232,7 @@ export default function TeamDetails() {
                    className={styles.logoEditLabel}
                    title="Change Logo"
                  >
-                   ✏️
+                   <Icon name="edit" size={16} />
                  </label>
                  <input 
                    id="team-logo-upload" 
@@ -179,15 +259,36 @@ export default function TeamDetails() {
                 <div className={styles.statLabel}>Members</div>
             </div>
             
-            {!isOwner && !team.members.some(m => m.id === user?.id) && (
-                <button 
-                  onClick={handleRequestAccess}
-                  disabled={team.requests?.some(r => r.id === user?.id)}
-                  className="btn-primary"
-                  style={team.requests?.some(r => r.id === user?.id) ? { opacity: 0.7, cursor: 'not-allowed', background: '#555', fontSize: '0.9rem' } : { fontSize: '0.9rem' }}
-                >
-                  {team.requests?.some(r => r.id === user?.id) ? 'Request Sent' : 'Request Access'}
-                </button>
+            {!isOwner && !isMember && (
+              <div className={styles.joinPanel}>
+                {user ? (
+                  hasPendingRequest ? (
+                    <div className={styles.joinPending}>
+                      <Tag>Request pending</Tag>
+                      <button
+                        type="button"
+                        onClick={handleCancelRequest}
+                        className={styles.cancelRequestBtn}
+                      >
+                        Cancel request
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRequestAccess}
+                      className={`btn-primary ${styles.joinBtn}`}
+                    >
+                      Request access
+                    </button>
+                  )
+                ) : (
+                  <p className={styles.loginPrompt}>
+                    <Link href={`/login?redirect=/teams/${params.id}`}>Sign in</Link>
+                    {" "}to request a spot on this team.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -217,7 +318,10 @@ export default function TeamDetails() {
             {isOwner && team.requests && team.requests.length > 0 && (
                 <div className={`glass-panel ${styles.requestsPanel}`}>
                     <h2 className={styles.requestsTitle}>
-                        📩 Join Requests <span className={styles.requestCount}>{team.requests.length}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <Icon name="mail" size={18} className="icon-inline" /> Join Requests
+                        </span>
+                        <span className={styles.requestCount}>{team.requests.length}</span>
                     </h2>
                     <ul className={styles.requestList}>
                         {team.requests.map(req => (
@@ -233,14 +337,14 @@ export default function TeamDetails() {
                                         className={`${styles.actionBtn} ${styles.acceptBtn}`}
                                         title="Accept to Bench"
                                     >
-                                        ✅
+                                        <Icon name="check" size={16} />
                                     </button>
                                     <button 
                                         onClick={() => handleRejectRequest(req.id)}
                                         className={`${styles.actionBtn} ${styles.rejectBtn}`}
                                         title="Reject"
                                     >
-                                        ❌
+                                        <Icon name="x" size={16} />
                                     </button>
                                 </div>
                             </li>
@@ -361,7 +465,7 @@ export default function TeamDetails() {
 
             <div className={styles.playerProfile}>
               <div 
-                onClick={() => window.location.href = `/profile?id=${selectedPlayer.id}`}
+                onClick={() => { window.location.href = `/players/${selectedPlayer.id}`; }}
                 className={styles.avatarLink}
                 title="View Full Profile"
               >
@@ -409,15 +513,12 @@ export default function TeamDetails() {
                 </h3>
                 {selectedPlayer.careerWins?.length > 0 ? (
                   <div className={styles.careerList}>
-                    {selectedPlayer.careerWins.slice(0, 5).map(win => (
+                    {selectedPlayer.careerWins.map(win => (
                       <div key={win.id} className={styles.careerItem}>
                         <span className={styles.highlightName}>{win.description}</span>
                         <span className={styles.highlightTeam}>{win.teamName}</span>
                       </div>
                     ))}
-                    {selectedPlayer.careerWins.length > 5 && (
-                      <div className={styles.memberRole} style={{ textAlign: 'center', marginTop: '0.5rem' }}>+ {selectedPlayer.careerWins.length - 5} more wins</div>
-                    )}
                   </div>
                 ) : (
                   <p className={styles.emptyHighlights}>No victories recorded yet.</p>

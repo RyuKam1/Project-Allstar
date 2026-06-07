@@ -54,8 +54,20 @@
 
 .header {
     padding: 2rem 2rem 1rem;
-    text-align: center;
     border-bottom: 1px solid var(--border-glass);
+}
+
+.headerTop {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: left;
+}
+
+.headerTop > div:first-child {
+    flex: 1;
+    min-width: 0;
 }
 
 .title {
@@ -147,13 +159,13 @@
 .select {
     width: 100%;
     padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.03);
+    background-color: var(--select-bg, rgba(255, 255, 255, 0.03));
     border: 1px solid var(--border-glass);
     border-radius: 8px;
-    color: var(--text-main);
+    color: var(--select-text, var(--text-main));
     font-size: 0.95rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .select:focus {

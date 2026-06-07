@@ -4,9 +4,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 
+import Icon from '@/components/UI/Icon';
+import { runGlobalSearch } from "@/services/globalSearchService";
 import styles from './navbar.module.css';
-
-import { supabase } from "@/lib/supabaseClient";
 
 export default function Navbar() {
     const { user, logout } = useAuth();
@@ -19,6 +19,7 @@ export default function Navbar() {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showResults, setShowResults] = useState(false);
+    const [searchError, setSearchError] = useState('');
     const [filterType, setFilterType] = useState('All');
 
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -88,6 +89,17 @@ export default function Navbar() {
         setMobileMenuOpen(false);
     };
 
+    useEffect(() => {
+        if (!mobileMenuOpen) return undefined;
+
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') closeMobileMenu();
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [mobileMenuOpen]);
+
     const toggleSearch = () => {
         setIsSearchOpen(!isSearchOpen);
         if (!isSearchOpen) {
@@ -101,20 +113,21 @@ export default function Navbar() {
         if (query.trim().length === 0) {
             setSearchResults([]);
             setShowResults(false);
+            setSearchError('');
             return;
         }
 
         setIsSearching(true);
         setShowResults(true);
+        setSearchError('');
 
         try {
-            const { data, error } = await supabase
-                .rpc('search_all', { query: query, filter_type: filter || filterType });
-
-            if (error) throw error;
-            setSearchResults(data || []);
+            const data = await runGlobalSearch(query, filter || filterType);
+            setSearchResults(data);
         } catch (err) {
             console.error("Search error:", err);
+            setSearchResults([]);
+            setSearchError(err?.message || 'Search failed. Try again.');
         } finally {
             setIsSearching(false);
         }
@@ -126,12 +139,34 @@ export default function Navbar() {
         handleSearch(searchQuery, newFilter);
     };
 
+    const isActiveNav = (href) => {
+        if (href === '/venues') {
+            return pathname.startsWith('/venues') || pathname.startsWith('/locations');
+        }
+        if (href === '/events') {
+            return pathname.startsWith('/events') || pathname.startsWith('/tournaments');
+        }
+        if (href === '/teams') {
+            return pathname.startsWith('/teams');
+        }
+        if (href === '/community') {
+            return pathname.startsWith('/community');
+        }
+        if (href === '/business/dashboard') {
+            return pathname.startsWith('/business');
+        }
+        return pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+    };
+
     return (
         <>
             <nav className={`glass-panel ${styles.nav}`}>
                 <div className={styles.navLeft}>
                     <div className={styles.logo}>
-                        <Link href="/" className={`primary-gradient-text ${styles.logoLink}`}>
+                        <Link
+                            href="/"
+                            className={`primary-gradient-text ${styles.logoLink} ${pathname === '/' ? styles.logoActive : ''}`}
+                        >
                             AllStar
                         </Link>
                     </div>
@@ -142,7 +177,7 @@ export default function Navbar() {
                             <Link
                                 href={item.href}
                                 key={item.label}
-                                className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''} ${item.isSpecial ? styles.businessLink : ''}`}
+                        className={`${styles.navLink} ${isActiveNav(item.href) ? styles.activeLink : ''} ${item.isSpecial ? styles.businessLink : ''}`}
                             >
                                 {item.label}
                             </Link>
@@ -151,17 +186,18 @@ export default function Navbar() {
                 </div>
 
                 <div className={styles.navRight}>
-                    {/* Search Toggle */}
                     <button
-                        className={`${styles.iconButton} ${isSearchOpen ? styles.active : ''}`}
+                        type="button"
+                        className={`${styles.searchChip} ${isSearchOpen ? styles.searchChipActive : ''}`}
                         onClick={toggleSearch}
-                        aria-label="Search"
-                        suppressHydrationWarning
+                        aria-label={isSearchOpen ? 'Close search' : 'Open search'}
+                        aria-expanded={isSearchOpen}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
                         </svg>
+                        <span className={styles.searchChipLabel}>Search</span>
                     </button>
 
                     <div className={styles.authButtons}>
@@ -183,13 +219,13 @@ export default function Navbar() {
                                             className={styles.dropdownItem}
                                             onClick={() => setIsProfileMenuOpen(false)}
                                         >
-                                            <span className={styles.dropdownIcon}>👤</span> {user.account_type === 'business' ? 'Dashboard' : 'Profile'}
+                                            <Icon name="user" size={16} className={styles.dropdownIcon} /> {user.account_type === 'business' ? 'Dashboard' : 'Profile'}
                                         </Link>
                                         <button
                                             onClick={() => { handleLogout(); setIsProfileMenuOpen(false); }}
                                             className={styles.dropdownItem}
                                         >
-                                            <span className={styles.dropdownIcon}>🚪</span> Log Out
+                                            <Icon name="logout" size={16} className={styles.dropdownIcon} /> Log Out
                                         </button>
                                     </div>
                                 )}
@@ -209,7 +245,7 @@ export default function Navbar() {
                         className={styles.menuToggle}
                         onClick={toggleMobileMenu}
                     >
-                        {mobileMenuOpen ? '✕' : '☰'}
+                        <Icon name={mobileMenuOpen ? 'close' : 'menu'} size={22} />
                     </button>
                 </div>
             </nav>
@@ -223,6 +259,7 @@ export default function Navbar() {
                         className={styles.filterSelect}
                     >
                         <option value="All">All Categories</option>
+                        <option value="Venues">Venues</option>
                         <option value="Players">Players</option>
                         <option value="Teams">Teams</option>
                         <option value="Events">Events</option>
@@ -232,12 +269,25 @@ export default function Navbar() {
                     <input
                         id="global-search-input"
                         type="text"
-                        placeholder="Search for players, teams, events..."
+                        placeholder={
+                            filterType === 'Venues'
+                                ? 'Search courts, fields, gyms...'
+                                : 'Search venues, players, teams, events...'
+                        }
                         value={searchQuery}
                         onChange={(e) => handleSearch(e.target.value)}
                         className={styles.searchInput}
                     />
-                    <button onClick={() => setIsSearchOpen(false)} className={styles.closeSearch}>✕</button>
+                    <div className={styles.searchCloseZone}>
+                        <button
+                            type="button"
+                            onClick={() => setIsSearchOpen(false)}
+                            className={styles.closeSearch}
+                            aria-label="Close search"
+                        >
+                            <Icon name="close" size={18} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Results Dropdown */}
@@ -245,6 +295,8 @@ export default function Navbar() {
                     <div className={styles.resultsDropdown}>
                         {isSearching ? (
                             <div className={styles.resultLoading}>Searching...</div>
+                        ) : searchError ? (
+                            <div className={styles.resultEmpty}>{searchError}</div>
                         ) : searchResults.length > 0 ? (
                             searchResults.map((result) => (
                                 <Link
@@ -283,12 +335,23 @@ export default function Navbar() {
 
             {/* Mobile Menu Sidebar */}
             <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.open : ''}`}>
+                <div className={styles.mobileMenuHeader}>
+                    <span className={styles.mobileMenuTitle}>Menu</span>
+                    <button
+                        type="button"
+                        className={styles.mobileMenuClose}
+                        onClick={closeMobileMenu}
+                        aria-label="Close menu"
+                    >
+                        <Icon name="close" size={22} />
+                    </button>
+                </div>
                 {navItems.map((item) => (
                     <Link
                         href={item.href}
                         key={item.label}
                         onClick={closeMobileMenu}
-                        className={`${styles.navLink} ${pathname === item.href ? styles.activeLink : ''}`}
+                        className={`${styles.navLink} ${isActiveNav(item.href) ? styles.activeLink : ''}`}
                     >
                         {item.label}
                     </Link>

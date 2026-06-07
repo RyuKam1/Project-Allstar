@@ -24,8 +24,53 @@
 
 .header {
   text-align: center;
-  margin-bottom: 3.5rem;
+  margin-bottom: 2.5rem;
   padding-top: 50px;
+}
+
+.pageMain {
+  min-height: 100dvh;
+  padding-bottom: 4rem;
+}
+
+.pageContainer {
+  padding-top: var(--page-top, 120px);
+}
+
+@media (max-width: 768px) {
+  .pageContainer {
+    padding-top: calc(var(--header-height) + var(--safe-top) + 0.5rem);
+  }
+
+  .contextBar {
+    top: calc(var(--header-height) + var(--safe-top) + 4px);
+  }
+}
+
+.contextBar {
+  position: sticky;
+  top: calc(var(--header-height, 72px) + var(--safe-top) + 8px);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  margin-bottom: var(--space-4, 1rem);
+  background: color-mix(in srgb, var(--bg-deep) 90%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--border-radius, 12px);
+}
+
+.contextMeta {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-muted);
+}
+
+.contextMeta strong {
+  color: var(--text-main);
 }
 
 @media (max-width: 768px) {
@@ -47,8 +92,10 @@
   padding: 0.5rem 0.5rem 1.5rem;
   scrollbar-width: none;
   border: none;
-  mask-image: linear-gradient(to right, black 90%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  mask-image: linear-gradient(to right, black 0, black calc(100% - 72px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 72px), transparent 100%);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .tabs::-webkit-scrollbar {
@@ -63,27 +110,26 @@
   border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background var(--duration-normal, 0.2s) var(--ease-out, ease),
+    border-color var(--duration-normal, 0.2s) var(--ease-out, ease),
+    color var(--duration-normal, 0.2s) var(--ease-out, ease);
   white-space: nowrap;
   backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  gap: 8px;
 }
 
 .tab:hover {
-  background: rgba(var(--color-primary-rgb), 0.15);
-  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.12);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--border-glass));
   color: var(--color-primary);
-  transform: translateY(-3px);
 }
 
 .tabActive {
   background: var(--color-primary) !important;
   border-color: var(--color-primary) !important;
-  color: white !important;
-  transform: scale(1.05);
-  box-shadow: 0 10px 15px rgba(var(--color-primary-rgb), 0.3);
+  color: var(--color-on-primary, #ffffff) !important;
 }
 
 [data-theme='pro'] .tab {
@@ -109,15 +155,23 @@
   align-items: flex-start;
 }
 
-@media (max-width: 480px) {
-  .composerContent {
-    gap: 0.8rem;
-  }
-  
-  .composerAvatar {
-    width: 40px !important;
-    height: 40px !important;
-  }
+.composerAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.composerBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.composerTools {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .composerTextarea {
@@ -127,7 +181,7 @@
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--border-glass);
   border-radius: 14px;
-  color: white;
+  color: var(--text-main);
   resize: vertical;
   font-family: inherit;
   font-size: 1rem;
@@ -187,7 +241,7 @@
   font-weight: 700;
   font-size: 1.05rem;
   cursor: pointer;
-  color: white;
+  color: var(--text-main);
   transition: color 0.2s;
 }
 
@@ -205,9 +259,46 @@
   padding: 5px 14px;
   border-radius: 14px;
   font-size: 0.75rem;
-  color: var(--color-accent);
+  color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.postAuthorLink {
+  text-decoration: none;
+}
+
+.postAuthorMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.leaderboardName {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.leaderboardWins {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.leaderboardAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+@media (max-width: 480px) {
+  .composerContent {
+    gap: 0.8rem;
+  }
+
+  .composerAvatar {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .postContent {
@@ -215,7 +306,7 @@
   margin-bottom: 1.5rem;
   white-space: pre-wrap;
   font-size: 1.05rem;
-  color: #efefef;
+  color: var(--text-main);
 }
 
 .postActions {
@@ -228,7 +319,7 @@
 .likeButton {
   background: transparent;
   border: 1px solid var(--border-glass);
-  color: white;
+  color: var(--text-main);
   padding: 10px 20px;
   border-radius: 25px;
   cursor: pointer;
@@ -349,16 +440,27 @@
 }
 .iconAction {
   background: none;
-  border: none;
-  font-size: 1.4rem;
+  border: 1px solid transparent;
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 5px;
+  padding: 8px;
   border-radius: 8px;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .iconAction:hover {
   background: rgba(255,255,255,0.05);
+  border-color: var(--border-glass);
+  color: var(--text-main);
+}
+
+.iconActionDisabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
 }
 
 .imagePreviewContainer {
@@ -409,7 +511,7 @@
 .actionButton {
   background: transparent;
   border: 1px solid var(--border-glass);
-  color: white;
+  color: var(--text-main);
   padding: 10px 20px;
   border-radius: 25px;
   cursor: pointer;
@@ -492,7 +594,7 @@
   border: 1px solid var(--border-glass);
   border-radius: 20px;
   padding: 8px 16px;
-  color: white;
+  color: var(--text-main);
   outline: none;
 }
 
@@ -502,7 +604,7 @@
 
 .commentSubmit {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary, #ffffff);
   border: none;
   width: 36px;
   height: 36px;

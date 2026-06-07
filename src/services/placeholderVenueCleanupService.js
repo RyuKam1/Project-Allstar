@@ -1,57 +1,16 @@
 import { supabase } from "@/lib/supabaseClient";
 import { PLACEHOLDER_VENUE_NAMES } from "@/lib/placeholderVenues";
+import {
+  deleteStorageObjects,
+  extractObjectKeyFromUrl,
+} from "@/lib/storageImages";
 
-const STORAGE_BUCKET = "allstar-assets";
-
-function extractStoragePath(url) {
-  if (!url || typeof url !== "string") return null;
-  if (url.startsWith("data:image/")) return null;
-
-  try {
-    const parsed = new URL(url);
-    const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
-    const signMarker = `/storage/v1/object/sign/${STORAGE_BUCKET}/`;
-
-    if (parsed.pathname.includes(marker)) {
-      return decodeURIComponent(parsed.pathname.split(marker)[1] || "").trim() || null;
-    }
-
-    if (parsed.pathname.includes(signMarker)) {
-      return decodeURIComponent(parsed.pathname.split(signMarker)[1] || "").trim() || null;
-    }
-
-    return null;
-  } catch {
-    // Non-URL values are ignored intentionally.
-    return null;
+function collectObjectKey(urlOrKey) {
+  if (!urlOrKey || typeof urlOrKey !== "string") return null;
+  if (!urlOrKey.includes("/") && !urlOrKey.startsWith("http")) {
+    return urlOrKey;
   }
-}
-
-async function deleteStorageObjects(paths) {
-  if (!paths.length) {
-    return { attempted: 0, deleted: 0, failed: 0, errors: [] };
-  }
-
-  const chunkSize = 100;
-  let deleted = 0;
-  const errors = [];
-
-  for (let i = 0; i < paths.length; i += chunkSize) {
-    const chunk = paths.slice(i, i + chunkSize);
-    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).remove(chunk);
-    if (error) {
-      errors.push(error.message || "Unknown storage deletion error");
-      continue;
-    }
-    deleted += Array.isArray(data) ? data.length : 0;
-  }
-
-  return {
-    attempted: paths.length,
-    deleted,
-    failed: Math.max(paths.length - deleted, 0),
-    errors
-  };
+  return extractObjectKeyFromUrl(urlOrKey);
 }
 
 export const placeholderVenueCleanupService = {
@@ -86,8 +45,21 @@ export const placeholderVenueCleanupService = {
       }
     }
 
-    const objectPaths = [...new Set(imageUrls.map(extractStoragePath).filter(Boolean))];
-    const storage = await deleteStorageObjects(objectPaths);
+    const objectPaths = new Set(
+      imageUrls.map((url) => collectObjectKey(url)).filter(Boolean)
+    );
+
+    const { data: locationImageRows } = await supabase
+      .from("location_images")
+      .select("object_key, storage_bucket, image_url")
+      .in("location_id", venueIds);
+
+    for (const row of locationImageRows || []) {
+      const key = row.object_key || collectObjectKey(row.image_url);
+      if (key) objectPaths.add(key);
+    }
+
+    const storage = await deleteStorageObjects([...objectPaths]);
 
     let deletedLocationImages = 0;
     for (const venueId of venueIds) {

@@ -9,28 +9,17 @@ export default function TeamCard({ team, user, onJoin }) {
   const fallbackInitial = team.name.charAt(0).toUpperCase();
   
   return (
-    <div className={`glass-panel ${styles.card}`}>
-      {/* Sport Badge Top Right */}
-      <div className={styles.sportBadge}>{team.sport}</div>
+    <div className={`glass-panel court-frame ticket-card ${styles.card}`}>
+      <div className={`tape-tag ${styles.sportBadge}`}>{team.sport}</div>
       
       {/* Logo Section */}
       <div className={styles.logoContainer}>
         {team.logo ? (
-          <>
-            {/* Dynamic Glow Layer */}
-            <img 
-              src={team.logo} 
-              alt="" 
-              className={styles.logoGlow} 
-              aria-hidden="true"
-            />
-            {/* Main Logo */}
-            <img 
-              src={team.logo} 
-              alt={team.name} 
-              className={styles.logoImage} 
-            />
-          </>
+          <img 
+            src={team.logo} 
+            alt={team.name} 
+            className={styles.logoImage} 
+          />
         ) : (
           <div className={styles.fallbackLogo}>
             {fallbackInitial}

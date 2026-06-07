@@ -7,7 +7,7 @@ export default function BusinessLandingPage() {
     return (
         <>
             <Navbar />
-            <div style={{ minHeight: '100vh', paddingTop: '100px', paddingBottom: '60px' }} className="container">
+            <div style={{ minHeight: '100dvh', paddingTop: '100px', paddingBottom: '60px' }} className="container">
 
                 {/* Header: Simple & Direct */}
                 <div style={{ textAlign: 'center', marginBottom: '60px' }}>
