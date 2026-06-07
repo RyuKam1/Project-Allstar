@@ -54,56 +54,59 @@ export default function HomePage() {
       <section className={`container ${styles.heroSection}`}>
         <div className={styles.heroGrid}>
           <Reveal className={styles.heroCopy}>
-            <p className={styles.eyebrow}>Play local · your city</p>
-            <h1 className={styles.title}>
-              <span className={styles.titleLine}>Find a court.</span>
-              <span className={styles.titleLine}>Fill a roster.</span>
-              <span className={`${styles.titleLine} ${styles.titleAccent}`}>
-                Play tonight.
-              </span>
-            </h1>
-            <p className={styles.subtitle}>
-              Discover courts, fields, and gyms near you. Join teams, enter
-              tournaments, and meet players in your city.
-            </p>
+            <div className={styles.heroLead}>
+              <p className={styles.eyebrow}>Local sports, one platform</p>
+              <h1 className={styles.title}>
+                <span className={styles.titleLine}>Play local.</span>
+                <span className={`${styles.titleLine} ${styles.titleAccent}`}>
+                  Go AllStar.
+                </span>
+              </h1>
+              <p className={styles.subtitle}>
+                Discover courts, fields, and gyms near you. Join teams, enter
+                tournaments, and meet players in your city.
+              </p>
+            </div>
 
-            <form className={styles.searchForm} onSubmit={handleSearch}>
-              <div className={styles.searchField}>
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search venues, sports, cities…"
-                  className={styles.searchInput}
-                  aria-label="Search venues"
-                />
-                <button
-                  type="submit"
-                  className={`btn-primary ${styles.searchBtn}`}
-                >
-                  Search
-                </button>
-              </div>
-            </form>
+            <div className={styles.heroActions}>
+              <form className={styles.searchForm} onSubmit={handleSearch}>
+                <div className={styles.searchField}>
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search venues, sports, cities…"
+                    className={styles.searchInput}
+                    aria-label="Search venues"
+                  />
+                  <button
+                    type="submit"
+                    className={`btn-primary ${styles.searchBtn}`}
+                  >
+                    Search
+                  </button>
+                </div>
+              </form>
 
-            <Stagger className={styles.actions} stagger={0.06}>
-              <Link href="/venues">
-                <button
-                  type="button"
-                  className={`btn-secondary ${styles.secondaryButton}`}
-                >
-                  Explore venues
-                </button>
-              </Link>
-              <Link href="/register">
-                <button
-                  type="button"
-                  className={`btn-primary ${styles.primaryButton}`}
-                >
-                  Create free account
-                </button>
-              </Link>
-            </Stagger>
+              <Stagger className={styles.actions} stagger={0.06}>
+                <Link href="/venues">
+                  <button
+                    type="button"
+                    className={`btn-secondary ${styles.secondaryButton}`}
+                  >
+                    Explore venues
+                  </button>
+                </Link>
+                <Link href="/register">
+                  <button
+                    type="button"
+                    className={`btn-primary ${styles.primaryButton}`}
+                  >
+                    Create free account
+                  </button>
+                </Link>
+              </Stagger>
+            </div>
           </Reveal>
 
           <Reveal className={styles.heroAside} delay={0.08}>
@@ -136,7 +139,7 @@ export default function HomePage() {
           </Reveal>
         </div>
 
-        <hr className="chalk-divider" />
+        <hr className={`chalk-divider ${styles.heroDivider}`} />
 
         <Reveal className={`glass-panel court-frame ${styles.ctaStrip}`} delay={0.12}>
           <div>
