@@ -8,12 +8,16 @@ import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import Navbar from '@/components/Layout/Navbar';
 import Map from '@/components/UI/Map'; // Map Integration
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
+import { sanitizeLikeTerm } from '@/lib/security/inputSanitizer';
+import Icon from '@/components/UI/Icon';
 import styles from './dashboard.module.css';
 
 const DashboardContent = () => {
     const { user, loading, updateUser } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { notify } = useNotificationCenter();
 
     // View State: 'manage' | 'claim' | 'add'
     const [viewMode, setViewMode] = useState('manage');
@@ -97,8 +101,8 @@ const DashboardContent = () => {
         setIsSaving(true);
         let finalAvatarUrl = formData.avatar;
         if (avatarFile) {
-            const url = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
-            if (url) finalAvatarUrl = url;
+            const upload = await uploadCompressedImage(avatarFile, 'allstar-assets', 'avatars');
+            if (upload?.publicUrl) finalAvatarUrl = upload.publicUrl;
         }
         const result = await updateUser({
             name: formData.name,
@@ -108,8 +112,9 @@ const DashboardContent = () => {
         if (result.success) {
             setIsEditing(false);
             setAvatarFile(null);
+            notify("Profile updated.", "success");
         } else {
-            alert("Failed to update profile: " + result.error);
+            notify(`Failed to update profile: ${result.error}`, "error");
         }
         setIsSaving(false);
     };
@@ -125,10 +130,16 @@ const DashboardContent = () => {
                 setIsSearchingClaim(false);
                 return;
             }
+            const safeQuery = sanitizeLikeTerm(claimSearchQuery);
+            if (!safeQuery) {
+                setClaimResults([]);
+                setIsSearchingClaim(false);
+                return;
+            }
             const { data, error } = await supabase
                 .from('community_locations')
                 .select('id, name, lat, lng, sports, description')
-                .ilike('name', `%${claimSearchQuery}%`)
+                .ilike('name', `%${safeQuery}%`)
                 .limit(10);
             if (!error) setClaimResults(data || []);
             setIsSearchingClaim(false);
@@ -149,13 +160,13 @@ const DashboardContent = () => {
         try {
             // Search currently only returns community locations
             await businessService.claimVenue(selectedClaimVenue.id, claimForm, 'community');
-            alert("Claim submitted! We will review it shortly.");
+            notify("Claim submitted. We will review it shortly.", "success");
             setClaimSearchQuery('');
             setSelectedClaimVenue(null);
             setViewMode('manage'); // Return to dashboard
             loadOwnedVenues(); // Refresh list (pending item might appear if we supported showing pending claims)
         } catch (error) {
-            alert("Error: " + error.message);
+            notify(`Error: ${error.message}`, "error");
         } finally {
             setIsSubmittingClaim(false);
         }
@@ -182,8 +193,8 @@ const DashboardContent = () => {
 
     const handleAddVenueSubmit = async () => {
         if (!newVenueLocation) return;
-        if (!addForm.name.trim()) { alert("Please enter a business name."); return; }
-        if (addForm.sports.length === 0) { alert("Please select at least one sport."); return; }
+        if (!addForm.name.trim()) { notify("Please enter a business name.", "warning"); return; }
+        if (addForm.sports.length === 0) { notify("Please select at least one sport.", "warning"); return; }
 
         setIsCreatingVenue(true);
         try {
@@ -195,7 +206,7 @@ const DashboardContent = () => {
                 lng: newVenueLocation.lng
             });
 
-            alert("Venue created successfully!");
+            notify("Venue created successfully.", "success");
 
             // Reset and refresh
             setNewVenueLocation(null);
@@ -204,7 +215,7 @@ const DashboardContent = () => {
             loadOwnedVenues();
         } catch (error) {
             console.error(error);
-            alert("Failed to create venue: " + error.message);
+            notify(`Failed to create venue: ${error.message}`, "error");
         } finally {
             setIsCreatingVenue(false);
         }
@@ -254,44 +265,45 @@ const DashboardContent = () => {
                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)', padding: '10px', borderRadius: '8px', color: 'white', width: '100%', textAlign: 'center' }}
                                     />
                                     <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button onClick={() => setIsEditing(false)} className={styles.subtleEditBtn}>Cancel</button>
-                                        <button onClick={handleSaveProfile} className="btn-primary" style={{ flex: 1, padding: '6px' }} disabled={isSaving}>Save</button>
+                                        <button type="button" onClick={() => setIsEditing(false)} className={styles.subtleEditBtn}>Cancel</button>
+                                        <button type="button" onClick={handleSaveProfile} className="btn-primary" style={{ flex: 1, padding: '6px' }} disabled={isSaving}>Save</button>
                                     </div>
                                 </div>
                             ) : (
                                 <>
                                     <h1 className={styles.businessName}>{user?.name}</h1>
                                     <button
+                                        type="button"
                                         onClick={() => setIsEditing(true)}
                                         className={styles.subtleEditBtn}
                                     >
-                                        <span>✏️</span> Edit Profile
+                                        <Icon name="edit" size={14} className="icon-inline" /> Edit Profile
                                     </button>
                                 </>
                             )}
 
                             {/* Navigation Buttons */}
-                            <div className={styles.actionButtons} style={{ flexDirection: 'column', marginTop: '30px' }}>
+                            <div className={`${styles.actionButtons} ${styles.navColumn}`}>
                                 <button
+                                    type="button"
                                     onClick={() => setViewMode('manage')}
-                                    className={viewMode === 'manage' ? 'btn-primary' : 'btn-secondary'}
-                                    style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
+                                    className={`${viewMode === 'manage' ? 'btn-primary' : 'btn-secondary'} ${styles.navActionBtn}`}
                                 >
-                                    <span>📊</span> Dashboard
+                                    <Icon name="dashboard" size={18} className="icon-inline" /> Dashboard
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => { setViewMode('claim'); setSelectedClaimVenue(null); }}
-                                    className={viewMode === 'claim' ? 'btn-primary' : 'btn-secondary'}
-                                    style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
+                                    className={`${viewMode === 'claim' ? 'btn-primary' : 'btn-secondary'} ${styles.navActionBtn}`}
                                 >
-                                    <span>🔍</span> Find & Claim Venue
+                                    <Icon name="search" size={18} className="icon-inline" /> Find & Claim Venue
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => { setViewMode('add'); setNewVenueLocation(null); }}
-                                    className={viewMode === 'add' ? 'btn-primary' : 'btn-secondary'}
-                                    style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
+                                    className={`${viewMode === 'add' ? 'btn-primary' : 'btn-secondary'} ${styles.navActionBtn}`}
                                 >
-                                    <span>📍</span> Add New Venue
+                                    <Icon name="location" size={18} className="icon-inline" /> Add New Venue
                                 </button>
                             </div>
                         </div>
@@ -319,8 +331,8 @@ const DashboardContent = () => {
                                     <div className={styles.emptyState}>
                                         <p>You haven&apos;t added any venues yet.</p>
                                         <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                            <button onClick={() => setViewMode('claim')} className="btn-primary">Find Existing</button>
-                                            <button onClick={() => setViewMode('add')} className="btn-secondary">Add New</button>
+                                            <button type="button" onClick={() => setViewMode('claim')} className="btn-primary">Find Existing</button>
+                                            <button type="button" onClick={() => setViewMode('add')} className="btn-secondary">Add New</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -329,11 +341,18 @@ const DashboardContent = () => {
                                             <div key={v.venue_id || v.id} className={styles.venueCard}>
                                                 <div>
                                                     <h3 style={{ margin: '0 0 5px 0' }}>{v.name || v.community_locations?.name || 'Unnamed Venue'}</h3>
-                                                    <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                                                        {v.status === 'verified' ? '✅ Verified' : (v.status === 'active' ? '✅ Active' : '⏳ Pending')}
+                                                    <div className={styles.venueStatus}>
+                                                        {v.status === 'verified' ? (
+                                                            <span className="status-badge status-badge--success"><Icon name="check" size={14} /> Verified</span>
+                                                        ) : v.status === 'active' ? (
+                                                            <span className="status-badge status-badge--success"><Icon name="check" size={14} /> Active</span>
+                                                        ) : (
+                                                            <span className="status-badge status-badge--pending"><Icon name="clock" size={14} /> Pending</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <button
+                                                    type="button"
                                                     className="btn-secondary"
                                                     style={{ fontSize: '0.9rem' }}
                                                     onClick={() => router.push(`/business/dashboard/venues/${v.venue_id}`)}
@@ -350,6 +369,11 @@ const DashboardContent = () => {
                         {/* VIEW: CLAIM (Search & Form) */}
                         {viewMode === 'claim' && (
                             <div className={`glass-panel ${styles.glassPanel}`}>
+                                <div className={styles.wizardSteps} aria-label="Claim progress">
+                                    <span className={`${styles.wizardStep} ${styles.wizardStepActive}`}>1. Search</span>
+                                    <span className={`${styles.wizardStep} ${selectedClaimVenue ? styles.wizardStepActive : ''}`}>2. Verify</span>
+                                    <span className={styles.wizardStep}>3. Manage</span>
+                                </div>
                                 {!selectedClaimVenue ? (
                                     <>
                                         <h2 style={{ marginBottom: '1rem' }}>Find Your Venue</h2>
@@ -368,28 +392,39 @@ const DashboardContent = () => {
 
                                         <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                             {claimResults.map(venue => (
-                                                <div
+                                                <button
                                                     key={venue.id}
+                                                    type="button"
                                                     onClick={() => setSelectedClaimVenue(venue)}
                                                     className={styles.venueCard}
-                                                    style={{ cursor: 'pointer', justifyContent: 'flex-start', gap: '15px' }}
+                                                    style={{ cursor: 'pointer', justifyContent: 'flex-start', gap: '15px', width: '100%', textAlign: 'left' }}
+                                                    aria-label={`Select venue ${venue.name} to claim`}
                                                 >
-                                                    <div style={{ fontSize: '1.5rem' }}>📍</div>
+                                                    <Icon name="location" size={24} className="icon-inline" />
                                                     <div>
                                                         <div style={{ fontWeight: 'bold' }}>{venue.name}</div>
                                                         <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>{venue.sports?.join(', ')}</div>
                                                     </div>
-                                                </div>
+                                                </button>
                                             ))}
                                             {!isSearchingClaim && claimResults.length === 0 && claimSearchQuery.trim().length > 0 && (
-                                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No venues found. <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => setViewMode('add')}>Add a new one?</span></div>
+                                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                                                    No venues found.{' '}
+                                                    <button
+                                                        type="button"
+                                                        style={{ textDecoration: 'underline', cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', padding: 0 }}
+                                                        onClick={() => setViewMode('add')}
+                                                    >
+                                                        Add a new one?
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </>
                                 ) : (
                                     // Claim Form
                                     <div>
-                                        <button onClick={() => setSelectedClaimVenue(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', marginBottom: '20px', cursor: 'pointer' }}>← Back to Search</button>
+                                        <button type="button" onClick={() => setSelectedClaimVenue(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', marginBottom: '20px', cursor: 'pointer' }}>← Back to Search</button>
                                         <h2 style={{ marginBottom: '20px' }}>Claiming: <span className="primary-gradient-text">{selectedClaimVenue.name}</span></h2>
                                         <form onSubmit={handleSubmitClaim} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                             <div>
@@ -485,6 +520,7 @@ const DashboardContent = () => {
                                                         {SPORT_OPTIONS.map(sport => (
                                                             <button
                                                                 key={sport}
+                                                                type="button"
                                                                 onClick={() => toggleSport(sport)}
                                                                 style={{
                                                                     padding: '8px 16px',
@@ -505,6 +541,7 @@ const DashboardContent = () => {
                                                 </div>
 
                                                 <button
+                                                    type="button"
                                                     onClick={handleAddVenueSubmit}
                                                     className="btn-primary"
                                                     style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }}
@@ -529,7 +566,7 @@ const DashboardContent = () => {
 export default function BusinessDashboard() {
     return (
         <React.Suspense fallback={
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0f0f', color: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100dvh', background: '#0f0f0f', color: 'white' }}>
                 <p>Loading Dashboard...</p>
             </div>
         }>

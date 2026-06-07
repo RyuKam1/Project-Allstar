@@ -4,9 +4,19 @@ import Navbar from "@/components/Layout/Navbar";
 import { communityService } from "@/services/communityService";
 import { teamService } from "@/services/teamService";
 import { useAuth } from "@/context/AuthContext";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import Link from 'next/link';
+import Icon from '@/components/UI/Icon';
+import {
+  SkeletonCommunityFeed,
+  SkeletonCommunitySidebar,
+  SkeletonCommentList,
+  EmptyState,
+  Button,
+} from '@/components/UI/primitives';
+import { Stagger } from '@/components/UI/motion';
 import styles from './community.module.css';
 
 // --- Sub-component: Comment Section ---
@@ -16,6 +26,7 @@ function CommentSection({ postId, currentUserId }) {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [parent] = useAutoAnimate();
+  const { notify } = useNotificationCenter();
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -37,21 +48,26 @@ function CommentSection({ postId, currentUserId }) {
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'community_comments', filter: `post_id=eq.${postId}` },
         async (payload) => {
-          // Fetch the full comment with author info
+          // Fetch the full comment and then resolve author via public profile view.
           const { data: fullComment, error } = await supabase
             .from('community_comments')
-            .select('*, author:profiles(name, avatar)')
+            .select('*')
             .eq('id', payload.new.id)
             .single();
 
           if (fullComment && !error) {
+            const { data: author } = await supabase
+              .from('profiles_public')
+              .select('name, avatar')
+              .eq('id', fullComment.user_id)
+              .maybeSingle();
             setComments(prev => [...prev, {
               id: fullComment.id,
               content: fullComment.content,
               timestamp: fullComment.created_at,
               authorId: fullComment.user_id,
-              authorName: fullComment.author?.name,
-              authorAvatar: fullComment.author?.avatar
+              authorName: author?.name || 'Unknown',
+              authorAvatar: author?.avatar
             }]);
           }
         }
@@ -70,7 +86,7 @@ function CommentSection({ postId, currentUserId }) {
       await communityService.createComment(postId, currentUserId, newComment);
       setNewComment('');
     } catch (e) {
-      alert("Failed to post comment");
+      notify("Failed to post comment", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +96,7 @@ function CommentSection({ postId, currentUserId }) {
     <div className={styles.commentSection}>
       <div className={styles.commentList} ref={parent}>
         {loading ? (
-          <div className={styles.commentLoading}>Loading comments...</div>
+          <SkeletonCommentList rows={3} />
         ) : comments.map(c => (
           <div key={c.id} className={styles.commentItem}>
             <img src={c.authorAvatar || `https://ui-avatars.com/api/?name=${c.authorName}`} className={styles.commentAvatar} alt="" />
@@ -116,6 +132,7 @@ function CommentSection({ postId, currentUserId }) {
 // --- Main Page Component ---
 export default function CommunityPage() {
   const { user } = useAuth();
+  const { notify } = useNotificationCenter();
   const [posts, setPosts] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -143,19 +160,24 @@ export default function CommunityPage() {
         async (payload) => {
           const { data: newPostData, error } = await supabase
             .from('community_posts')
-            .select(`*, author:profiles(name, avatar), likes:post_likes(user_id), comment_count:community_comments(count)`)
+            .select(`*, likes:post_likes(user_id), comment_count:community_comments(count)`)
             .eq('id', payload.new.id)
             .single();
 
           if (newPostData && !error) {
+            const { data: author } = await supabase
+              .from('profiles_public')
+              .select('name, avatar')
+              .eq('id', newPostData.user_id)
+              .maybeSingle();
             const formatted = {
               id: newPostData.id,
               content: newPostData.content,
               type: newPostData.type,
               image_url: newPostData.image_url,
               authorId: newPostData.user_id,
-              authorName: newPostData.author?.name || 'Unknown',
-              authorAvatar: newPostData.author?.avatar,
+              authorName: author?.name || 'Unknown',
+              authorAvatar: author?.avatar,
               timestamp: newPostData.created_at,
               likes: 0,
               likedBy: [],
@@ -197,7 +219,7 @@ export default function CommunityPage() {
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    if (!user) { alert("Please login to post"); return; }
+    if (!user) { notify("Please login to post", "warning"); return; }
     if (!postContent.trim() && !selectedImage) return;
 
     setIsPosting(true);
@@ -212,14 +234,14 @@ export default function CommunityPage() {
       setSelectedImage(null);
       setImagePreview(null);
     } catch (err) {
-      alert(err.message);
+      notify(err.message, "error");
     } finally {
       setIsPosting(false);
     }
   };
 
   const handleLike = async (postId) => {
-    if (!user) { alert("Please login to like posts"); return; }
+    if (!user) { notify("Please login to like posts", "warning"); return; }
 
     // --- OPTIMISTIC UPDATE ---
     const postIndex = posts.findIndex(p => p.id === postId);
@@ -280,34 +302,63 @@ export default function CommunityPage() {
   };
 
   const leaderboard = getLeaderboard();
-  const trendingTeams = teams.slice(0, 5);
+
+  const filteredPosts = posts.filter((post) => {
+    if (activeTab === 'All') return true;
+    if (activeTab === 'Teams') return /team/i.test(post.type || '');
+    if (activeTab === 'Events') return /event/i.test(post.type || '');
+    return true;
+  });
+
+  const emptyTabCopy = {
+    All: {
+      title: 'No posts yet',
+      description: 'Be the first to share a win, ask for teammates, or post about an upcoming game.',
+    },
+    Teams: {
+      title: 'No team posts',
+      description: 'Posts tagged for teams will show up here once athletes start sharing.',
+    },
+    Events: {
+      title: 'No event posts',
+      description: 'Event-related posts from the community will appear in this feed.',
+    },
+  };
 
   return (
-    <main style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
+    <main className={styles.pageMain}>
       <Navbar />
 
-      <div className="container" style={{ paddingTop: '120px' }}>
+      <div className={`container ${styles.pageContainer}`}>
         <div className={styles.header}>
           <h1>The <span className="primary-gradient-text">Huddle</span></h1>
           <p>Connect with athletes, share victories, and find your next teammate.</p>
         </div>
 
         <div className={styles.tabs}>
-          {[{ name: 'All', icon: '🌟' }, { name: 'Teams', icon: '👥' }, { name: 'Events', icon: '🎪' }].map(tab => (
+          {[{ name: 'All', icon: 'star' }, { name: 'Teams', icon: 'users' }, { name: 'Events', icon: 'calendar' }].map(tab => (
             <button key={tab.name} onClick={() => setActiveTab(tab.name)} className={`${styles.tab} ${activeTab === tab.name ? styles.tabActive : ''}`}>
-              <span style={{ marginRight: '8px' }}>{tab.icon}</span>{tab.name}
+              <Icon name={tab.icon} size={16} className="icon-inline" aria-hidden="true" />
+              {tab.name}
             </button>
           ))}
         </div>
 
+        <div className={styles.contextBar}>
+          <p className={styles.contextMeta}>
+            Showing <strong>{filteredPosts.length}</strong> {filteredPosts.length === 1 ? 'post' : 'posts'}
+            {activeTab !== 'All' ? ` in ${activeTab}` : ''}
+          </p>
+        </div>
+
         <div className={styles.communityLayout}>
-          <div ref={feedParent}>
+          <div>
             {user && (
               <div className={`glass-panel ${styles.postComposer}`}>
                 <form onSubmit={handleCreatePost}>
                   <div className={styles.composerContent}>
-                    <img src={user.avatar} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} className={styles.composerAvatar} alt="" />
-                    <div style={{ flex: 1 }}>
+                    <img src={user.avatar} className={styles.composerAvatar} alt="" />
+                    <div className={styles.composerBody}>
                       <textarea
                         value={postContent}
                         onChange={(e) => setPostContent(e.target.value)}
@@ -318,19 +369,28 @@ export default function CommunityPage() {
                       {imagePreview && (
                         <div className={styles.imagePreviewContainer}>
                           <img src={imagePreview} className={styles.imagePreview} alt="Preview" />
-                          <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className={styles.removeImage}>✕</button>
+                          <button type="button" onClick={() => { setSelectedImage(null); setImagePreview(null); }} className={styles.removeImage} aria-label="Remove image">
+                            <Icon name="x" size={14} />
+                          </button>
                         </div>
                       )}
 
                       <div className={styles.composerActions}>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                          <button type="button" onClick={() => fileInputRef.current?.click()} className={styles.iconAction}>📷</button>
-                          <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" style={{ display: 'none' }} />
-                          <span className={styles.iconAction} style={{ opacity: 0.5 }}>🏆 📍</span>
+                        <div className={styles.composerTools}>
+                          <button type="button" onClick={() => fileInputRef.current?.click()} className={styles.iconAction} aria-label="Add photo">
+                            <Icon name="image" size={18} />
+                          </button>
+                          <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" hidden />
+                          <span className={`${styles.iconAction} ${styles.iconActionDisabled}`} aria-hidden="true" title="Coming soon">
+                            <Icon name="trophy" size={18} />
+                          </span>
+                          <span className={`${styles.iconAction} ${styles.iconActionDisabled}`} aria-hidden="true" title="Coming soon">
+                            <Icon name="location" size={18} />
+                          </span>
                         </div>
-                        <button type="submit" className="btn-primary" style={{ padding: '8px 24px', fontSize: '0.9rem' }} disabled={isPosting}>
-                          {isPosting ? 'Posting...' : 'Post'}
-                        </button>
+                        <Button type="submit" size="small" loading={isPosting} disabled={isPosting || (!postContent.trim() && !selectedImage)}>
+                          Post
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -339,17 +399,32 @@ export default function CommunityPage() {
             )}
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading posts...</div>
+              <SkeletonCommunityFeed count={3} />
+            ) : filteredPosts.length === 0 ? (
+              <EmptyState
+                icon={activeTab === 'Teams' ? 'users' : activeTab === 'Events' ? 'calendar' : 'message'}
+                title={emptyTabCopy[activeTab].title}
+                description={emptyTabCopy[activeTab].description}
+                actionLabel={!user ? 'Sign in to post' : undefined}
+                actionHref={!user ? '/login' : undefined}
+              />
             ) : (
-              <div className={styles.feed} ref={feedParent}>
-                {posts.map(post => (
-                  <div key={post.id} className={`glass-panel ${styles.post}`}>
+              <Stagger className={styles.feed} ref={feedParent}>
+                {filteredPosts.map(post => (
+                  <div key={post.id} className={`glass-panel ticket-card ${styles.post}`}>
                     <div className={styles.postHeader}>
-                      <Link href={`/profile?id=${post.authorId}`}><img src={post.authorAvatar} className={styles.postAuthorAvatar} alt="" /></Link>
-                      <div style={{ flex: 1 }}>
-                        <Link href={`/profile?id=${post.authorId}`} style={{ textDecoration: 'none' }}><div className={styles.postAuthorName}>{post.authorName}</div></Link>
+                      <Link href={`/players/${post.authorId}`}>
+                        <img src={post.authorAvatar} className={styles.postAuthorAvatar} alt="" />
+                      </Link>
+                      <div className={styles.postAuthorMeta}>
+                        <Link href={`/players/${post.authorId}`} className={styles.postAuthorLink}>
+                          <div className={styles.postAuthorName}>{post.authorName}</div>
+                        </Link>
                         <div className={styles.postTime}>{getTimeAgo(post.timestamp)}</div>
                       </div>
+                      {post.type && post.type !== 'General' && (
+                        <span className={styles.postTag}>{post.type}</span>
+                      )}
                     </div>
 
                     <p className={styles.postContent}>{post.content}</p>
@@ -361,11 +436,11 @@ export default function CommunityPage() {
                     )}
 
                     <div className={styles.postActions}>
-                      <button onClick={() => handleLike(post.id)} className={`${styles.likeButton} ${post.likedBy?.includes(user?.id) ? styles.likeButtonActive : ''}`}>
-                        {post.likedBy?.includes(user?.id) ? '❤️' : '🤍'} {post.likes}
+                      <button onClick={() => handleLike(post.id)} className={`${styles.likeButton} ${post.likedBy?.includes(user?.id) ? styles.likeButtonActive : ''}`} aria-pressed={post.likedBy?.includes(user?.id)}>
+                        <Icon name={post.likedBy?.includes(user?.id) ? 'heart' : 'heartOutline'} size={16} className="icon-inline" /> {post.likes}
                       </button>
                       <button onClick={() => toggleComments(post.id)} className={styles.actionButton}>
-                        💬 {post.comments} Comments
+                        <Icon name="message" size={16} className="icon-inline" /> {post.comments} Comments
                       </button>
                     </div>
 
@@ -374,27 +449,34 @@ export default function CommunityPage() {
                     )}
                   </div>
                 ))}
-              </div>
+              </Stagger>
             )}
           </div>
 
           <div className={styles.sidebar}>
-            {/* ... Sidebar content remains same ... */}
+            {loading ? (
+              <SkeletonCommunitySidebar />
+            ) : (
+            <>
             <div className={`glass-panel ${styles.sidebarCard}`}>
-              <h3 className={styles.sidebarTitle}>🏆 Top Athletes</h3>
+              <h3 className={styles.sidebarTitle}>
+                <Icon name="medal" size={18} className="icon-inline" /> Top Athletes
+              </h3>
               <div className={styles.leaderboardList}>
                 {leaderboard.map((athlete, index) => (
                   <div key={athlete.name} className={styles.leaderboardItem}>
                     <div className={styles.rankBadge}>{index + 1}</div>
-                    <img src={athlete.avatar || `https://ui-avatars.com/api/?name=${athlete.name}`} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} alt="" />
+                    <img src={athlete.avatar || `https://ui-avatars.com/api/?name=${athlete.name}`} className={styles.leaderboardAvatar} alt="" />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>{athlete.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{athlete.wins} wins</div>
+                      <div className={styles.leaderboardName}>{athlete.name}</div>
+                      <div className={styles.leaderboardWins}>{athlete.wins} wins</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       </div>

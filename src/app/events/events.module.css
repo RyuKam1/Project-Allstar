@@ -1,5 +1,5 @@
 .main {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 4rem;
 }
 
@@ -23,7 +23,173 @@
   color: var(--text-muted);
 }
 
-/* Unified Filter Styles */
+.contextBar {
+  position: sticky;
+  top: calc(var(--header-height) + 8px);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: color-mix(in srgb, var(--bg-deep) 90%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--border-radius);
+}
+
+.contextMeta {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.contextMeta strong {
+  color: var(--text-main);
+}
+
+/* Unified event card */
+.eventCardLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  height: 100%;
+}
+
+.eventCard {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.eventCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.cardImageContainer {
+  position: relative;
+  height: 200px;
+  background: var(--surface-sunken, #0e0e10);
+  overflow: hidden;
+}
+
+.cardImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.05) saturate(0.9);
+}
+
+.sportFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-header);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.08);
+}
+
+.cardDateBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  min-width: 52px;
+  padding: 8px 10px;
+  background: var(--surface-elevated, #161618);
+  border: 1px solid var(--border-glass);
+  text-align: center;
+  line-height: 1.1;
+}
+
+.cardDateMonth {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-family: var(--font-header);
+}
+
+.cardDateDay {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: var(--font-header);
+}
+
+.cardTypeTag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.cardBody {
+  padding: var(--space-5);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardSport {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-family: var(--font-header);
+  font-weight: 600;
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-4);
+  font-size: 1.2rem;
+  line-height: 1.3;
+  font-family: var(--font-header);
+  font-weight: 700;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardFooter {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-glass);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.cardMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.cardCost {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-family: var(--font-header);
+  white-space: nowrap;
+}
+
+/* Legacy card styles (host modal / older refs) */
 .filters {
   display: flex;
   gap: 0.8rem;
@@ -59,7 +225,7 @@
 .filterButtonActive {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: white !important;
+  color: var(--color-on-primary, #ffffff) !important;
   font-weight: 700;
   box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
@@ -71,15 +237,20 @@
   cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-elevated, var(--bg-card));
+  border: 1px solid var(--border-glass);
   border-radius: 16px;
 }
 
 .card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-glass);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .cardHeader {
@@ -89,8 +260,8 @@
   align-items: center;
   justify-content: center;
   background: #2a2a2a;
-  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0, black 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black 72%, transparent 100%);
 }
 
 .cardEmoji {
@@ -234,7 +405,7 @@
   padding: 12px;
   border-radius: 8px;
   border: none;
-  color: white;
+  color: var(--text-main);
   cursor: pointer;
   font-weight: 700;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -243,7 +414,8 @@
 
 .selectorBtnActive {
   background: var(--color-primary);
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+  color: var(--color-on-primary, #ffffff);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.4);
 }
 
 .formGroup {
@@ -254,16 +426,16 @@
   display: block;
   margin-bottom: 0.6rem;
   font-weight: 600;
-  color: #ccc;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .input, .select {
   width: 100%;
   padding: 14px;
-  background: rgba(255,255,255,0.05);
+  background: var(--surface-elevated, var(--bg-card));
   border: 1px solid var(--border-glass);
-  color: white;
+  color: var(--text-main);
   border-radius: 10px;
   font-size: 1rem;
   transition: all 0.2s;
@@ -299,8 +471,13 @@
 }
 
 .teamItem {
+  width: 100%;
   padding: 12px;
   cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
   border-radius: 8px;
   margin-bottom: 4px;
   transition: all 0.2s;
@@ -309,9 +486,14 @@
   align-items: center;
 }
 
+.teamItem:focus-visible {
+  outline: 2px solid rgba(var(--color-primary-rgb), 0.65);
+  outline-offset: 2px;
+}
+
 .teamItemActive {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary, #ffffff);
 }
 
 /* ================= RESPONSIVE ================= */
@@ -340,5 +522,88 @@
   
   .cardHeader {
     height: 180px;
+  }
+}
+
+.filterFab {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  font-family: var(--font-header);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.filterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary, #fff);
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.desktopFilters {
+  margin-bottom: var(--space-4);
+}
+
+.filterSheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 1.25rem 1.25rem 1.5rem;
+  border-radius: 20px 20px 0 0;
+  margin: 0;
+}
+
+.sheetSection {
+  margin-bottom: 1.25rem;
+}
+
+.sheetLabel {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.sheetPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sheetApply {
+  width: 100%;
+  margin-top: 0.5rem;
+  min-height: 48px;
+}
+
+@media (max-width: 768px) {
+  .filterFab {
+    display: inline-flex;
+  }
+
+  .desktopFilters {
+    display: none;
   }
 }

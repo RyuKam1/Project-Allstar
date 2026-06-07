@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { venueContributionService } from "@/services/venueContributionService";
+import { ModalDismissButton } from "@/components/UI/primitives";
 import styles from "@/components/Community/community-location-form.module.css";
 
 export default function BusinessContributionForm({ venue, onSuccess, onCancel }) {
@@ -50,8 +51,17 @@ export default function BusinessContributionForm({ venue, onSuccess, onCancel })
 
   return (
     <div className={styles.container} style={{ maxWidth: "500px", margin: "0 auto" }}>
-      <h2 className={styles.title}>Suggest Venue Improvements</h2>
-      <p className={styles.subtitle}>Owner will review and approve or reject your suggestions.</p>
+      <div className={styles.titleRow}>
+        <div>
+          <h2 className={styles.title}>Suggest Venue Improvements</h2>
+          <p className={styles.subtitle}>Owner will review and approve or reject your suggestions.</p>
+        </div>
+        <ModalDismissButton
+          onClick={onCancel}
+          label="Close contribution form"
+          disabled={isSubmitting}
+        />
+      </div>
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>

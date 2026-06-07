@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import StarRating from './StarRating';
 import { reviewService } from '@/services/reviewService';
 import { useAuth } from '@/context/AuthContext';
+import { ModalDismissButton } from '@/components/UI/primitives';
 import styles from './review-form.module.css';
 
 /**
@@ -118,12 +119,21 @@ export default function ReviewForm({
 
     return (
         <form onSubmit={handleSubmit} className={`glass-panel ${styles.reviewForm}`}>
-            <h3 className={styles.formTitle}>
-                {existingReview ? 'Update your experience' : `How was your time at ${venueName}?`}
-            </h3>
-            <p className={styles.formSubtitle}>
-                {existingReview ? 'Edit your review below' : 'Share what others should know before visiting'}
-            </p>
+            <div className={styles.formHeader}>
+                <div>
+                    <h3 className={styles.formTitle}>
+                        {existingReview ? 'Update your experience' : `How was your time at ${venueName}?`}
+                    </h3>
+                    <p className={styles.formSubtitle}>
+                        {existingReview ? 'Edit your review below' : 'Share what others should know before visiting'}
+                    </p>
+                </div>
+                <ModalDismissButton
+                    onClick={onCancel}
+                    label="Close review form"
+                    disabled={submitting}
+                />
+            </div>
 
             {/* Star Rating */}
             <div className={styles.ratingSection}>
@@ -209,14 +219,6 @@ export default function ReviewForm({
                                 value={selectedSport}
                                 onChange={(e) => setSelectedSport(e.target.value)}
                                 className={styles.sportSelect}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px',
-                                    borderRadius: '6px',
-                                    background: 'rgba(0,0,0,0.2)',
-                                    border: '1px solid var(--border-color)',
-                                    color: 'var(--text-primary)'
-                                }}
                             >
                                 <option value="">Select a sport...</option>
                                 {sportOptions.map(sport => (

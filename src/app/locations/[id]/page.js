@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Layout/Navbar'; // Import Navbar
 import Link from 'next/link';
@@ -21,7 +21,9 @@ import PendingVenueContributions from '@/components/Locations/PendingVenueContri
 import BusinessContributionForm from '@/components/Locations/BusinessContributionForm';
 import { useAuth } from '@/context/AuthContext';
 import ImageLightbox from '@/components/UI/ImageLightbox';
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
 import { getPlayButtonText } from '@/lib/sportUtils';
+import { Breadcrumbs, EmptyState, SkeletonVenueDetail } from '@/components/UI/primitives';
 import styles from './location-detail.module.css';
 
 export default function LocationDetailPage() {
@@ -30,6 +32,7 @@ export default function LocationDetailPage() {
     const typeParam = searchParams.get('type'); // 'community' or 'business'
 
     const { user } = useAuth();
+    const { notify } = useNotificationCenter();
     const [location, setLocation] = useState(null);
     const [locationType, setLocationType] = useState(typeParam || 'community');
     const [loading, setLoading] = useState(true);
@@ -55,6 +58,7 @@ export default function LocationDetailPage() {
     }, [id, typeParam]);
 
     const [fetchedAddress, setFetchedAddress] = useState(null);
+    const activeCountRefreshTimerRef = useRef(null);
 
     useEffect(() => {
         loadLocationData();
@@ -75,15 +79,22 @@ export default function LocationDetailPage() {
                     filter: `location_id=eq.${id}`
                 },
                 () => {
-                    // Update just the count
-                    playIntentService.getActivePlayerCount(id, locationType)
-                        .then(count => setActivePlayerCount(count))
-                        .catch(err => console.error(err));
+                    if (activeCountRefreshTimerRef.current) {
+                        clearTimeout(activeCountRefreshTimerRef.current);
+                    }
+                    activeCountRefreshTimerRef.current = setTimeout(() => {
+                        playIntentService.getActivePlayerCount(id, locationType)
+                            .then(count => setActivePlayerCount(count))
+                            .catch(err => console.error(err));
+                    }, 1200);
                 }
             )
             .subscribe();
 
         return () => {
+            if (activeCountRefreshTimerRef.current) {
+                clearTimeout(activeCountRefreshTimerRef.current);
+            }
             supabase.removeChannel(channel);
         };
     }, [id, locationType]);
@@ -141,11 +152,29 @@ export default function LocationDetailPage() {
     };
 
     if (loading) {
-        return <div className={styles.loading}>Loading location...</div>;
+        return (
+            <div className={styles.container}>
+                <Navbar />
+                <SkeletonVenueDetail />
+            </div>
+        );
     }
 
     if (!location) {
-        return <div className={styles.notFound}>Location not found</div>;
+        return (
+            <div className={styles.container}>
+                <Navbar />
+                <div className={styles.notFoundWrap}>
+                    <EmptyState
+                        icon="location"
+                        title="Location not found"
+                        description="This spot may have been removed or the link is incorrect."
+                        actionLabel="Browse venues"
+                        actionHref="/venues"
+                    />
+                </div>
+            </div>
+        );
     }
 
     // Normalize fields
@@ -177,6 +206,27 @@ export default function LocationDetailPage() {
     const showSuggestEdit = locationType === 'community';
     const isBusinessOwner = locationType === 'business' && user && location.owner_id === user.id;
     const businessContribEnabled = !!location.booking_config?.allow_community_contributions;
+    const hasBookingLink = locationType === 'business' && location.booking_link;
+    const primaryActionLabel = hasBookingLink
+        ? 'Book Now'
+        : getPlayButtonText(location.sports || location.sport);
+
+    const handlePrimaryAction = () => {
+        if (hasBookingLink) {
+            try {
+                const bookingUrl = new URL(location.booking_link);
+                if (bookingUrl.protocol !== "https:") {
+                    notify("Booking link must use HTTPS.", "warning");
+                    return;
+                }
+                window.open(bookingUrl.toString(), '_blank', 'noopener,noreferrer');
+            } catch {
+                notify("Invalid booking link.", "error");
+            }
+            return;
+        }
+        setShowPlayForm(true);
+    };
 
     return (
         <div className={styles.container}>
@@ -190,6 +240,12 @@ export default function LocationDetailPage() {
                 </div>
 
                 <div className={styles.heroContent}>
+                    <Breadcrumbs
+                        items={[
+                            { label: 'Venues', href: '/venues' },
+                            { label: name },
+                        ]}
+                    />
                     <div className={styles.badges}>
                         {locationType === 'business' && <span className={styles.officialBadge}>Official Venue</span>}
                         {locationType === 'community' && <span className={styles.communityBadge}>Community Spot</span>}
@@ -227,22 +283,22 @@ export default function LocationDetailPage() {
                         <div className={styles.playHeader}>
                             <h2 className={styles.sectionTitle}>Activity</h2>
 
-                            <div className={styles.actionGroup}>
-                                {/* Logic: If it has a booking link, show Book. Otherwise, standard Play flow (even for businesses) */}
-                                {locationType === 'business' && location.booking_link ? (
+                            <div className={`${styles.actionGroup} ${styles.actionGroupPrimary}`}>
+                                {hasBookingLink ? (
                                     <button
+                                        type="button"
                                         className={styles.btnProfessional}
-                                        onClick={() => window.open(location.booking_link, '_blank')}
+                                        onClick={handlePrimaryAction}
                                     >
                                         Book Now
                                     </button>
                                 ) : (
-                                    /* Dynamic Play Text for everyone else (Community OR Free Business) */
                                     <button
-                                        onClick={() => setShowPlayForm(true)}
+                                        type="button"
+                                        onClick={handlePrimaryAction}
                                         className="btn-primary"
                                     >
-                                        {getPlayButtonText(location.sports || location.sport)}
+                                        {primaryActionLabel}
                                     </button>
                                 )}
                             </div>
@@ -477,23 +533,14 @@ export default function LocationDetailPage() {
 
             {/* Edit Location Modal */}
             {showEditForm && location && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 2000,
-                    background: 'rgba(0,0,0,0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '1rem'
-                }}>
-                    <div className="glass-panel" style={{ background: '#1a1a1a', padding: '0', borderRadius: '16px', overflow: 'hidden' }}>
+                <div className="dismiss-backdrop" onClick={() => setShowEditForm(false)}>
+                    <div className="glass-panel dismiss-panel" onClick={(e) => e.stopPropagation()}>
                         {locationType === 'community' ? (
                             <EditLocationForm
                                 location={location}
                                 onSuccess={() => {
                                     setShowEditForm(false);
-                                    loadLocationData(); // Refresh to see applied edits (if auto-applied)
+                                    loadLocationData();
                                 }}
                                 onCancel={() => setShowEditForm(false)}
                             />
@@ -513,22 +560,13 @@ export default function LocationDetailPage() {
 
             {/* Review Form Modal */}
             {showReviewForm && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 2000,
-                    background: 'rgba(0,0,0,0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '1rem'
-                }}>
-                    <div className="glass-panel" style={{ background: '#1a1a1a', padding: '0', borderRadius: '16px', overflow: 'hidden', width: '100%', maxWidth: '600px' }}>
+                <div className="dismiss-backdrop" onClick={() => setShowReviewForm(false)}>
+                    <div className="glass-panel dismiss-panel" onClick={(e) => e.stopPropagation()}>
                         <ReviewForm
                             locationId={id}
                             locationType={locationType}
                             venueName={name}
-                            availableSports={sports} // Pass retrieved sports
+                            availableSports={sports}
                             onSuccess={() => {
                                 setShowReviewForm(false);
                                 loadLocationData();
@@ -538,6 +576,24 @@ export default function LocationDetailPage() {
                     </div>
                 </div>
             )}
+
+            <div className={styles.mobileCta}>
+                <div className={styles.mobileCtaInfo}>
+                    <span className={styles.mobileCtaLabel}>
+                        {hasBookingLink ? 'Reserve' : 'Join activity'}
+                    </span>
+                    <span className={styles.mobileCtaMeta}>
+                        {activePlayerCount} playing soon
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    className={`btn-primary ${styles.mobileCtaButton}`}
+                    onClick={handlePrimaryAction}
+                >
+                    {primaryActionLabel}
+                </button>
+            </div>
         </div>
     );
 }
@@ -551,7 +607,7 @@ async function resolvePublisherInfo(location, locationType) {
         }
 
         const { data: profile } = await supabase
-            .from('profiles')
+            .from('profiles_public')
             .select('name')
             .eq('id', location.created_by)
             .single();
@@ -570,7 +626,7 @@ async function resolvePublisherInfo(location, locationType) {
     const showAsCompany = bookingConfig.owner_display_mode === 'company';
 
     const [{ data: profile }, { data: approvedClaim }] = await Promise.all([
-        supabase.from('profiles').select('name').eq('id', location.owner_id).single(),
+        supabase.from('profiles_public').select('name').eq('id', location.owner_id).single(),
         supabase
             .from('claim_requests')
             .select('business_name')

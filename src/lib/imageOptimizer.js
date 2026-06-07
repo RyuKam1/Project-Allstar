@@ -9,10 +9,10 @@ import { supabase } from './supabaseClient';
  */
 export async function compressImage(file, optionsOverride = {}) {
   const defaultOptions = {
-    maxSizeMB: 0.5, // Max size 0.5MB
-    maxWidthOrHeight: 1200, // Max width/height
+    maxSizeMB: 0.5,
+    maxWidthOrHeight: 1200,
     useWebWorker: true,
-    fileType: 'image/jpeg', // Force convert to JPEG for better compression
+    fileType: 'image/jpeg',
     initialQuality: 0.7
   };
 
@@ -23,9 +23,17 @@ export async function compressImage(file, optionsOverride = {}) {
     return compressedFile;
   } catch (error) {
     console.error('Image compression failed:', error);
-    // Fallback: return original file if compression fails
     return file;
   }
+}
+
+function buildObjectKey(folder, fileExt) {
+  const token =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const safeFolder = String(folder || '').replace(/^\/+|\/+$/g, '');
+  return `${safeFolder}/${token}.${fileExt}`;
 }
 
 /**
@@ -33,35 +41,37 @@ export async function compressImage(file, optionsOverride = {}) {
  * @param {File} file - The image file.
  * @param {string} bucket - Storage bucket name.
  * @param {string} folder - Folder path within bucket.
- * @returns {Promise<string|null>} - Public URL of uploaded image or null.
+ * @returns {Promise<{ publicUrl: string, objectKey: string, bucket: string, mimeType: string, byteSize: number }|null>}
  */
 export async function uploadCompressedImage(file, bucket, folder) {
   try {
-    // 1. Compress
     const compressedFile = await compressImage(file);
+    const fileExt = compressedFile.type?.includes('png') ? 'png' : 'jpg';
+    const objectKey = buildObjectKey(folder, fileExt);
 
-    // 2. Upload
-    const fileExt = compressedFile.name.split('.').pop();
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    
-    // Upload using standard File body (works best with Supabase client)
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
-      .upload(fileName, compressedFile, {
-        cacheControl: '3600',
-        upsert: false
+      .upload(objectKey, compressedFile, {
+        cacheControl: '31536000',
+        upsert: false,
+        contentType: compressedFile.type || 'image/jpeg',
       });
 
     if (error) {
-        throw error;
+      throw error;
     }
 
-    // 3. Get URL
     const { data: { publicUrl } } = supabase.storage
       .from(bucket)
-      .getPublicUrl(fileName);
+      .getPublicUrl(objectKey);
 
-    return publicUrl;
+    return {
+      objectKey,
+      bucket,
+      mimeType: compressedFile.type || 'image/jpeg',
+      byteSize: compressedFile.size,
+      publicUrl,
+    };
   } catch (error) {
     console.error('Upload failed:', error);
     return null;

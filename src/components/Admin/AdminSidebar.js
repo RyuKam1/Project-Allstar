@@ -1,80 +1,43 @@
 import React from 'react';
 import Link from 'next/link';
+import Icon from '@/components/UI/Icon';
+import styles from './admin-sidebar.module.css';
 
 const AdminSidebar = ({ activeTab, onTabChange }) => {
     const tabs = [
-        { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-        { id: 'users', icon: '👥', label: 'Users' },
-        { id: 'venues', icon: '📍', label: 'Venues' },
-        { id: 'teams', icon: '🛡️', label: 'Teams' },
-        { id: 'tournaments', icon: '🏆', label: 'Tournaments' },
-        { id: 'claims', icon: '📝', label: 'Claims' },
+        { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+        { id: 'users', icon: 'users', label: 'Users' },
+        { id: 'venues', icon: 'location', label: 'Venues' },
+        { id: 'teams', icon: 'shield', label: 'Teams' },
+        { id: 'tournaments', icon: 'trophy', label: 'Tournaments' },
+        { id: 'claims', icon: 'document', label: 'Claims' },
+        { id: 'reports', icon: 'warning', label: 'Reports' },
     ];
 
     return (
-        <div style={{ 
-            width: '260px', 
-            background: 'rgba(0,0,0,0.6)', 
-            borderRight: '1px solid var(--border-glass)',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px'
-        }}>
-            <h2 style={{ marginBottom: '20px', paddingLeft: '10px' }}>
-                Admin <span className="primary-gradient-text" style={{fontSize: '1rem'}}>Panel</span>
+        <div className={styles.sidebar}>
+            <h2 className={styles.heading}>
+                Admin <span className={`primary-gradient-text ${styles.headingAccent}`}>Panel</span>
             </h2>
             
             {tabs.map(tab => (
                 <button
                     key={tab.id}
+                    type="button"
                     onClick={() => onTabChange(tab.id)}
-                    className="hover-bg"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '15px',
-                        padding: '12px 15px',
-                        background: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: activeTab === tab.id ? 'black' : 'var(--text-secondary)',
-                        fontWeight: activeTab === tab.id ? 'bold' : 'normal',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.2s',
-                        fontSize: '1rem'
-                    }}
+                    className={`${styles.tabButton} hover-bg ${activeTab === tab.id ? styles.tabButtonActive : ''}`}
                 >
-                    <span style={{ fontSize: '1.2rem' }}>{tab.icon}</span>
+                    <Icon name={tab.icon} size={20} className="icon-inline" />
                     {tab.label}
                 </button>
             ))}
 
-            <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <Link href="/" style={{
-                     display: 'flex',
-                     alignItems: 'center',
-                     gap: '15px',
-                     padding: '12px 15px',
-                     color: 'var(--text-muted)',
-                     textDecoration: 'none',
-                     borderRadius: '8px',
-                     transition: 'all 0.2s'
-                }} className="hover-bg">
-                    <span>🏠</span> Home
+            <div className={styles.footerLinks}>
+                <Link href="/" className={`${styles.footerLink} hover-bg`}>
+                    <Icon name="home" size={20} className="icon-inline" /> Home
                 </Link>
-                <Link href="/profile" style={{
-                     display: 'flex',
-                     alignItems: 'center',
-                     gap: '15px',
-                     padding: '12px 15px',
-                     color: 'var(--text-muted)',
-                     textDecoration: 'none',
-                     borderRadius: '8px',
-                     transition: 'all 0.2s'
-                }} className="hover-bg">
-                    <span>👤</span> My Profile
+                <Link href="/profile" className={`${styles.footerLink} hover-bg`}>
+                    <Icon name="user" size={20} className="icon-inline" /> My Profile
                 </Link>
             </div>
         </div>

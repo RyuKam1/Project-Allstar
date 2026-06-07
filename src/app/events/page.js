@@ -6,11 +6,17 @@ import { tournamentService } from "@/services/tournamentService";
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { teamService } from "@/services/teamService";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import EventCard from "@/components/Events/EventCard";
+import Icon from '@/components/UI/Icon';
+import { SkeletonCardGrid, EmptyState, ModalHeader } from '@/components/UI/primitives';
+import { Stagger } from '@/components/UI/motion';
 import styles from './events.module.css';
 
 export default function EventsAndTournamentsPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { notify } = useNotificationCenter();
   
   // Data State
   const [items, setItems] = useState([]);
@@ -18,6 +24,9 @@ export default function EventsAndTournamentsPage() {
   
   // Filter State
   const [filterSport, setFilterSport] = useState('All');
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+
+  const sportFilters = ['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'];
   
   // Host Modal State
   const [showHostModal, setShowHostModal] = useState(false);
@@ -66,8 +75,7 @@ export default function EventsAndTournamentsPage() {
             location: 'Multiple Venues', // Default for tournaments unless specified
             date: 'Ongoing', // Could be dynamic
             cost: 'Entry Fee',
-            reward: 'Trophy 🏆', // Generic
-            imageGradient: 'linear-gradient(135deg, #FFD700, #FDB931)', // Goldish for Tournaments
+            imageGradient: 'linear-gradient(135deg, #FFD700, #FDB931)',
             teams: t.teams
         }));
 
@@ -88,14 +96,14 @@ export default function EventsAndTournamentsPage() {
   const handleHostSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
-        alert("Please login first");
+        notify("Please login first.", "warning");
         return;
     }
 
     try {
         if (hostType === 'Tournament') {
              if (formData.selectedTeams.length !== 4 && formData.selectedTeams.length !== 8) {
-                alert("Please select 4 or 8 teams for the tournament bracket.");
+                notify("Please select 4 or 8 teams for the tournament bracket.", "warning");
                 return;
              }
              await tournamentService.createTournament({
@@ -118,9 +126,9 @@ export default function EventsAndTournamentsPage() {
         }
         setShowHostModal(false);
         loadData(); // Refresh list
-        alert(`${hostType} created successfully!`);
+        notify(`${hostType} created successfully.`, "success");
     } catch (err) {
-        alert("Failed to create: " + err.message);
+        notify(`Failed to create: ${err.message}`, "error");
     }
   };
 
@@ -129,7 +137,10 @@ export default function EventsAndTournamentsPage() {
     if (selected.find(t => t.id === team.id)) {
         setFormData({ ...formData, selectedTeams: selected.filter(t => t.id !== team.id) });
     } else {
-        if (selected.length >= 8) return alert("Max 8 teams");
+        if (selected.length >= 8) {
+          notify("Maximum 8 teams allowed.", "warning");
+          return;
+        }
         setFormData({ ...formData, selectedTeams: [...selected, team] });
     }
   };
@@ -151,99 +162,118 @@ export default function EventsAndTournamentsPage() {
             </button>
         </div>
 
-        {/* Sport Filters */}
-        <div className="filter-group">
-            {[
-              { name: 'All', icon: '🌟' },
-              { name: 'Basketball', icon: '🏀' },
-              { name: 'Soccer', icon: '⚽' },
-              { name: 'Tennis', icon: '🎾' },
-              { name: 'Volleyball', icon: '🏐' },
-              { name: 'Fitness', icon: '💪' },
-              { name: 'Baseball', icon: '⚾' }
-            ].map(sport => (
+        <div className={styles.contextBar} role="status">
+          <span className={styles.contextMeta}>
+            <strong className="tabular">{activeItems.length}</strong> events · {filterSport}
+          </span>
+          <button
+            type="button"
+            className={styles.filterFab}
+            onClick={() => setShowFilterSheet(true)}
+            aria-label="Open event filters"
+          >
+            <Icon name="chevronDown" size={16} className="icon-inline" />
+            Filters
+            {filterSport !== 'All' ? <span className={styles.filterBadge}>1</span> : null}
+          </button>
+        </div>
+
+        <div className={`filter-group ${styles.desktopFilters}`} role="tablist" aria-label="Sport filters">
+            {sportFilters.map(sport => (
                 <button 
-                    key={sport.name} 
-                    onClick={() => setFilterSport(sport.name)}
-                    className={`filter-pill ${filterSport === sport.name ? 'filter-pill-active' : ''}`}
+                    key={sport} 
+                    type="button"
+                    onClick={() => setFilterSport(sport)}
+                    className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+                    role="tab"
+                    aria-selected={filterSport === sport}
                 >
-                    <span className="icon">{sport.icon}</span>
-                    <span>{sport.name}</span>
+                    <span>{sport}</span>
                 </button>
             ))}
         </div>
 
-        {/* Grid Listing */}
-        {loading ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading...</div> : (
-            <div className="grid-auto-fit">
-                {activeItems.length === 0 && <div className={styles.emptyState}>No events found matching filters.</div>}
-                
-                {activeItems.map(item => (
-                    <div 
-                        key={`${item.kind}_${item.id}`} 
-                        className={`${styles.card} glass-panel`}
-                        onClick={() => router.push(item.kind === 'Tournament' ? `/tournaments/${item.routeId}` : `/events/${item.routeId}`)}
-                    >
-                          {/* Card Header Image/Gradient */}
-                          <div className={styles.cardHeader} style={{ background: item.imageGradient }}>
-                              {/* Content Image with Fallback */}
-                              <img 
-                                src={`/events/${item.title}.webp`} 
-                                alt="" 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                onError={(e) => {
-                                    // If local image fails, hide it and show emoji/kind specific placeholder
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                              <div className={styles.fallbackPlaceholder} style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                                  <span className={styles.cardEmoji}>
-                                     {item.sport === 'Basketball' ? '🏀' : item.sport === 'Soccer' ? '⚽' : '🏆'}
-                                  </span>
-                              </div>
-                              <span className={styles.cardTag}>
-                                 {item.displayType}
-                              </span>
-                          </div>
-                         
-                         <div className={styles.cardContent}>
-                            <h3 className={styles.cardTitle}>{item.title}</h3>
-                            
-                            <div className={styles.cardMeta}>
-                                <div className={styles.row}>
-                                    <span>📅 {item.date}</span>
-                                    <span className={styles.highlight}>{item.cost}</span>
-                                </div>
-                                <div className={styles.row}>
-                                    <span>📍 {item.location}</span>
-                                    <span>🏅 {item.reward}</span>
-                                </div>
-                            </div>
-                         </div>
-                    </div>
-                ))}
-            </div>
+        {loading ? (
+          <SkeletonCardGrid count={6} variant="event" />
+        ) : activeItems.length === 0 ? (
+          <EmptyState
+            icon="calendar"
+            title="No events in this filter"
+            description={
+              filterSport === 'All'
+                ? 'Host a workshop or tournament to get things started.'
+                : `No ${filterSport} events yet. Try another sport or host your own.`
+            }
+            actionLabel={user ? 'Host event' : 'Sign in to host'}
+            onAction={() => (user ? setShowHostModal(true) : router.push('/login'))}
+          />
+        ) : (
+          <Stagger className="grid-auto-fit">
+            {activeItems.map((item) => (
+              <EventCard key={`${item.kind}_${item.id}`} event={item} />
+            ))}
+          </Stagger>
         )}
       </div>
 
       {/* Host Modal */}
+      {showFilterSheet && (
+        <div className="dismiss-backdrop" onClick={() => setShowFilterSheet(false)}>
+          <div
+            className={`glass-panel ticket-card ${styles.filterSheet} dismiss-panel`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Event filters"
+          >
+            <ModalHeader title="Filters" onClose={() => setShowFilterSheet(false)} />
+            <div className={styles.sheetSection}>
+              <p className={styles.sheetLabel}>Sport</p>
+              <div className={styles.sheetPills} role="tablist" aria-label="Sport filters">
+                {sportFilters.map((sport) => (
+                  <button
+                    key={sport}
+                    type="button"
+                    onClick={() => setFilterSport(sport)}
+                    className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+                    role="tab"
+                    aria-selected={filterSport === sport}
+                  >
+                    <span>{sport}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`btn-primary ${styles.sheetApply}`}
+              onClick={() => setShowFilterSheet(false)}
+            >
+              Show {activeItems.length} events
+            </button>
+          </div>
+        </div>
+      )}
+
       {showHostModal && (
         <div className={styles.modalOverlay} onClick={() => setShowHostModal(false)}>
            <div className={`glass-panel ${styles.modal}`} onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHeader}>
-                  <h2 style={{ margin: 0 }}>Host an Event</h2>
-                  <button onClick={() => setShowHostModal(false)} className={styles.modalClose}>×</button>
-              </div>
+              <ModalHeader
+                title="Host an Event"
+                onClose={() => setShowHostModal(false)}
+                closeLabel="Close host event modal"
+              />
 
               <div className={styles.hostSelector}>
                   <button 
+                    type="button"
                     onClick={() => setHostType('Tournament')}
                     className={`${styles.selectorBtn} ${hostType === 'Tournament' ? styles.selectorBtnActive : ''}`}
                   >
                     Tournament
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setHostType('Workshop')}
                     className={`${styles.selectorBtn} ${hostType !== 'Tournament' ? styles.selectorBtnActive : ''}`}
                   >
@@ -308,10 +338,16 @@ export default function EventsAndTournamentsPage() {
                           {allTeams.filter(t => t.sport === formData.sport).map(team => {
                             const isActive = formData.selectedTeams.find(t => t.id === team.id);
                             return (
-                              <div key={team.id} onClick={() => handleToggleTeam(team)} className={`${styles.teamItem} ${isActive ? styles.teamItemActive : ''}`}>
+                              <button
+                                key={team.id}
+                                type="button"
+                                onClick={() => handleToggleTeam(team)}
+                                className={`${styles.teamItem} ${isActive ? styles.teamItemActive : ''}`}
+                                aria-pressed={Boolean(isActive)}
+                              >
                                 <span>{team.name}</span>
                                 {isActive && <span>✓</span>}
-                              </div>
+                              </button>
                             );
                           })}
                           {allTeams.filter(t => t.sport === formData.sport).length === 0 && <div style={{color:'#666', fontSize:'0.9rem', padding: '10px'}}>No teams found for {formData.sport}</div>}

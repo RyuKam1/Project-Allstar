@@ -1,21 +1,35 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
+import Icon from "@/components/UI/Icon";
 import { useParams, useRouter } from 'next/navigation';
 import { eventService } from "@/services/eventService";
 import { useAuth } from "@/context/AuthContext";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import {
+  Breadcrumbs,
+  Tag,
+  Button,
+  EmptyState,
+  SkeletonEventDetail,
+} from '@/components/UI/primitives';
 
 import styles from './event-detail.module.css';
+
+function getSportInitial(sport) {
+  return (sport || "E").charAt(0).toUpperCase();
+}
 
 export default function EventDetails() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { notify, confirm } = useNotificationCenter();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [heroImageFailed, setHeroImageFailed] = useState(false);
 
-  // Player Modal State
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
@@ -26,11 +40,14 @@ export default function EventDetails() {
   }, [params?.id]);
 
   const loadEvent = async () => {
+    setLoading(true);
+    setHeroImageFailed(false);
     try {
       const data = await eventService.getEventById(params.id);
       setEvent(data);
     } catch (error) {
       console.error("Failed to load event", error);
+      setEvent(null);
     } finally {
       setLoading(false);
     }
@@ -38,21 +55,25 @@ export default function EventDetails() {
 
   const handleRegister = async () => {
     if (!user) {
-        alert("Please login to register.");
-        router.push('/login');
-        return;
+      notify("Please login to register.", "warning");
+      router.push('/login');
+      return;
     }
-    if (confirm(`Register for ${event.title}?`)) {
-        setRegistering(true);
-        try {
-            const updated = await eventService.registerForEvent(event.id, user);
-            setEvent(updated);
-            alert("Successfully registered!");
-        } catch (err) {
-            alert(err.message);
-        } finally {
-            setRegistering(false);
-        }
+    const shouldRegister = await confirm(`Register for ${event.title}?`, {
+      confirmLabel: "Register",
+      cancelLabel: "Not now",
+    });
+    if (shouldRegister) {
+      setRegistering(true);
+      try {
+        const updated = await eventService.registerForEvent(event.id, user);
+        setEvent(updated);
+        notify("Successfully registered.", "success");
+      } catch (err) {
+        notify(err.message, "error");
+      } finally {
+        setRegistering(false);
+      }
     }
   };
 
@@ -71,12 +92,31 @@ export default function EventDetails() {
     return `/events/${title}.webp`;
   };
 
-  const handleImageError = (e) => {
-    e.target.style.display = 'none';
-  };
+  if (loading) {
+    return (
+      <main className={styles.main}>
+        <Navbar />
+        <SkeletonEventDetail />
+      </main>
+    );
+  }
 
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '100px' }}>Loading...</div>;
-  if (!event) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '100px' }}>Event not found</div>;
+  if (!event) {
+    return (
+      <main className={styles.main}>
+        <Navbar />
+        <div className={`container ${styles.notFoundWrap}`}>
+          <EmptyState
+            icon="calendar"
+            title="Event not found"
+            description="This event may have been removed or the link is incorrect."
+            actionLabel="Browse events"
+            actionHref="/events"
+          />
+        </div>
+      </main>
+    );
+  }
 
   const spotsLeft = event.maxSpots - event.attendees.length;
   const isFull = spotsLeft <= 0;
@@ -85,152 +125,168 @@ export default function EventDetails() {
   return (
     <main className={styles.main}>
       <Navbar />
-      
-      {/* Hero Header */}
-      <div className={styles.hero} style={{ background: event.imageGradient }}>
-         {/* Background Image with Fallback */}
-         <img 
-            src={getEventImagePath(event.title)} 
-            alt="" 
-            className={styles.heroImage}
-            onError={handleImageError}
-         />
 
-         <div className={`container ${styles.heroContent}`}>
-            <span className="tag" style={{ background: 'white', color: 'black', marginBottom: '1rem', display: 'inline-block' }}>
-                {event.type}
+      <div className={styles.hero}>
+        {!heroImageFailed ? (
+          <img
+            src={getEventImagePath(event.title)}
+            alt=""
+            className={styles.heroImage}
+            onError={() => setHeroImageFailed(true)}
+          />
+        ) : (
+          <div className={styles.heroFallback} aria-hidden="true">
+            {getSportInitial(event.sport)}
+          </div>
+        )}
+        <div className={styles.heroOverlay} aria-hidden="true" />
+
+        <div className={`container ${styles.heroContent}`}>
+          <Breadcrumbs
+            items={[
+              { label: "Events", href: "/events" },
+              { label: event.title },
+            ]}
+          />
+          <Tag className={styles.heroTag}>{event.type}</Tag>
+          <h1 className={styles.heroTitle}>{event.title}</h1>
+          <div className={styles.heroMeta}>
+            <span className={styles.metaItem}>
+              <Icon name="calendar" size={18} className="icon-inline" />
+              {event.date} at {event.time}
             </span>
-            <h1 className={styles.heroTitle}>
-                {event.title}
-            </h1>
-            <div className={styles.heroMeta}>
-                <span>📅 {event.date} at {event.time}</span>
-                <span>📍 {event.location}</span>
-                <span>🏅 {event.sport}</span>
-            </div>
-         </div>
+            <span className={styles.metaItem}>
+              <Icon name="location" size={18} className="icon-inline" />
+              {event.location}
+            </span>
+            <span className={styles.metaItem}>
+              <Icon name="medal" size={18} className="icon-inline" />
+              {event.sport}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className={`container ${styles.detailsLayout}`}>
-        
-        {/* Left Col */}
-        <div className={`glass-panel ${styles.section}`}>
-            <h2>About this Event</h2>
-            <p style={{ lineHeight: '1.6', color: '#ccc', marginBottom: '2rem' }}>
-                {event.description}
-            </p>
+        <div className={`glass-panel ticket-card ${styles.section}`}>
+          <h2 className={styles.sectionTitle}>About this Event</h2>
+          <p className={styles.description}>{event.description}</p>
 
-            <h3>Rules & Info</h3>
-            <ul style={{ paddingLeft: '1.2rem', color: '#ccc', lineHeight: '1.6' }}>
-                <li>No equipment provided, please bring your own.</li>
-                <li>Arrive 15 minutes early for check-in.</li>
-                <li>Respect the venue and other participants.</li>
-            </ul>
+          <h3 className={styles.subsectionTitle}>Rules & Info</h3>
+          <ul className={styles.rulesList}>
+            <li>No equipment provided, please bring your own.</li>
+            <li>Arrive 15 minutes early for check-in.</li>
+            <li>Respect the venue and other participants.</li>
+          </ul>
         </div>
 
-        {/* Right Col */}
         <div className={styles.sidebar}>
-             <div className={`glass-panel ${styles.regCard}`}>
-                <h3 style={{ marginBottom: '1rem' }}>Registration</h3>
-                
-                <div className={styles.regRow}>
-                    <span style={{ color: '#888' }}>Cost</span>
-                    <span className={styles.regValue}>{event.cost}</span>
-                </div>
-                <div className={styles.regRow}>
-                    <span style={{ color: '#888' }}>Reward</span>
-                    <span style={{ color: 'var(--color-accent)', fontWeight: 'bold' }}>{event.reward}</span>
-                </div>
-                <div className={styles.regRow} style={{ marginBottom: '1.5rem' }}>
-                    <span style={{ color: '#888' }}>Spots Left</span>
-                    <span style={{ color: isFull ? 'red' : '#4ade80', fontWeight: 'bold' }}>
-                        {spotsLeft} / {event.maxSpots}
+          <div className={`glass-panel ticket-card ${styles.regCard}`}>
+            <h3 className={styles.cardTitle}>Registration</h3>
+
+            <div className={styles.regRow}>
+              <span className={styles.regLabel}>Cost</span>
+              <span className={styles.regValue}>{event.cost}</span>
+            </div>
+            <div className={styles.regRow}>
+              <span className={styles.regLabel}>Reward</span>
+              <span className={styles.regReward}>{event.reward}</span>
+            </div>
+            <div className={`${styles.regRow} ${styles.regRowLast}`}>
+              <span className={styles.regLabel}>Spots Left</span>
+              <span className={isFull ? styles.spotsFull : styles.spotsOpen}>
+                {spotsLeft} / {event.maxSpots}
+              </span>
+            </div>
+
+            {isRegistered ? (
+              <Button fullWidth disabled className={styles.registeredButton}>
+                <Icon name="check" size={18} className="icon-inline" />
+                You&apos;re going
+              </Button>
+            ) : (
+              <Button
+                fullWidth
+                onClick={handleRegister}
+                loading={registering}
+                disabled={isFull || registering}
+              >
+                {isFull ? 'Sold Out' : 'Register Now'}
+              </Button>
+            )}
+          </div>
+
+          <div className={`glass-panel ${styles.attendeesCard}`}>
+            <h4 className={styles.cardTitle}>Attendees</h4>
+            {event.attendees.length === 0 ? (
+              <span className={styles.emptyAttendees}>Be the first to join!</span>
+            ) : (
+              <div className={styles.attendeesGrid}>
+                {event.attendees.map(a => (
+                  <button
+                    type="button"
+                    key={a.id}
+                    onClick={() => openPlayerModal(a)}
+                    className={styles.attendeeItem}
+                  >
+                    <img
+                      src={a.avatar || `https://ui-avatars.com/api/?name=${a.name}&background=random`}
+                      alt={a.name}
+                      className={styles.attendeeAvatar}
+                    />
+                    <span className={styles.attendeeName}>
+                      {getFirstName(a.name)}
                     </span>
-                </div>
-
-                {isRegistered ? (
-                    <button className="btn-primary" disabled style={{ width: '100%', background: '#4ade80', color: 'black' }}>
-                        ✅ You are Going!
-                    </button>
-                ) : (
-                    <button 
-                        className="btn-primary" 
-                        style={{ width: '100%', opacity: (isFull || registering) ? 0.5 : 1 }}
-                        disabled={isFull || registering}
-                        onClick={handleRegister}
-                    >
-                        {isFull ? 'Sold Out' : (registering ? 'Registering...' : 'Register Now')}
-                    </button>
-                )}
-             </div>
-
-             <div className={`glass-panel ${styles.attendeesCard}`}>
-                 <h4 style={{ marginBottom: '1rem' }}>Attendees</h4>
-                 {event.attendees.length === 0 ? (
-                    <span style={{ color: '#666' }}>Be the first to join!</span>
-                 ) : (
-                    <div className={styles.attendeesGrid}>
-                        {event.attendees.map(a => (
-                            <div 
-                                key={a.id} 
-                                onClick={() => openPlayerModal(a)}
-                                className={styles.attendeeItem}
-                            >
-                                <img 
-                                    src={a.avatar || `https://ui-avatars.com/api/?name=${a.name}&background=random`} 
-                                    alt={a.name}
-                                    className={styles.attendeeAvatar}
-                                />
-                                <span className={styles.attendeeName}>
-                                    {getFirstName(a.name)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                 )}
-             </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-
       </div>
 
-      {/* Athlete Info Modal */}
       {showPlayerModal && selectedPlayer && (
         <div className={styles.modalOverlay} onClick={() => setShowPlayerModal(false)}>
-          <div 
+          <div
             className={`glass-panel ${styles.modalContent}`}
             onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="player-modal-title"
           >
-            <button 
+            <button
+              type="button"
               onClick={() => setShowPlayerModal(false)}
               className={styles.closeButton}
+              aria-label="Close"
             >
-              ×
+              <Icon name="x" size={18} />
             </button>
 
-            <div className={styles.playerInfo} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div 
-                onClick={() => router.push(`/profile?id=${selectedPlayer.id}`)}
-                style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            <div className={styles.playerInfo}>
+              <button
+                type="button"
+                onClick={() => router.push(`/players/${selectedPlayer.id}`)}
+                className={styles.playerProfileLink}
                 title="View Full Profile"
               >
-                <img 
-                  src={selectedPlayer.avatar || `https://ui-avatars.com/api/?name=${selectedPlayer.name}&background=random`} 
-                  alt={selectedPlayer.name} 
+                <img
+                  src={selectedPlayer.avatar || `https://ui-avatars.com/api/?name=${selectedPlayer.name}&background=random`}
+                  alt={selectedPlayer.name}
                   className={styles.playerAvatarLarge}
                 />
-                <h2 style={{ margin: 0, fontSize: '2rem', textDecoration: 'underline', textUnderlineOffset: '4px' }}>
-                    {selectedPlayer.name}
+                <h2 id="player-modal-title" className={styles.playerName}>
+                  {selectedPlayer.name}
                 </h2>
-              </div>
+              </button>
 
-              <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.2rem', marginTop: '0.5rem' }}>
-                 {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || 'Participant'}
+              <div className={styles.playerRole}>
+                {selectedPlayer.sport || 'Athlete'} | {selectedPlayer.positions || 'Participant'}
               </div>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
+              <p className={styles.playerBio}>
                 &quot;{selectedPlayer.bio || `Attendee of ${event.title}`}&quot;
               </p>
 
-              {/* Physical Stats Grid */}
               <div className={styles.playerStatsGrid}>
                 <div className={styles.statItem}>
                   <div className={styles.statLabel}>Height</div>
@@ -250,13 +306,9 @@ export default function EventDetails() {
                 </div>
               </div>
 
-              <button 
-                className="btn-primary" 
-                style={{ width: '100%' }}
-                onClick={() => router.push(`/profile?id=${selectedPlayer.id}`)}
-              >
+              <Button fullWidth onClick={() => router.push(`/players/${selectedPlayer.id}`)}>
                 View Full Profile
-              </button>
+              </Button>
             </div>
           </div>
         </div>

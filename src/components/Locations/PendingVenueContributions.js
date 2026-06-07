@@ -1,11 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { venueContributionService } from "@/services/venueContributionService";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
 import styles from "@/components/Community/pending-edits.module.css";
 
 export default function PendingVenueContributions({ venueId, onUpdate }) {
   const [edits, setEdits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { notify } = useNotificationCenter();
 
   useEffect(() => {
     loadEdits();
@@ -28,7 +30,7 @@ export default function PendingVenueContributions({ venueId, onUpdate }) {
       setEdits((prev) => prev.filter((e) => e.id !== editId));
       if (decision === "applied" && onUpdate) onUpdate();
     } catch (err) {
-      alert(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -75,7 +77,7 @@ export default function PendingVenueContributions({ venueId, onUpdate }) {
 function formatValue(raw) {
   if (!raw) return "None";
   try {
-    const val = JSON.parse(raw);
+    const val = typeof raw === "string" ? JSON.parse(raw) : raw;
     if (Array.isArray(val)) return val.join(", ");
     return String(val);
   } catch {

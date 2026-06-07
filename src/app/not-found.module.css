@@ -1,0 +1,96 @@
+.main {
+  min-height: 100dvh;
+}
+
+.content {
+  padding-top: clamp(100px, 14vh, 140px);
+  padding-bottom: 80px;
+  display: flex;
+  justify-content: center;
+}
+
+.panel {
+  max-width: 560px;
+  width: 100%;
+  padding: clamp(1.75rem, 5vw, 2.5rem);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.courtMark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(var(--color-primary-rgb), 0.25) 49%, rgba(var(--color-primary-rgb), 0.25) 51%, transparent 51%),
+    linear-gradient(0deg, transparent 62%, rgba(var(--color-primary-rgb), 0.18) 62%, rgba(var(--color-primary-rgb), 0.18) 64%, transparent 64%);
+}
+
+.code {
+  font-family: var(--font-header);
+  font-size: var(--text-4xl);
+  color: var(--color-primary);
+  margin: 0 0 var(--space-4);
+  position: relative;
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-2xl);
+  position: relative;
+}
+
+.text {
+  color: var(--text-muted);
+  margin: 0 0 var(--space-6);
+  line-height: 1.6;
+  position: relative;
+}
+
+.quickNav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: var(--space-6);
+  position: relative;
+}
+
+.quickLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.quickLink:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(var(--color-primary-rgb), 0.35);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  position: relative;
+}
+
+.actions a {
+  text-decoration: none;
+}
+
+@media (max-width: 420px) {
+  .quickNav {
+    grid-template-columns: 1fr;
+  }
+}

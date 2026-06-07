@@ -4,6 +4,7 @@ import CircularTimePicker from './CircularTimePicker';
 import { playIntentService } from '@/services/playIntentService';
 import { interactionTrackingService } from '@/services/interactionTrackingService';
 import { useAuth } from '@/context/AuthContext';
+import { ModalDismissButton } from '@/components/UI/primitives';
 import styles from './play-intent-form.module.css';
 
 /**
@@ -112,10 +113,19 @@ export default function PlayIntentForm({ locationId, locationType, locationName,
             <div className={styles.modalOverlay} onClick={onCancel} />
             <div className={styles.modalContent}>
                 <div className={styles.header}>
-                    <h2 className={styles.title}>When are you playing?</h2>
-                    <p className={styles.subtitle}>
-                        Let others know you&apos;ll be at <strong>{locationName}</strong>
-                    </p>
+                    <div className={styles.headerTop}>
+                        <div>
+                            <h2 className={styles.title}>When are you playing?</h2>
+                            <p className={styles.subtitle}>
+                                Let others know you&apos;ll be at <strong>{locationName}</strong>
+                            </p>
+                        </div>
+                        <ModalDismissButton
+                            onClick={onCancel}
+                            label="Close play intent form"
+                            disabled={isSubmitting}
+                        />
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className={styles.form}>

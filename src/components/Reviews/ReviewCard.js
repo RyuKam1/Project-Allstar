@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import StarRating from './StarRating';
 import { reviewService } from '@/services/reviewService';
 import { useAuth } from '@/context/AuthContext';
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
+import Icon from '@/components/UI/Icon';
 import styles from './review-card.module.css';
 
 /**
@@ -14,6 +16,7 @@ import styles from './review-card.module.css';
  */
 export default function ReviewCard({ review, onDelete, onEdit }) {
     const { user } = useAuth();
+    const { notify, confirm } = useNotificationCenter();
     const [showReportDialog, setShowReportDialog] = useState(false);
     const [reportReason, setReportReason] = useState('');
     const [reporting, setReporting] = useState(false);
@@ -28,14 +31,18 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
     });
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this review?')) return;
+        const confirmed = await confirm('Are you sure you want to delete this review?', {
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel'
+        });
+        if (!confirmed) return;
 
         setDeleting(true);
         try {
             await reviewService.deleteReview(review.id);
             if (onDelete) onDelete(review.id);
         } catch (err) {
-            alert(err.message || 'Failed to delete review');
+            notify(err.message || 'Failed to delete review', 'error');
             setDeleting(false);
         }
     };
@@ -44,18 +51,18 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
         e.preventDefault();
 
         if (!reportReason.trim()) {
-            alert('Please provide a reason for reporting');
+            notify('Please provide a reason for reporting', 'warning');
             return;
         }
 
         setReporting(true);
         try {
             await reviewService.reportReview(review.id, reportReason);
-            alert('Thank you for your report. We\'ll review it shortly.');
+            notify('Thank you for your report. We will review it shortly.', 'success');
             setShowReportDialog(false);
             setReportReason('');
         } catch (err) {
-            alert(err.message || 'Failed to report review');
+            notify(err.message || 'Failed to report review', 'error');
         } finally {
             setReporting(false);
         }
@@ -75,10 +82,14 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
                         <div className={styles.userName}>
                             {review.profiles?.name || 'Anonymous'}
                             {review._weight > 2.5 && (
-                                <span title="Top Contributor (High Reputation)" style={{ marginLeft: '6px', fontSize: '0.8em' }}>🏆</span>
+                                <span title="Top Contributor (High Reputation)" style={{ marginLeft: '6px', display: 'inline-flex', verticalAlign: 'middle' }}>
+                                    <Icon name="medal" size={14} />
+                                </span>
                             )}
                             {review._weight >= 1.5 && review._weight <= 2.5 && (
-                                <span title="Verified Player (Confirmed presence)" style={{ marginLeft: '6px', fontSize: '0.8em' }}>✅</span>
+                                <span title="Verified Player (Confirmed presence)" style={{ marginLeft: '6px', display: 'inline-flex', verticalAlign: 'middle', color: 'var(--color-success, #22c55e)' }}>
+                                    <Icon name="check" size={14} />
+                                </span>
                             )}
                         </div>
                         <div className={styles.date}>{formattedDate}</div>
@@ -93,16 +104,18 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
                                 onClick={() => onEdit && onEdit(review)}
                                 className={styles.actionButton}
                                 title="Edit review"
+                                aria-label="Edit review"
                             >
-                                ✏️
+                                <Icon name="edit" size={16} />
                             </button>
                             <button
                                 onClick={handleDelete}
                                 className={styles.actionButton}
                                 disabled={deleting}
                                 title="Delete review"
+                                aria-label="Delete review"
                             >
-                                {deleting ? '⏳' : '🗑️'}
+                                {deleting ? <Icon name="clock" size={16} /> : <Icon name="trash" size={16} />}
                             </button>
                         </>
                     ) : (
@@ -111,8 +124,9 @@ export default function ReviewCard({ review, onDelete, onEdit }) {
                                 onClick={() => setShowReportDialog(true)}
                                 className={styles.reportButton}
                                 title="Report review"
+                                aria-label="Report review"
                             >
-                                ⚠️
+                                <Icon name="warning" size={16} />
                             </button>
                         )
                     )}

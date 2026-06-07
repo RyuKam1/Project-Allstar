@@ -4,6 +4,19 @@
     margin: 0 auto;
 }
 
+.formHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.formHeader > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
 .formTitle {
     font-size: 1.5rem;
     font-weight: 600;
@@ -27,6 +40,16 @@
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.75rem;
+}
+
+.sportSelect {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    background-color: var(--select-bg, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--border-color, var(--border-glass));
+    color: var(--select-text, var(--text-main));
+    font-size: 0.95rem;
 }
 
 .ratingText {

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { communityLocationService } from '@/services/communityLocationService';
 import { interactionTrackingService } from '@/services/interactionTrackingService';
 import { useAuth } from '@/context/AuthContext';
+import { ModalDismissButton } from '@/components/UI/primitives';
+import { COMMUNITY_IMAGE_MAX_COUNT, compressCommunityImageFile } from '@/lib/storageImages';
 import styles from './community-location-form.module.css'; // Reusing styles
 
 /**
@@ -20,9 +22,8 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
 
-    const [images, setImages] = useState([]); // Base64 strings for NEW gallery images
-    const [bannerImage, setBannerImage] = useState(null); // Base64 for Banner
-    const [cardImage, setCardImage] = useState(null); // Base64 for Card
+    const [images, setImages] = useState([]);
+    const [imagePreviews, setImagePreviews] = useState([]);
 
     const availableSports = [
         'Basketball', 'Football', 'Soccer', 'Tennis', 'Volleyball',
@@ -45,47 +46,46 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
         });
     };
 
-    const handleSingleImageUpload = (e, type) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const handleGalleryUpload = async (e) => {
+        const files = Array.from(e.target.files || []);
+        const existingCount = location.images?.length || 0;
+        const totalImages = existingCount + images.length + files.length;
 
-        if (file.size > 5 * 1024 * 1024) {
-            setError('Image must be under 5MB');
+        if (totalImages > COMMUNITY_IMAGE_MAX_COUNT) {
+            setError(`Maximum ${COMMUNITY_IMAGE_MAX_COUNT} images allowed per location`);
             return;
         }
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            if (type === 'banner') setBannerImage(reader.result);
-            if (type === 'card') setCardImage(reader.result);
-        };
-        reader.readAsDataURL(file);
-    };
+        setError('');
 
-    const handleGalleryUpload = (e) => {
-        const files = Array.from(e.target.files);
-        const totalImages = (location.images?.length || 0) + images.length + files.length;
-
-        if (totalImages > 10) {
-            setError('Maximum 10 images allowed per location');
-            return;
-        }
-
-        files.forEach(file => {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                setError('Each image must be under 5MB');
-                return;
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) {
+                setError('Only image files are allowed');
+                continue;
             }
 
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImages(prev => [...prev, reader.result]);
-            };
-            reader.readAsDataURL(file);
-        });
+            try {
+                const compressed = await compressCommunityImageFile(file);
+                const previewUrl = URL.createObjectURL(compressed);
+                setImages(prev => [...prev, compressed]);
+                setImagePreviews(prev => [...prev, previewUrl]);
+            } catch (err) {
+                console.error(err);
+                setError(err.message || 'Failed to process image');
+            }
+        }
+
+        e.target.value = '';
     };
 
     const removeImage = (index) => {
+        setImagePreviews(prev => {
+            const next = [...prev];
+            const removed = next[index];
+            if (removed?.startsWith('blob:')) URL.revokeObjectURL(removed);
+            next.splice(index, 1);
+            return next;
+        });
         setImages(prev => prev.filter((_, i) => i !== index));
     };
 
@@ -112,25 +112,12 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
             if (formData.address !== location.address) {
                 promises.push(communityLocationService.submitEdit(location.id, 'address', formData.address));
             }
-            if (formData.address !== location.address) {
-                promises.push(communityLocationService.submitEdit(location.id, 'address', formData.address));
-            }
 
-            // Sports
             const sportsChanged = JSON.stringify(formData.sports.sort()) !== JSON.stringify((location.sports || []).sort());
             if (sportsChanged) {
                 promises.push(communityLocationService.submitEdit(location.id, 'sports', formData.sports));
             }
 
-            // Banner & Card Images (New Schema Columns)
-            if (bannerImage) {
-                promises.push(communityLocationService.submitEdit(location.id, 'banner_image_url', bannerImage));
-            }
-            if (cardImage) {
-                promises.push(communityLocationService.submitEdit(location.id, 'card_image_url', cardImage));
-            }
-
-            // Gallery Images (Existing Logic)
             if (images.length > 0) {
                 const imagePromises = images.map(img =>
                     communityLocationService.uploadImage(location.id, img)
@@ -152,6 +139,7 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
                 await interactionTrackingService.trackEdit(location.id, 'community');
             }
 
+            setIsSubmitting(false);
             if (onSuccess) onSuccess();
         } catch (err) {
             console.error(err);
@@ -162,91 +150,25 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
 
     return (
         <div className={styles.container} style={{ maxWidth: '500px', margin: '0 auto', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 className={styles.title}>Suggest Edits</h2>
-            <p className={styles.subtitle}>Help improve this spot for everyone.</p>
+            <div className={styles.titleRow}>
+                <div>
+                    <h2 className={styles.title}>Suggest Edits</h2>
+                    <p className={styles.subtitle}>Help improve this spot for everyone.</p>
+                </div>
+                <ModalDismissButton
+                    onClick={onCancel}
+                    label="Close edit form"
+                    disabled={isSubmitting}
+                />
+            </div>
 
             <form onSubmit={handleSubmit} className={styles.form}>
-
-                {/* Specific Image Sections */}
-                <div className={styles.uploadGrid}>
-                    <div className={styles.field}>
-                        <label className={styles.label}>Banner Image</label>
-                        <div className={styles.uploadZone} onClick={() => document.getElementById('banner-upload').click()}>
-                            {bannerImage ? (
-                                <>
-                                    <img src={bannerImage} alt="Banner" className={styles.previewImage} />
-                                    <button
-                                        type="button"
-                                        className={styles.removeBtn}
-                                        onClick={(e) => { e.stopPropagation(); setBannerImage(null); }}
-                                    >
-                                        ×
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <span className={styles.uploadIcon}>🖼️</span>
-                                    <span className={styles.uploadText}>Hero Banner</span>
-                                </>
-                            )}
-                            <input
-                                id="banner-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleSingleImageUpload(e, 'banner')}
-                                className={styles.hiddenInput}
-                            />
-                        </div>
-                    </div>
-
-                    <div className={styles.field}>
-                        <label className={styles.label}>Card Image</label>
-                        <div className={styles.uploadZone} onClick={() => document.getElementById('card-upload').click()}>
-                            {cardImage ? (
-                                <>
-                                    <img src={cardImage} alt="Card" className={styles.previewImage} />
-                                    <button
-                                        type="button"
-                                        className={styles.removeBtn}
-                                        onClick={(e) => { e.stopPropagation(); setCardImage(null); }}
-                                    >
-                                        ×
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <span className={styles.uploadIcon}>📱</span>
-                                    <span className={styles.uploadText}>Card Thumbnail</span>
-                                </>
-                            )}
-                            <input
-                                id="card-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleSingleImageUpload(e, 'card')}
-                                className={styles.hiddenInput}
-                            />
-                        </div>
-                    </div>
-                </div>
-
                 <div className={styles.field}>
                     <label className={styles.label}>Name</label>
                     <input
                         type="text"
                         name="name"
                         value={formData.name}
-                        onChange={handleInputChange}
-                        className={styles.input}
-                    />
-                </div>
-
-                <div className={styles.field}>
-                    <label className={styles.label}>Address</label>
-                    <input
-                        type="text"
-                        name="address"
-                        value={formData.address}
                         onChange={handleInputChange}
                         className={styles.input}
                     />
@@ -292,7 +214,7 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
 
                 {/* Gallery Upload Section */}
                 <div className={styles.field}>
-                    <label className={styles.label}>Gallery Photos</label>
+                    <label className={styles.label}>Gallery Photos (max {COMMUNITY_IMAGE_MAX_COUNT} total)</label>
                     <div className={styles.imageUploadContainer}>
                         <input
                             type="file"
@@ -301,7 +223,7 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
                             accept="image/*"
                             onChange={handleGalleryUpload}
                             className={styles.hiddenInput}
-                            disabled={images.length >= 5}
+                            disabled={(location.images?.length || 0) + images.length >= COMMUNITY_IMAGE_MAX_COUNT}
                             style={{ display: 'none' }}
                         />
                         <label htmlFor="edit-loc-images" className={styles.uploadButton} style={{
@@ -316,9 +238,9 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
                         </label>
 
                         <div className={styles.imagePreviews} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            {images.map((img, idx) => (
+                            {imagePreviews.map((img, idx) => (
                                 <div key={idx} className={styles.previewItem} style={{ position: 'relative', width: '80px', height: '80px' }}>
-                                    <img src={img} alt={`Preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                                    <img src={img} alt={`Preview ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
                                     <button
                                         type="button"
                                         onClick={() => removeImage(idx)}

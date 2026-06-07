@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { interactionTrackingService } from "./interactionTrackingService";
+import { getPublicProfilesMap } from "./publicProfileService";
 import { sanitizeText } from "@/lib/security/inputSanitizer";
 
 /**
@@ -51,7 +52,7 @@ export const reviewService = {
                 images: images.length > 0 ? images : null,
                 played_sport: playedSport
             })
-            .select(`*, profiles:user_id (id, name, avatar)`)
+            .select('*')
             .single();
 
         if (error) throw new Error(error.message);
@@ -63,7 +64,11 @@ export const reviewService = {
         // Or just let the review weight logic handle it eventually via visits.
         // For now, simple interaction tracking is enough.
 
-        return data;
+        const profileMap = await getPublicProfilesMap([data.user_id]);
+        return {
+            ...data,
+            profiles: profileMap.get(data.user_id) || null
+        };
     },
 
     /**
@@ -74,13 +79,15 @@ export const reviewService = {
     getReviews: async (locationId, locationType) => {
         const { data: reviews, error } = await supabase
             .from('venue_reviews')
-            .select(`*, profiles:user_id (id, name, avatar)`)
+            .select('*')
             .eq('location_id', locationId.toString())
             .eq('location_type', locationType)
             .order('created_at', { ascending: false });
 
         if (error) throw new Error(error.message);
         if (!reviews || reviews.length === 0) return [];
+
+        const profileMap = await getPublicProfilesMap(reviews.map((review) => review.user_id));
 
         // Calculate weight for each review
         const reviewsWithWeights = await Promise.all(
@@ -99,6 +106,7 @@ export const reviewService = {
 
                 return {
                     ...review,
+                    profiles: profileMap.get(review.user_id) || null,
                     _weight: weight // Internal field for sorting
                 };
             })
@@ -188,11 +196,15 @@ export const reviewService = {
             })
             .eq('id', reviewId)
             .eq('user_id', user.id)
-            .select(`*, profiles:user_id (id, name, avatar)`)
+            .select('*')
             .single();
 
         if (error) throw new Error(error.message);
-        return data;
+        const profileMap = await getPublicProfilesMap([data.user_id]);
+        return {
+            ...data,
+            profiles: profileMap.get(data.user_id) || null
+        };
     },
 
     /**
@@ -204,13 +216,42 @@ export const reviewService = {
 
         const { data, error } = await supabase
             .from('venue_reviews')
-            .select(`*, profiles:user_id (id, name, avatar)`)
+            .select('*')
             .eq('location_id', locationId.toString())
             .eq('location_type', locationType)
             .eq('user_id', user.id)
             .single();
 
         if (error) return null;
-        return data;
+        const profileMap = await getPublicProfilesMap([data.user_id]);
+        return {
+            ...data,
+            profiles: profileMap.get(data.user_id) || null
+        };
+    },
+
+    /**
+     * Report a review for moderation.
+     */
+    reportReview: async (reviewId, reason) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in");
+
+        const safeReason = sanitizeText(reason, 1200);
+        if (!safeReason || safeReason.length < 5) {
+            throw new Error("Please provide a short reason");
+        }
+
+        const { error } = await supabase
+            .from('review_reports')
+            .upsert({
+                review_id: reviewId,
+                reporter_id: user.id,
+                reason: safeReason,
+                status: 'pending'
+            }, { onConflict: 'review_id,reporter_id' });
+
+        if (error) throw new Error(error.message);
+        return true;
     }
 };

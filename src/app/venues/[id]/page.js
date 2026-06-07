@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
+import Icon from "@/components/UI/Icon";
 import BookingModal from "@/components/UI/BookingModal";
 import ReviewForm from "@/components/Reviews/ReviewForm";
 import ReviewList from "@/components/Reviews/ReviewList";
@@ -11,12 +12,20 @@ import { venueService } from "@/services/venueService";
 import { reviewService } from "@/services/reviewService";
 import { userInteractionService } from "@/services/userInteractionService";
 import { useAuth } from "@/context/AuthContext";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import {
+  Breadcrumbs,
+  Tag,
+  EmptyState,
+  SkeletonVenueDetail,
+} from '@/components/UI/primitives';
 import styles from './venue-detail.module.css';
 import { extractDominantColor } from '@/utils/colorUtils';
 
 export default function VenueDetails() {
   const params = useParams();
   const { user } = useAuth();
+  const { notify } = useNotificationCenter();
   const [showBooking, setShowBooking] = useState(false);
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -86,7 +95,7 @@ export default function VenueDetails() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("File is too large (Max 5MB)");
+      notify("File is too large (Max 5MB).", "warning");
       return;
     }
 
@@ -97,7 +106,7 @@ export default function VenueDetails() {
         const updatedVenue = await venueService.uploadVenueImage(venue.id, reader.result);
         setVenue(updatedVenue);
       } catch (err) {
-        alert("Failed to upload image");
+        notify("Failed to upload image.", "error");
       } finally {
         setUploading(false);
       }
@@ -132,16 +141,26 @@ export default function VenueDetails() {
 
   if (loading) {
     return (
-      <main className={styles.loading}>
-        <h2>Loading venue...</h2>
+      <main className={styles.main}>
+        <Navbar />
+        <SkeletonVenueDetail />
       </main>
     );
   }
 
   if (!venue) {
     return (
-      <main className={styles.loading}>
-        <h2>Venue not found</h2>
+      <main className={styles.main}>
+        <Navbar />
+        <div className={`container ${styles.notFoundWrap}`}>
+          <EmptyState
+            icon="location"
+            title="Venue not found"
+            description="This venue may have been removed or the link is incorrect."
+            actionLabel="Browse venues"
+            actionHref="/venues"
+          />
+        </div>
       </main>
     );
   }
@@ -172,23 +191,35 @@ export default function VenueDetails() {
         <div className={styles.heroGradientOverlay} />
 
         <div className={`container ${styles.heroContent}`}>
-          <span className={styles.tag}>
-            {venue.type}
-          </span>
+          <Breadcrumbs
+            items={[
+              { label: "Venues", href: "/venues" },
+              { label: venue.name },
+            ]}
+          />
+          <Tag className={styles.heroTag}>{venue.type}</Tag>
           <h1 className={styles.title}>{venue.name}</h1>
           <div className={styles.meta}>
-            <span>📍 {venue.location}</span>
+            <span className={styles.metaItem}>
+              <Icon name="location" size={18} className="icon-inline" />
+              {venue.location}
+            </span>
             {reviewStats && reviewStats.totalReviews > 0 ? (
-              <span className={styles.ratingMeta}>
+              <span className={`${styles.metaItem} ${styles.ratingMeta}`}>
                 <StarRating rating={reviewStats.averageRating} size="small" />
                 <span className={styles.ratingText}>
                   {reviewStats.averageRating.toFixed(1)} ({reviewStats.totalReviews} {reviewStats.totalReviews === 1 ? 'review' : 'reviews'})
                 </span>
               </span>
             ) : (
-              <span>⭐ No reviews yet</span>
+              <span className={styles.metaItem}>
+                <Icon name="star" size={18} className="icon-inline" />
+                No reviews yet
+              </span>
             )}
-            <span>💲 {venue.price}</span>
+            <span className={styles.metaItem}>
+              {venue.price}
+            </span>
           </div>
         </div>
       </div>
@@ -225,7 +256,7 @@ export default function VenueDetails() {
                       cursor: uploading ? 'wait' : 'pointer'
                     }}
                   >
-                    {uploading ? 'Uploading...' : 'Add Photo 📷'}
+                    {uploading ? 'Uploading...' : 'Add Photo'}
                   </label>
                 </div>
               )}
@@ -318,7 +349,7 @@ export default function VenueDetails() {
 
         {/* Right Column - Booking Card & Review Stats */}
         <div className={styles.sidebarSticky}>
-          <div className={`glass-panel ${styles.bookingCard}`}>
+          <div className={`glass-panel ticket-card ${styles.bookingCard}`}>
             <h3 className={styles.bookingTitle}>Reserve Your Spot</h3>
             <p className={styles.bookingSubtitle}>
               Instant confirmation. No hidden fees.
@@ -349,23 +380,38 @@ export default function VenueDetails() {
       </div>
 
       {showBooking && <BookingModal venue={venue} onClose={() => setShowBooking(false)} />}
+
+      <div className={styles.mobileCta}>
+        <div className={styles.mobileCtaInfo}>
+          <span className={styles.mobileCtaLabel}>From</span>
+          <span className={styles.mobileCtaPrice}>{venue.price}</span>
+        </div>
+        <button
+          type="button"
+          className={`btn-primary ${styles.mobileCtaButton}`}
+          onClick={handleBooking}
+        >
+          Book Now
+        </button>
+      </div>
     </main>
   );
 }
 
 // --- Local Component: Play Intent Widget ---
 function PlayIntentWidget({ venueId, user }) {
+    const { notify } = useNotificationCenter();
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
     const [date, setDate] = useState(''); // YYYY-MM-DDThh:mm
 
     const handleIntent = async () => {
         if (!user) {
-            alert("Please log in to share your plans.");
+            notify("Please log in to share your plans.", "warning");
             return;
         }
         if (!date) {
-            alert("When are you playing?");
+            notify("When are you playing?", "warning");
             return;
         }
         setSending(true);
@@ -379,7 +425,7 @@ function PlayIntentWidget({ venueId, user }) {
                     setDate('');
                 }, 3000);
             } else {
-                alert("Could not save intent. Try again.");
+                notify("Could not save intent. Try again.", "error");
             }
         } catch (e) {
             console.error(e);
@@ -397,7 +443,7 @@ function PlayIntentWidget({ venueId, user }) {
             
             {sent ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#4ade80', fontWeight: 'bold' }}>
-                    See you there! 🏀
+                    See you there — you&apos;re booked.
                 </div>
             ) : (
                 <div style={{ marginTop: '15px' }}>

@@ -1,4 +1,23 @@
 import { supabase } from "@/lib/supabaseClient";
+import { enrichLocationImageRow } from "@/lib/storageImages";
+
+async function getCommunityLocationPreview(locationId) {
+  const [{ data: loc }, { data: imageRow }] = await Promise.all([
+    supabase.from("community_locations").select("name").eq("id", locationId).maybeSingle(),
+    supabase
+      .from("location_images")
+      .select("object_key, storage_bucket, mime_type, byte_size, image_url")
+      .eq("location_id", locationId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    name: loc?.name || "Unknown Location",
+    image: enrichLocationImageRow(imageRow)?.image_url || null,
+  };
+}
 
 /**
  * Play Intent Service
@@ -220,17 +239,9 @@ export const playIntentService = {
                 let locationImage = null;
 
                 if (intent.location_type === 'community') {
-                    // Fetch from community_locations
-                    const { data: loc } = await supabase
-                        .from('community_locations')
-                        .select('name, images')
-                        .eq('id', intent.location_id)
-                        .single();
-
-                    if (loc) {
-                        locationName = loc.name;
-                        locationImage = loc.images?.[0]?.image_url || null;
-                    }
+                    const preview = await getCommunityLocationPreview(intent.location_id);
+                    locationName = preview.name;
+                    locationImage = preview.image;
                 } else {
                     // Fetch from venues (business)
                     // Assuming 'venues' table. If using a service, we might need to be careful about circular deps or just use direct DB call for speed.
@@ -319,15 +330,9 @@ export const playIntentService = {
                 let locationImage = null;
 
                 if (intent.location_type === 'community') {
-                    const { data: loc } = await supabase
-                        .from('community_locations')
-                        .select('name, images')
-                        .eq('id', intent.location_id)
-                        .single();
-                    if (loc) {
-                        locationName = loc.name;
-                        locationImage = loc.images?.[0]?.image_url || null;
-                    }
+                    const preview = await getCommunityLocationPreview(intent.location_id);
+                    locationName = preview.name;
+                    locationImage = preview.image;
                 } else {
                     const { data: loc } = await supabase
                         .from('venues')

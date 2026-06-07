@@ -1,7 +1,15 @@
 .main {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding-top: clamp(100px, 15vh, 140px);
   padding-bottom: 4rem;
+}
+
+.breadcrumbWrap {
+  margin-bottom: 1.25rem;
+}
+
+.notFoundWrap {
+  padding-top: 2rem;
 }
 
 .teamHeader {
@@ -35,7 +43,7 @@
   bottom: 0;
   right: 0;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary, #ffffff);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -114,6 +122,63 @@
   letter-spacing: 1px;
 }
 
+.joinPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  min-width: 140px;
+}
+
+.joinBtn {
+  font-size: 0.9rem;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.joinPending {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.cancelRequestBtn {
+  background: transparent;
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 36px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.cancelRequestBtn:hover {
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.loginPrompt {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: right;
+  max-width: 160px;
+  line-height: 1.45;
+}
+
+.loginPrompt a {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.loginPrompt a:hover {
+  text-decoration: underline;
+}
+
 .teamLayout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -163,7 +228,7 @@
 
 .requestCount {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary, #ffffff);
   font-size: 0.75rem;
   padding: 3px 10px;
   border-radius: 12px;
@@ -542,12 +607,44 @@
 }
 
 .careerList {
-  max-height: 180px;
+  --career-visible-rows: 5;
+  --career-row-height: 2.75rem;
+  --career-row-gap: 0.75rem;
+  max-height: calc(
+    var(--career-visible-rows) * var(--career-row-height)
+    + (var(--career-visible-rows) - 1) * var(--career-row-gap)
+  );
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--career-row-gap);
   padding-right: 0.5rem;
+}
+
+.careerList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.careerList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+@media (max-width: 600px) {
+  .careerList {
+    --career-visible-rows: 4;
+    max-height: min(
+      calc(
+        var(--career-visible-rows) * var(--career-row-height)
+        + (var(--career-visible-rows) - 1) * var(--career-row-gap)
+      ),
+      40dvh
+    );
+  }
 }
 
 .careerItem {

@@ -1,5 +1,5 @@
 .main {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 4rem;
 }
 
@@ -78,7 +78,7 @@
   border-radius: 12px;
   border: 1px solid var(--border-glass);
   background: rgba(255, 255, 255, 0.05);
-  color: white;
+  color: var(--text-main);
   font-size: 1rem;
   transition: all 0.2s;
 }
@@ -99,6 +99,11 @@
 }
 
 .teamItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
   padding: 10px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-glass);
@@ -108,13 +113,18 @@
   align-items: center;
 }
 
+.teamItem:focus-visible {
+  outline: 2px solid rgba(var(--color-primary-rgb), 0.7);
+  outline-offset: 2px;
+}
+
 .teamItem:last-child {
   border-bottom: none;
 }
 
 .teamItemActive {
   background: var(--color-primary);
-  color: white !important;
+  color: var(--color-on-primary, #ffffff) !important;
 }
 
 .modalActions {
@@ -176,7 +186,7 @@
 .filterButtonActive {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: white !important;
+  color: var(--color-on-primary, #ffffff) !important;
   font-weight: 700;
   box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
@@ -189,6 +199,11 @@
 
 .tournamentCard:hover {
   transform: translateY(-4px);
+}
+
+.tournamentCard:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .cardHeader {

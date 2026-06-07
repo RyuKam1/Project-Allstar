@@ -1,214 +1,307 @@
 "use client";
-import React, { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import Navbar from "@/components/Layout/Navbar";
-import { businessService } from '@/services/businessService';
+import { businessService } from "@/services/businessService";
+import { venueService } from "@/services/venueService";
+import { communityLocationService } from "@/services/communityLocationService";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+import Icon from "@/components/UI/Icon";
+import { Field, EmptyState, SkeletonList, Tag } from "@/components/UI/primitives";
+import styles from "./claim.module.css";
+
+async function searchClaimableVenues(query) {
+  const [official, community] = await Promise.all([
+    venueService.searchVenues(query),
+    communityLocationService.searchLocations(query),
+  ]);
+
+  return [
+    ...official.map((v) => ({ ...v, _claimType: "business" })),
+    ...community.map((v) => ({ ...v, _claimType: "community" })),
+  ];
+}
 
 function ClaimVenueContent() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    
-    // Initial State from URL
-    const initialVenueId = searchParams.get('id');
-    const initialVenueType = searchParams.get('type'); // 'business' or 'community'
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { notify } = useNotificationCenter();
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [results, setResults] = useState([]);
-    
-    // Initialize selectedVenue if ID is present (we might need to fetch name, but for now let's assume flow starts from card)
-    // Actually, improved UX: If ID is present, we should probably fetch the venue details to show "Claiming: VenueName".
-    // For speed, let's wait for user to search OR if they came from a card, we trust the ID.
-    // Better yet: Just rely on the search flow for now, OR update this to fetch.
-    // Let's implement the search-first flow correctly, but ensure we pass 'type'.
-    
-    // Correction: The user flow usually is -> Click Claim on Card -> Land here. 
-    // So we SHOULD fetch if ID exists.
-    
-    const [selectedVenue, setSelectedVenue] = useState(null);
-    const [venueType, setVenueType] = useState(initialVenueType || 'business');
+  const initialVenueId = searchParams.get("id");
+  const initialVenueType = searchParams.get("type");
 
-    // ... existing search state ...
-    const [isSearching, setIsSearching] = useState(false);
-    const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [venueType, setVenueType] = useState(initialVenueType || "business");
+  const [isSearching, setIsSearching] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    businessName: "",
+    contactEmail: "",
+    contactPhone: "",
+  });
 
-    // FETCH ON MOUNT if ID exists
-    React.useEffect(() => {
-        if (initialVenueId) {
-            const fetchVenue = async () => {
-                const table = initialVenueType === 'community' ? 'community_locations' : 'venues';
-                const { data, error } = await supabase
-                    .from(table)
-                    .select('*')
-                    .eq('id', initialVenueId)
-                    .single();
-                
-                if (data && !error) {
-                    setSelectedVenue(data);
-                    setVenueType(initialVenueType || 'business');
-                }
-            };
-            fetchVenue();
-        }
-    }, [initialVenueId, initialVenueType]);
+  useEffect(() => {
+    if (!initialVenueId) return;
 
-    // ... handleInput ...
+    const fetchVenue = async () => {
+      const table =
+        initialVenueType === "community" ? "community_locations" : "venues";
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("id", initialVenueId)
+        .single();
 
-    const handleClaimSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-
-        try {
-            // Pass venueType to service
-            await businessService.claimVenue(selectedVenue.id, formData, venueType);
-            alert("Claim request submitted! We will verify your details.");
-            router.push('/business/dashboard');
-        } catch (error) {
-            console.error(error);
-            alert("Error submitting claim: " + error.message);
-        } finally {
-            setLoading(false);
-        }
+      if (data && !error) {
+        setSelectedVenue(data);
+        setVenueType(initialVenueType || "business");
+      }
     };
 
-    return (
-        <>
-            <Navbar />
-            <div className="container" style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '800px' }}>
+    fetchVenue();
+  }, [initialVenueId, initialVenueType]);
 
-                <h1 style={{ marginBottom: '10px' }}>Claim Your Venue</h1>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '40px' }}>
-                    Find your venue on Project AllStar and verify ownership to gain control.
-                </p>
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setResults([]);
+      return undefined;
+    }
 
-                {/* Step 1: Search */}
-                {!selectedVenue && (
-                    <div className="glass-panel" style={{ padding: '30px' }}>
-                        <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', gap: '10px' }}>
-                            <input
-                                type="text"
-                                placeholder="Search venue name..."
-                                value={searchQuery}
-                                onChange={handleInput}
-                                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.05)', color: 'white' }}
-                            />
-                            <button type="button" className="btn-primary" disabled={isSearching} style={{ width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                🔍
-                            </button>
-                        </form>
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const merged = await searchClaimableVenues(trimmed);
+        setResults(merged);
+      } catch (error) {
+        console.error(error);
+        notify("Could not search venues. Try again.", "error");
+      } finally {
+        setIsSearching(false);
+      }
+    }, 320);
 
-                        <div style={{ marginTop: '20px' }}>
-                            {isSearching && (
-                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
-                                    <span className="jumping-dots">Searching</span>
-                                </div>
-                            )}
+    return () => clearTimeout(timer);
+  }, [searchQuery, notify]);
 
-                            {!isSearching && results.map(venue => (
-                                <div
-                                    key={venue.id}
-                                    onClick={() => setSelectedVenue(venue)}
-                                    style={{
-                                        padding: '15px',
-                                        borderBottom: '1px solid var(--border-glass)',
-                                        cursor: 'pointer',
-                                        transition: 'background 0.2s'
-                                    }}
-                                    className="hover-bg"
-                                >
-                                    <div style={{ fontWeight: 'bold' }}>{venue.name}</div>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                        {venue.sports?.join(', ')} • {venue.description?.substring(0, 50)}...
-                                    </div>
-                                </div>
-                            ))}
+  const handleSelectVenue = (venue) => {
+    setSelectedVenue(venue);
+    setVenueType(venue._claimType || "business");
+  };
 
-                            {!isSearching && results.length === 0 && searchQuery.trim().length > 0 && (
-                                <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '20px' }}>No venues found.</p>
-                            )}
-                        </div>
+  const handleClaimSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await businessService.claimVenue(selectedVenue.id, formData, venueType);
+      notify("Claim request submitted. We will verify your details.", "success");
+      router.push("/business/dashboard");
+    } catch (error) {
+      console.error(error);
+      notify(`Error submitting claim: ${error.message}`, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentStep = selectedVenue ? 2 : 1;
+
+  return (
+    <main className={styles.main}>
+      <Navbar />
+      <div className={`container ${styles.container}`}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Claim your venue</h1>
+          <p className={styles.subtitle}>
+            Find your listing on Project AllStar, verify ownership, and unlock
+            the business dashboard.
+          </p>
+        </div>
+
+        <div className={styles.steps} aria-label="Claim progress">
+          <span
+            className={`${styles.step} ${currentStep >= 1 ? styles.stepActive : ""} ${currentStep > 1 ? styles.stepDone : ""}`}
+          >
+            <span className={styles.stepNum}>1</span>
+            Find venue
+          </span>
+          <span
+            className={`${styles.step} ${currentStep >= 2 ? styles.stepActive : ""}`}
+          >
+            <span className={styles.stepNum}>2</span>
+            Verify details
+          </span>
+        </div>
+
+        {!selectedVenue && (
+          <div className={`glass-panel ticket-card ${styles.panel}`}>
+            <form
+              onSubmit={(e) => e.preventDefault()}
+              className={styles.searchForm}
+            >
+              <input
+                type="search"
+                placeholder="Search by venue name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.searchInput}
+                aria-label="Search venues to claim"
+              />
+              <button
+                type="button"
+                className={`btn-primary ${styles.searchBtn}`}
+                disabled={isSearching}
+                aria-label="Search venues"
+              >
+                <Icon name="search" size={18} />
+              </button>
+            </form>
+
+            <div className={styles.results}>
+              {isSearching && (
+                <div className={styles.searching}>
+                  <span className="jumping-dots">Searching</span>
+                </div>
+              )}
+
+              {!isSearching &&
+                results.map((venue) => (
+                  <button
+                    key={`${venue._claimType}-${venue.id}`}
+                    type="button"
+                    onClick={() => handleSelectVenue(venue)}
+                    className={styles.resultBtn}
+                    aria-label={`Select venue ${venue.name}`}
+                  >
+                    <div className={styles.resultName}>{venue.name}</div>
+                    <div className={styles.resultMeta}>
+                      <Tag>
+                        {venue._claimType === "community"
+                          ? "Community"
+                          : "Official"}
+                      </Tag>
+                      {(venue.sports?.join(", ") || venue.sport || "Sports venue")}
                     </div>
+                  </button>
+                ))}
+
+              {!isSearching &&
+                searchQuery.trim().length > 0 &&
+                results.length === 0 && (
+                  <EmptyState
+                    icon="search"
+                    title="No venues found"
+                    description="Try a different name, or add your venue on the map first."
+                    actionLabel="Browse venues"
+                    actionHref="/venues"
+                  />
                 )}
 
-                {/* Step 2: Claim Form */}
-                {selectedVenue && (
-                    <div className="glass-panel" style={{ padding: '40px' }}>
-                        <button
-                            onClick={() => setSelectedVenue(null)}
-                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', marginBottom: '20px', cursor: 'pointer' }}
-                        >
-                            ← Back to search
-                        </button>
-
-                        <h2 style={{ marginBottom: '20px' }}>Claiming: <span className="primary-gradient-text">{selectedVenue.name}</span></h2>
-
-                        <form onSubmit={handleClaimSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Official Business Name</label>
-                                <input
-                                    required
-                                    type="text"
-                                    value={formData.businessName}
-                                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                                    className="input-field"
-                                    placeholder="e.g. Downtown Sports LLC"
-                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)', color: 'white' }}
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Business Email</label>
-                                <input
-                                    required
-                                    type="email"
-                                    value={formData.contactEmail}
-                                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                                    className="input-field"
-                                    placeholder="official@venue.com"
-                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)', color: 'white' }}
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Phone Number</label>
-                                <input
-                                    required
-                                    type="tel"
-                                    value={formData.contactPhone}
-                                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                                    className="input-field"
-                                    placeholder="(555) 123-4567"
-                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-glass)', color: 'white' }}
-                                />
-                            </div>
-
-                            <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(var(--color-primary-rgb), 0.1)', borderRadius: '8px' }}>
-                                <p style={{ fontSize: '0.9rem' }}>
-                                    By clicking submit, you confirm that you are the authorized representative of this venue.
-                                    False claims may result in account suspension.
-                                </p>
-                            </div>
-
-                            <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', marginTop: '10px' }}>
-                                {loading ? 'Submitting...' : 'Submit Claim Request'}
-                            </button>
-                        </form>
-                    </div>
-                )}
-
+              {!isSearching && searchQuery.trim().length === 0 && (
+                <EmptyState
+                  icon="location"
+                  title="Search to get started"
+                  description="Enter your venue name to find the listing you want to claim."
+                />
+              )}
             </div>
-        </>
-    );
+          </div>
+        )}
+
+        {selectedVenue && (
+          <div className={`glass-panel ticket-card ${styles.panel}`}>
+            <button
+              type="button"
+              onClick={() => setSelectedVenue(null)}
+              className={styles.backBtn}
+            >
+              ← Back to search
+            </button>
+
+            <h2 className={styles.claimTitle}>
+              Claiming{" "}
+              <span className="primary-gradient-text">{selectedVenue.name}</span>
+            </h2>
+
+            <form onSubmit={handleClaimSubmit} className={styles.claimForm}>
+              <Field id="claim-business-name" label="Official business name" required>
+                <input
+                  id="claim-business-name"
+                  required
+                  type="text"
+                  value={formData.businessName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, businessName: e.target.value })
+                  }
+                  className={styles.input}
+                  placeholder="e.g. Downtown Sports LLC"
+                />
+              </Field>
+
+              <Field id="claim-email" label="Business email" required>
+                <input
+                  id="claim-email"
+                  required
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contactEmail: e.target.value })
+                  }
+                  className={styles.input}
+                  placeholder="official@venue.com"
+                />
+              </Field>
+
+              <Field id="claim-phone" label="Phone number" required>
+                <input
+                  id="claim-phone"
+                  required
+                  type="tel"
+                  value={formData.contactPhone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contactPhone: e.target.value })
+                  }
+                  className={styles.input}
+                  placeholder="(555) 123-4567"
+                />
+              </Field>
+
+              <div className={styles.disclaimer}>
+                By submitting, you confirm that you are the authorized
+                representative of this venue. False claims may result in account
+                suspension.
+              </div>
+
+              <button
+                type="submit"
+                className={`btn-primary ${styles.submitBtn}`}
+                disabled={loading}
+              >
+                {loading ? "Submitting..." : "Submit claim request"}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }
 
 export default function ClaimVenuePage() {
-    return (
-        <React.Suspense fallback={
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0f0f', color: 'white' }}>
-                <p>Loading...</p>
-            </div>
-        }>
-            <ClaimVenueContent />
-        </React.Suspense>
-    );
+  return (
+    <React.Suspense
+      fallback={
+        <div className={styles.suspenseWrap}>
+          <SkeletonList rows={4} />
+        </div>
+      }
+    >
+      <ClaimVenueContent />
+    </React.Suspense>
+  );
 }

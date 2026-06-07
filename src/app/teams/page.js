@@ -2,18 +2,27 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import TeamCard from "@/components/Teams/TeamCard";
+import Icon from '@/components/UI/Icon';
 import { teamService } from "@/services/teamService";
 import { useAuth } from "@/context/AuthContext";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
 import { useRouter } from 'next/navigation';
 import styles from './teams.module.css';
+import { SkeletonTeamGrid, EmptyState, ModalHeader } from '@/components/UI/primitives';
+import { Stagger } from '@/components/UI/motion';
+import eventStyles from '../events/events.module.css';
 
 export default function TeamsPage() {
   const { user } = useAuth();
+  const { notify } = useNotificationCenter();
   const router = useRouter();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterSport, setFilterSport] = useState('All');
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+
+  const sportFilters = ['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Baseball'];
   
   // Create Form State
   const [newTeam, setNewTeam] = useState({ name: '', sport: 'Basketball', description: '' });
@@ -37,7 +46,7 @@ export default function TeamsPage() {
       setNewTeam({ name: '', sport: 'Basketball', description: '' });
       loadTeams(); // Refresh
     } catch (err) {
-      alert(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -50,7 +59,7 @@ export default function TeamsPage() {
       await teamService.requestJoinTeam(teamId, user);
       loadTeams();
     } catch (err) {
-      alert(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -78,55 +87,107 @@ export default function TeamsPage() {
           </button>
         </div>
 
-         {/* Sport Filters */}
-         <div className="filter-group">
-           {[
-             { name: 'All', icon: '🌟' },
-             { name: 'Basketball', icon: '🏀' },
-             { name: 'Soccer', icon: '⚽' },
-             { name: 'Tennis', icon: '🎾' },
-             { name: 'Volleyball', icon: '🏐' },
-             { name: 'Baseball', icon: '⚾' }
-           ].map(sport => (
+         <div className={eventStyles.contextBar} role="status">
+           <span className={eventStyles.contextMeta}>
+             <strong className="tabular">{activeTeams.length}</strong> teams · {filterSport}
+           </span>
+           <button
+             type="button"
+             className={eventStyles.filterFab}
+             onClick={() => setShowFilterSheet(true)}
+             aria-label="Open team filters"
+           >
+             <Icon name="chevronDown" size={16} className="icon-inline" />
+             Filters
+             {filterSport !== 'All' ? <span className={eventStyles.filterBadge}>1</span> : null}
+           </button>
+         </div>
+
+         <div className={`filter-group ${eventStyles.desktopFilters}`} role="tablist" aria-label="Sport filters">
+           {sportFilters.map(sport => (
              <button 
-               key={sport.name} 
-               onClick={() => setFilterSport(sport.name)}
-               className={`filter-pill ${filterSport === sport.name ? 'filter-pill-active' : ''}`}
+               key={sport}
+               type="button"
+               onClick={() => setFilterSport(sport)}
+               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+               role="tab"
+               aria-selected={filterSport === sport}
              >
-               <span className="icon">{sport.icon}</span>
-               <span>{sport.name}</span>
+               <span>{sport}</span>
              </button>
            ))}
          </div>
 
         {loading ? (
-             <div className={styles.loading}>Loading teams...</div>
+             <SkeletonTeamGrid count={6} />
         ) : activeTeams.length === 0 ? (
-             <div className={`glass-panel ${styles.emptyState}`}>
-               <h2>No teams yet!</h2>
-               <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                 {filterSport === 'All' 
-                   ? "Be the first to create a team and invite your friends." 
-                   : `No ${filterSport} teams found. Start a new squad!`}
-               </p>
-               <button className="btn-primary" onClick={() => user ? setShowCreateModal(true) : router.push('/login')}>
-                 Start a {filterSport === 'All' ? 'Team' : filterSport + ' Team'}
-               </button>
-             </div>
+             <EmptyState
+               icon="users"
+               title="No teams yet"
+               description={
+                 filterSport === 'All'
+                   ? 'Be the first to create a team and invite your friends.'
+                   : `No ${filterSport} teams found. Start a new squad.`
+               }
+               actionLabel={user ? 'Create team' : 'Sign in to create'}
+               onAction={() => (user ? setShowCreateModal(true) : router.push('/login'))}
+             />
         ) : (
-          <div className="grid-auto-fit">
+          <Stagger className="grid-auto-fit">
             {activeTeams.map(team => (
               <TeamCard key={team.id} team={team} user={user} onJoin={handleJoinTeam} />
             ))}
-          </div>
+          </Stagger>
         )}
       </div>
 
       {/* Simple Create Modal */}
+      {showFilterSheet && (
+        <div className="dismiss-backdrop" onClick={() => setShowFilterSheet(false)}>
+          <div
+            className={`glass-panel ticket-card ${eventStyles.filterSheet} dismiss-panel`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Team filters"
+          >
+            <ModalHeader title="Filters" onClose={() => setShowFilterSheet(false)} />
+            <div className={eventStyles.sheetSection}>
+              <p className={eventStyles.sheetLabel}>Sport</p>
+              <div className={eventStyles.sheetPills} role="tablist" aria-label="Sport filters">
+                {sportFilters.map((sport) => (
+                  <button
+                    key={sport}
+                    type="button"
+                    onClick={() => setFilterSport(sport)}
+                    className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+                    role="tab"
+                    aria-selected={filterSport === sport}
+                  >
+                    <span>{sport}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`btn-primary ${eventStyles.sheetApply}`}
+              onClick={() => setShowFilterSheet(false)}
+            >
+              Show {activeTeams.length} teams
+            </button>
+          </div>
+        </div>
+      )}
+
       {showCreateModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-panel ${styles.modalPanel}`}>
-            <h2 className={styles.modalTitle}>Create New Team</h2>
+        <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
+          <div className={`glass-panel ${styles.modalPanel}`} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader
+              title="Create New Team"
+              onClose={() => setShowCreateModal(false)}
+              closeLabel="Close create team modal"
+            />
             <form onSubmit={handleCreateTeam} className={styles.modalForm}>
               <div className={styles.logoUploadSection}>
                 <label className={styles.label}>Team Logo</label>
@@ -144,7 +205,7 @@ export default function TeamsPage() {
                       const file = e.target.files[0];
                       if (file) {
                         if (file.size > 500000) {
-                          alert("Max file size 500KB");
+                          notify("Max file size is 500KB.", "warning");
                           return;
                         }
                         const reader = new FileReader();

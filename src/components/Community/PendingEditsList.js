@@ -1,11 +1,13 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { communityLocationService } from '@/services/communityLocationService';
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
 import styles from './pending-edits.module.css';
 
 export default function PendingEditsList({ locationId, onUpdate }) {
     const [edits, setEdits] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { notify } = useNotificationCenter();
 
     useEffect(() => {
         loadEdits();
@@ -29,7 +31,7 @@ export default function PendingEditsList({ locationId, onUpdate }) {
             setEdits(prev => prev.filter(e => e.id !== editId));
             if (decision === 'applied' && onUpdate) onUpdate();
         } catch (err) {
-            alert(err.message);
+            notify(err.message, 'error');
         }
     };
 
@@ -82,7 +84,7 @@ export default function PendingEditsList({ locationId, onUpdate }) {
 function formatValue(type, valString) {
     if (!valString) return 'None';
     try {
-        const val = JSON.parse(valString);
+        const val = typeof valString === 'string' ? JSON.parse(valString) : valString;
         if (type.includes('image')) return <img src={val} alt="Preview" style={{ height: '40px', borderRadius: '4px' }} />;
         if (Array.isArray(val)) return val.join(', ');
         return val.toString();

@@ -1,12 +1,73 @@
 import { supabase } from "@/lib/supabaseClient";
-import { venues as staticVenues } from "@/lib/venues";
-import { isPlaceholderVenueName } from "@/lib/placeholderVenues";
+import { isPlaceholderVenueName, filterPlaceholderVenues } from "@/lib/placeholderVenues";
 import { userInteractionService } from "./userInteractionService";
+import { sanitizeLikeTerm, sanitizeText } from "@/lib/security/inputSanitizer";
+
+function uniqueById(rows = []) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    if (row?.id == null || seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+}
+
+async function ilikeVenueSearch(pattern, columns) {
+  const rows = [];
+
+  for (const column of columns) {
+    const { data, error } = await supabase
+      .from("venues")
+      .select("*")
+      .ilike(column, pattern)
+      .limit(20);
+
+    if (error) {
+      if (error.code === "42703") continue;
+      throw error;
+    }
+
+    rows.push(...(data || []));
+  }
+
+  return rows;
+}
 
 let getAllVenuesInFlight = null;
 let getAllVenuesCache = null;
 let getAllVenuesCacheAt = 0;
 const VENUE_LIST_CACHE_TTL_MS = 15000;
+
+async function resolveVenueImageUrl(venueId, imageInput) {
+  const normalizedInput = typeof imageInput === "string" ? imageInput.trim() : "";
+  if (!normalizedInput) {
+    throw new Error("Image is required");
+  }
+
+  if (/^https?:\/\//i.test(normalizedInput)) {
+    return sanitizeText(normalizedInput, 2000);
+  }
+
+  if (!normalizedInput.startsWith("data:image/")) {
+    throw new Error("Unsupported image format");
+  }
+
+  const response = await fetch(normalizedInput);
+  const blob = await response.blob();
+  const extension = blob.type?.includes("png") ? "png" : "jpg";
+  const objectPath = `venues/${venueId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${extension}`;
+  const { error } = await supabase.storage
+    .from("allstar-assets")
+    .upload(objectPath, blob, {
+      contentType: blob.type || "image/jpeg",
+      upsert: false,
+      cacheControl: "3600",
+    });
+
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from("allstar-assets").getPublicUrl(objectPath);
+  return data?.publicUrl || null;
+}
 
 export const venueService = {
   // Get all venues (now from Supabase)
@@ -27,7 +88,7 @@ export const venueService = {
       throw error;
     }
 
-    const filtered = (venues || []).filter((venue) => !isPlaceholderVenueName(venue?.name));
+    const filtered = filterPlaceholderVenues(venues || []);
     return filtered;
     })();
 
@@ -39,6 +100,34 @@ export const venueService = {
     } finally {
       getAllVenuesInFlight = null;
     }
+  },
+
+  searchVenues: async (query) => {
+    const safeQuery = sanitizeLikeTerm(query, 80);
+    if (!safeQuery) return [];
+
+    const pattern = `%${safeQuery}%`;
+    const rows = uniqueById(
+      await ilikeVenueSearch(pattern, ["name", "address", "description", "location", "sport"]),
+    );
+
+    const needle = safeQuery.toLowerCase();
+    return filterPlaceholderVenues(rows).filter((venue) => {
+      const haystack = [
+        venue.name,
+        venue.address,
+        venue.description,
+        typeof venue.location === "string" ? venue.location : "",
+        venue.sport,
+        ...(Array.isArray(venue.sports) ? venue.sports : []),
+        ...(Array.isArray(venue.amenities) ? venue.amenities : []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(needle);
+    });
   },
 
   // Get single venue
@@ -56,17 +145,10 @@ export const venueService = {
 
   // Upload/Update Venue Image
   uploadVenueImage: async (venueId, base64Image) => {
-    // Note: In a real app, we'd upload to Storage bucket and get URL.
-    // For this migration, we'll assume we might store base64 or URL in 'gallery' array in DB?
-    // Storing base64 in TEXT/ARRAY column is bad practice but fits the 'quick' scope if small.
-    // BETTER: Use existing 'uploadImage' helper if we have one, or just update the record if it sends a URL.
-    
-    // For now, let's assume the frontend sends a URL (if uploaded elsewhere) or we skip the complex upload logic
-    // and just update the gallery array in the DB row.
-    
+    const imageUrl = await resolveVenueImageUrl(venueId, base64Image);
     const { data: venue } = await supabase.from('venues').select('gallery').eq('id', venueId).single();
     const currentGallery = venue?.gallery || [];
-    const newGallery = [...currentGallery, base64Image]; // Warn: Base64 might be too huge for DB column
+    const newGallery = [...currentGallery, imageUrl].filter(Boolean);
 
     const { data, error } = await supabase
       .from('venues')
@@ -81,35 +163,6 @@ export const venueService = {
     await userInteractionService.trackImageUpload(venueId);
 
     return data;
-  },
-
-  // Seed Function
-  seedVenues: async () => {
-    if (!Array.isArray(staticVenues) || staticVenues.length === 0) {
-      return { inserted: 0, skipped: true };
-    }
-
-    // Transform static venues to match DB schema if needed
-    // Static venues have 'id' which is auto-generated in DB, so we might omit it or force it.
-    // We'll omit 'id' to let DB generate unique IDs, or force it if we want consistency.
-    const venuesToInsert = staticVenues.map(v => ({
-      name: v.name,
-      type: v.type,
-      sport: v.sport,
-      location: v.location,
-      rating: v.rating,
-      price: v.price,
-      image: v.image,
-      amenities: v.amenities,
-      coordinates: v.coordinates,
-      gallery: [v.image], // Initialize gallery
-      description: "Community venue ready for action.",
-      // owner_id: null // System owned
-    }));
-
-    const { error } = await supabase.from('venues').insert(venuesToInsert);
-    if (error) console.error("Seeding error:", error);
-    return { inserted: venuesToInsert.length, skipped: false };
   },
 
   // Admin: Delete Venue

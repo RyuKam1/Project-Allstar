@@ -1,6 +1,28 @@
 "use client";
+
+import Icon from "@/components/UI/Icon";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { geodesicCircleLatLngs } from "@/utils/geoUtils";
+import { useNotificationCenter } from "@/components/UI/NotificationCenter";
+
+/** Pin geometry shared by hover preview and placed selection marker (tip = bottom center). */
+const SELECTION_PIN_SIZE = 36;
+const SELECTION_PIN_ANCHOR = [SELECTION_PIN_SIZE / 2, SELECTION_PIN_SIZE];
+
+const SELECTION_PIN_SVG = `<svg width="${SELECTION_PIN_SIZE}" height="${SELECTION_PIN_SIZE}" viewBox="0 0 24 24" fill="#EF4444" stroke="white" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35)); display: block;">
+  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+  <circle cx="12" cy="9" r="2.5" fill="white" />
+</svg>`;
+
+function createSelectionPinIcon(L) {
+  return L.divIcon({
+    className: "selection-pin-marker",
+    html: `<div class="selection-pin">${SELECTION_PIN_SVG}</div>`,
+    iconSize: [SELECTION_PIN_SIZE, SELECTION_PIN_SIZE],
+    iconAnchor: SELECTION_PIN_ANCHOR,
+  });
+}
 
 export default function Map({
   venues = [],
@@ -21,28 +43,36 @@ export default function Map({
   cityHighlightGeoJSON = null,
   cityHighlightCircle = null,
   hideInternalPlaceSearch = false,
+  onUserMapNavigate,
+  onLocateMeTriggered,
 }) {
   const GEO_RETRY_DEBOUNCE_MS = 1200;
-  const LOCATION_REFRESH_MS = 1500;
+  const LOCATION_REFRESH_MS = 10000;
+  const PARKS_FETCH_DEBOUNCE_MS = 2500;
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const userMarkerRef = useRef(null);
   const initialCenterRef = useRef(false);
   const router = useRouter();
+  const { notify } = useNotificationCenter();
   const [userLocation, setUserLocation] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const tempMarkerRef = useRef(null);
+  const pinPreviewRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [parksOverlaySupported, setParksOverlaySupported] = useState(true);
   const parksOverlayRef = useRef(null);
   const parksOverlayAbortRef = useRef(null);
+  const parksOverlayCacheRef = useRef(new globalThis.Map());
   const highlightLayerRef = useRef(null);
   const permissionStatusRef = useRef(null);
   const locationIntervalRef = useRef(null);
   const lastRetryRef = useRef(0);
+  const suppressNavigateEventRef = useRef(false);
+  const suppressNavigateTimerRef = useRef(null);
 
   const [isLocating, setIsLocating] = useState(!minimal);
   const [geoStatus, setGeoStatus] = useState(minimal ? "idle" : "pending");
@@ -72,6 +102,16 @@ export default function Map({
     }
   };
 
+  const suppressNavigateEvents = (durationMs = 700) => {
+    suppressNavigateEventRef.current = true;
+    if (suppressNavigateTimerRef.current) {
+      clearTimeout(suppressNavigateTimerRef.current);
+    }
+    suppressNavigateTimerRef.current = setTimeout(() => {
+      suppressNavigateEventRef.current = false;
+    }, durationMs);
+  };
+
   const clearLocationInterval = () => {
     if (locationIntervalRef.current) {
       clearInterval(locationIntervalRef.current);
@@ -96,8 +136,8 @@ export default function Map({
         },
         {
           timeout: 2500,
-          enableHighAccuracy: true,
-          maximumAge: 1000,
+          enableHighAccuracy: false,
+          maximumAge: 5000,
         },
       );
     }, LOCATION_REFRESH_MS);
@@ -123,6 +163,7 @@ export default function Map({
       onUserLocationUpdate(latitude, longitude);
     }
     if (flyTo && mapInstanceRef.current) {
+      suppressNavigateEvents();
       mapInstanceRef.current.flyTo([latitude, longitude], 14);
     }
   };
@@ -230,7 +271,8 @@ export default function Map({
                      transform-origin: bottom center;
                  }
                  .city-outline-glow {
-                     filter: drop-shadow(0 0 4px var(--map-highlight-glow, rgba(255, 255, 255, 0.22)));
+                     filter: drop-shadow(0 0 6px var(--map-highlight-glow, rgba(255, 255, 255, 0.22)))
+                             drop-shadow(0 0 14px var(--map-highlight-glow, rgba(255, 255, 255, 0.12)));
                  }
              `;
           document.head.appendChild(style);
@@ -287,6 +329,9 @@ export default function Map({
       isMounted = false;
       clearLocationInterval();
       if (mapInstanceRef.current) {
+        if (suppressNavigateTimerRef.current) {
+          clearTimeout(suppressNavigateTimerRef.current);
+        }
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         setMapReady(false);
@@ -298,7 +343,6 @@ export default function Map({
   useEffect(() => {
     if (minimal) return;
     requestLocation({ notifyInitial: true, timeout: 3500 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minimal]);
 
   // 1.6 Permission API watchers + lifecycle retries.
@@ -349,7 +393,6 @@ export default function Map({
         permissionStatusRef.current.onchange = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minimal, onLocationUnavailable]);
 
   // 1.7 Live location refresh loop while granted.
@@ -360,12 +403,12 @@ export default function Map({
     }
     startLiveLocationUpdates();
     return () => clearLocationInterval();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minimal, isGlobalView, geoStatus]);
 
   // 2.5 Handle Center & Zoom Updates (Fly to new center if map exists)
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && center) {
+      suppressNavigateEvents();
       mapInstanceRef.current.flyTo(center, zoom);
     }
   }, [mapReady, center, zoom]);
@@ -373,9 +416,43 @@ export default function Map({
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && initCenter && !center) {
       // Only use initCenter if no external center provided
+      suppressNavigateEvents();
       mapInstanceRef.current.flyTo(initCenter, initialZoom);
     }
   }, [mapReady, initCenter, initialZoom]);
+
+  // Detect manual map navigation so parent can stop auto-follow.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || typeof onUserMapNavigate !== "function") return;
+
+    const notifyNavigate = (e) => {
+      if (suppressNavigateEventRef.current) return;
+      if (
+        e?.originalEvent ||
+        e?.type === "dragstart" ||
+        e?.type === "zoomstart" ||
+        e?.type === "movestart" ||
+        e?.type === "wheel"
+      ) {
+        onUserMapNavigate();
+      }
+    };
+
+    // dragstart/zoomstart catch explicit pan+zoom actions;
+    // movestart helps capture touch interactions on mobile.
+    map.on("dragstart", notifyNavigate);
+    map.on("zoomstart", notifyNavigate);
+    map.on("movestart", notifyNavigate);
+    map.on("wheel", notifyNavigate);
+
+    return () => {
+      map.off("dragstart", notifyNavigate);
+      map.off("zoomstart", notifyNavigate);
+      map.off("movestart", notifyNavigate);
+      map.off("wheel", notifyNavigate);
+    };
+  }, [mapReady, onUserMapNavigate]);
 
   // Keep map dimensions healthy on mobile rotations/layout shifts.
   useEffect(() => {
@@ -519,18 +596,25 @@ export default function Map({
       }
 
       if (cityHighlightCircle?.center && cityHighlightCircle?.radiusMeters) {
-        highlightLayerRef.current = L.circle(cityHighlightCircle.center, {
-          radius: cityHighlightCircle.radiusMeters,
-          color: themedOutlineColor,
-          weight: Number.isFinite(strokeWeight) ? strokeWeight : 1.2,
-          opacity: Number.isFinite(strokeOpacity) ? strokeOpacity : 0.78,
-          fill: true,
-          fillColor: themedFillColor,
-          fillOpacity: Number.isFinite(circleFillOpacity)
-            ? circleFillOpacity
-            : 0.06,
-          className: "city-outline-glow",
-        }).addTo(map);
+        const [cLat, cLng] = cityHighlightCircle.center;
+        const ring = geodesicCircleLatLngs(
+          cLat,
+          cLng,
+          cityHighlightCircle.radiusMeters,
+        );
+        if (ring.length >= 4) {
+          highlightLayerRef.current = L.polygon(ring, {
+            color: themedOutlineColor,
+            weight: Number.isFinite(strokeWeight) ? strokeWeight : 1.2,
+            opacity: Number.isFinite(strokeOpacity) ? strokeOpacity : 0.78,
+            fill: true,
+            fillColor: themedFillColor,
+            fillOpacity: Number.isFinite(circleFillOpacity)
+              ? circleFillOpacity
+              : 0.06,
+            className: "city-outline-glow",
+          }).addTo(map);
+        }
       }
     };
 
@@ -574,9 +658,34 @@ export default function Map({
       try {
         const L = (await import("leaflet")).default;
         if (disposed || !mapInstanceRef.current) return;
+        const zoom = map.getZoom();
+        if (zoom < 13) {
+          clearOverlay();
+          return;
+        }
 
         const bounds = map.getBounds();
         const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+        const cacheKey = `${zoom}:${bbox}`;
+        const cachedFeatures = parksOverlayCacheRef.current.get(cacheKey);
+        if (cachedFeatures) {
+          if (parksOverlayRef.current) {
+            map.removeLayer(parksOverlayRef.current);
+          }
+          parksOverlayRef.current = L.geoJSON(
+            { type: "FeatureCollection", features: cachedFeatures },
+            {
+              style: {
+                color: "#22c55e",
+                weight: 1.2,
+                opacity: 0.72,
+                fillColor: "#16a34a",
+                fillOpacity: 0.18,
+              },
+            },
+          ).addTo(map);
+          return;
+        }
 
         if (parksOverlayAbortRef.current) {
           parksOverlayAbortRef.current.abort();
@@ -635,6 +744,11 @@ export default function Map({
             };
           })
           .filter(Boolean);
+        parksOverlayCacheRef.current.set(cacheKey, features);
+        if (parksOverlayCacheRef.current.size > 24) {
+          const firstKey = parksOverlayCacheRef.current.keys().next().value;
+          parksOverlayCacheRef.current.delete(firstKey);
+        }
 
         if (parksOverlayRef.current) {
           map.removeLayer(parksOverlayRef.current);
@@ -665,7 +779,7 @@ export default function Map({
 
     const scheduleFetch = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(fetchParks, 500);
+      debounceTimer = setTimeout(fetchParks, PARKS_FETCH_DEBOUNCE_MS);
     };
 
     scheduleFetch();
@@ -819,9 +933,9 @@ export default function Map({
                       font-size: 19px;
                       animation-delay: ${delay}s;
                     ">${config.emoji}</div>`,
-              iconSize: [28, 28],
-              iconAnchor: [14, 14],
-              popupAnchor: [0, -20],
+              iconSize: [56, 56],
+              iconAnchor: [28, 28],
+              popupAnchor: [0, -24],
             });
           }
 
@@ -840,22 +954,54 @@ export default function Map({
                 : sportKey;
 
             const popupContent = document.createElement("div");
-            popupContent.innerHTML = `
-                      <div style="color: black; padding: 5px; min-width: 150px;">
-                        <strong style="font-size: 1.1em">${venue.name}</strong><br/>
-                        <span style="color: ${config.color}; font-weight: 600; font-size: 0.9em">${sportsDisplay}</span><br/>
-                        ${isCommunity ? '<span style="font-size:0.75rem; background:#14b8a6; color:white; padding:2px 6px; border-radius:10px;">Community</span>' : ""}
-                        <br/>
-                        <button id="btn-${venue.id}" style="margin-top: 8px; background: ${config.color}; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.9em">
-                          ${isCommunity ? "Join Activity" : "View Details"}
-                        </button>
-                      </div>
-                    `;
+            popupContent.style.color = "black";
+            popupContent.style.padding = "5px";
+            popupContent.style.minWidth = "150px";
+
+            const title = document.createElement("strong");
+            title.style.fontSize = "1.1em";
+            title.textContent = String(venue.name || "Venue");
+            popupContent.appendChild(title);
+            popupContent.appendChild(document.createElement("br"));
+
+            const sportsText = document.createElement("span");
+            sportsText.style.color = config.color;
+            sportsText.style.fontWeight = "600";
+            sportsText.style.fontSize = "0.9em";
+            sportsText.textContent = sportsDisplay;
+            popupContent.appendChild(sportsText);
+            popupContent.appendChild(document.createElement("br"));
+
+            if (isCommunity) {
+              const communityBadge = document.createElement("span");
+              communityBadge.style.fontSize = "0.75rem";
+              communityBadge.style.background = "#14b8a6";
+              communityBadge.style.color = "white";
+              communityBadge.style.padding = "2px 6px";
+              communityBadge.style.borderRadius = "10px";
+              communityBadge.textContent = "Community";
+              popupContent.appendChild(communityBadge);
+              popupContent.appendChild(document.createElement("br"));
+            }
+
+            const detailsButton = document.createElement("button");
+            detailsButton.type = "button";
+            detailsButton.style.marginTop = "8px";
+            detailsButton.style.background = config.color;
+            detailsButton.style.color = "white";
+            detailsButton.style.border = "none";
+            detailsButton.style.padding = "6px 12px";
+            detailsButton.style.borderRadius = "4px";
+            detailsButton.style.cursor = "pointer";
+            detailsButton.style.width = "100%";
+            detailsButton.style.fontSize = "0.9em";
+            detailsButton.textContent = isCommunity
+              ? "Join Activity"
+              : "View Details";
+            detailsButton.addEventListener("click", () => router.push(detailUrl));
+            popupContent.appendChild(detailsButton);
+
             marker.bindPopup(popupContent);
-            marker.on("popupopen", () => {
-              const btn = document.getElementById(`btn-${venue.id}`);
-              if (btn) btn.onclick = () => router.push(detailUrl);
-            });
           }
 
           // Store in ref
@@ -890,6 +1036,54 @@ export default function Map({
     };
   }, [isAddingLocation, onMapClick, mapReady]);
 
+  // Hover preview pin — tip tracks exact map coordinates under the pointer
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || !isAddingLocation) {
+      map?.getContainer()?.classList.remove("map-pin-drop-mode");
+      if (pinPreviewRef.current) {
+        pinPreviewRef.current.style.display = "none";
+      }
+      return;
+    }
+
+    const container = map.getContainer();
+    container.classList.add("map-pin-drop-mode");
+
+    const showPreviewAt = (latlng) => {
+      const preview = pinPreviewRef.current;
+      if (!preview || !latlng) return;
+      const point = map.latLngToContainerPoint(latlng);
+      preview.style.display = "block";
+      preview.style.left = `${point.x}px`;
+      preview.style.top = `${point.y}px`;
+    };
+
+    const hidePreview = () => {
+      if (pinPreviewRef.current) {
+        pinPreviewRef.current.style.display = "none";
+      }
+    };
+
+    const onMouseMove = (e) => {
+      showPreviewAt(e.latlng);
+    };
+
+    const onMouseOut = () => {
+      hidePreview();
+    };
+
+    map.on("mousemove", onMouseMove);
+    map.on("mouseout", onMouseOut);
+
+    return () => {
+      container.classList.remove("map-pin-drop-mode");
+      map.off("mousemove", onMouseMove);
+      map.off("mouseout", onMouseOut);
+      hidePreview();
+    };
+  }, [isAddingLocation, mapReady]);
+
   // Marker Rendering Effect - Same as before
   useEffect(() => {
     if (!mapInstanceRef.current || !selectedLocation) return;
@@ -897,19 +1091,8 @@ export default function Map({
     const renderMarker = async () => {
       const L = (await import("leaflet")).default;
       if (tempMarkerRef.current) map.removeLayer(tempMarkerRef.current);
-      const selectionIcon = L.divIcon({
-        className: "selection-pin-marker",
-        html: `<div class="selection-pin" style="transform: translate(0, -5px);">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="#EF4444" stroke="white" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); display: block;">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" fill="white" />
-                </svg>
-            </div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 36],
-      });
       const marker = L.marker([selectedLocation.lat, selectedLocation.lng], {
-        icon: selectionIcon,
+        icon: createSelectionPinIcon(L),
         zIndexOffset: 1000,
       }).addTo(map);
       tempMarkerRef.current = marker;
@@ -931,6 +1114,7 @@ export default function Map({
         const { lat, lon } = data[0];
         const newCoords = [parseFloat(lat), parseFloat(lon)];
         if (mapInstanceRef.current) {
+          suppressNavigateEvents();
           mapInstanceRef.current.flyTo(newCoords, 16);
           if (isAddingLocation && onMapClick) {
             const newLocation = { lat: parseFloat(lat), lng: parseFloat(lon) };
@@ -939,16 +1123,20 @@ export default function Map({
           }
         }
       } else {
-        alert("Location not found");
+        notify("Location not found. Try a different search term.", "warning");
       }
     } catch (error) {
       console.error("Search failed:", error);
+      notify("Search failed. Please try again.", "error");
     } finally {
       setIsSearching(false);
     }
   };
 
   const handleLocateMe = () => {
+    if (typeof onLocateMeTriggered === "function") {
+      onLocateMeTriggered();
+    }
     requestLocation({ notifyInitial: true, flyTo: true, timeout: 3500 });
   };
 
@@ -974,6 +1162,19 @@ export default function Map({
           backgroundColor: "#0f0f0fff",
         }}
       />
+
+      {isAddingLocation && (
+        <div
+          className="map-pin-preview-layer"
+          aria-hidden="true"
+        >
+          <div
+            ref={pinPreviewRef}
+            className="map-pin-preview"
+            dangerouslySetInnerHTML={{ __html: SELECTION_PIN_SVG }}
+          />
+        </div>
+      )}
 
       {!minimal && (isLocating || geoStatus !== "granted") && (
         <div
@@ -1040,7 +1241,7 @@ export default function Map({
                   fontWeight: "bold",
                 }}
               >
-                {isSearching ? "..." : "🔍"}
+                {isSearching ? "..." : <Icon name="search" size={16} />}
               </button>
             </form>
           )}
@@ -1068,7 +1269,7 @@ export default function Map({
             }}
             type="button"
           >
-            📍 Locate Me
+            <Icon name="location" size={16} className="icon-inline" /> Locate Me
           </button>
         </>
       )}
@@ -1095,7 +1296,7 @@ export default function Map({
             pointerEvents: "none",
           }}
         >
-          <span>📍 Tap map to place pin</span>
+          <Icon name="location" size={16} className="icon-inline" /> Click map to place pin
         </div>
       )}
     </div>

@@ -7,10 +7,10 @@ export default function UnauthorizedPage() {
     const router = useRouter();
 
     return (
-        <main style={{ minHeight: '100vh', background: 'var(--background)' }}>
+        <main style={{ minHeight: '100dvh', background: 'var(--background)' }}>
             <Navbar />
             <div className="container" style={{ 
-                height: '100vh', 
+                height: '100dvh', 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',

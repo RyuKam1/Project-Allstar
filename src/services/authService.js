@@ -32,7 +32,7 @@ export const authService = {
   },
 
   // Register with Supabase
-  register: async (name, email, password, role = 'user') => {
+  register: async (name, email, password, _role = 'user') => {
     if (!name || !email || !password) throw new Error("All fields are required");
 
     // 1. Sign Up
@@ -42,8 +42,7 @@ export const authService = {
       options: {
         data: {
           name,
-          role: role, // Used by trigger to set profile.role
-          account_type: role // Backward compatibility if needed
+          account_type: 'user'
         },
       },
     });
@@ -109,7 +108,7 @@ export const authService = {
   getAllUsers: async () => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, name, avatar, sport, role, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
@@ -118,9 +117,16 @@ export const authService = {
 
   // Get User Public Profile by ID
   getUserProfile: async (userId) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const isOwnProfile = user?.id === userId;
+    const source = isOwnProfile ? 'profiles' : 'profiles_public';
+    const fields = isOwnProfile
+      ? 'id, name, avatar, sport, role, created_at, bio, height, weight, speed, vertical'
+      : 'id, name, avatar, sport, role, created_at, bio';
+
     const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
+      .from(source)
+      .select(fields)
       .eq('id', userId)
       .single();
 

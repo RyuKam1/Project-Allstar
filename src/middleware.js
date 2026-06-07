@@ -48,7 +48,7 @@ export async function middleware(request) {
       .eq('id', user.id)
       .single();
     
-    const role = profile?.role || user.user_metadata?.role || 'user';
+    const role = profile?.role || 'user';
     if (role === 'business' || role === 'admin') {
        url.pathname = '/business/dashboard';
        return NextResponse.redirect(url);
@@ -69,7 +69,7 @@ export async function middleware(request) {
       .eq('id', user.id)
       .single();
     
-    const role = profile?.role || user.user_metadata?.role || 'user';
+    const role = profile?.role || 'user';
     
     if (role !== 'business' && role !== 'admin') {
       // User is logged in but trying to access business area without permission
@@ -91,7 +91,7 @@ export async function middleware(request) {
       .eq('id', user.id)
       .single();
 
-    const role = profile?.role || user.user_metadata?.role || 'user';
+    const role = profile?.role || 'user';
     if (role !== 'admin') {
       url.pathname = '/unauthorized';
       return NextResponse.redirect(url);
@@ -103,6 +103,7 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
+    '/profile/:path*',
     '/business/:path*',
     '/admin/:path*'
   ],

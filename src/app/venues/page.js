@@ -5,19 +5,49 @@ import Map from "@/components/UI/Map";
 import CommunityLocationForm from "@/components/Community/CommunityLocationForm";
 import { communityLocationService } from "@/services/communityLocationService";
 import { venueService } from "@/services/venueService";
-import { isPlaceholderVenueName } from "@/lib/placeholderVenues";
+import { filterPlaceholderVenues } from "@/lib/placeholderVenues";
 import { getCityOutline } from "@/lib/nominatimCityOutline";
-import { useState, useRef, useEffect } from "react";
-import { City, Country } from 'country-state-city';
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { getDistance } from '@/utils/geoUtils';
+import Icon from '@/components/UI/Icon';
+import { EmptyState, ModalHeader, SkeletonCardGrid } from '@/components/UI/primitives';
 import styles from './venues.module.css';
 
-export default function VenuesPage() {
+function getLocationLatLng(loc) {
+  if (loc == null) return null;
+  if (typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+    return [loc.lat, loc.lng];
+  }
+  if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+    const a = Number(loc.coordinates[0]);
+    const b = Number(loc.coordinates[1]);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) return [a, b];
+  }
+  if (loc.coordinates != null && typeof loc.coordinates === 'object') {
+    const a = Number(loc.coordinates.lat);
+    const b = Number(loc.coordinates.lng);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) return [a, b];
+  }
+  return null;
+}
+
+function VenuesPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const textQuery = (searchParams.get('q') || '').trim().toLowerCase();
   const [communityLocations, setCommunityLocations] = useState([]);
   const [officialVenues, setOfficialVenues] = useState([]); // Official Business Venues
   const [filterSport, setFilterSport] = useState('All');
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showRefreshSpin, setShowRefreshSpin] = useState(false);
+  const [refreshSpinKey, setRefreshSpinKey] = useState(0);
   const [isGlobalView, setIsGlobalView] = useState(false);
+  const [isAreaSearchEnabled, setIsAreaSearchEnabled] = useState(false);
+  const [areaRadiusKm, setAreaRadiusKm] = useState(5);
+  const [userCoords, setUserCoords] = useState(null);
+  const [isAreaAutoFollow, setIsAreaAutoFollow] = useState(true);
 
   // Search State
   const [userCountry, setUserCountry] = useState(null);
@@ -31,8 +61,12 @@ export default function VenuesPage() {
   const [previousMapState, setPreviousMapState] = useState(null); // Store previous state to restore
   const [cityHighlightGeoJSON, setCityHighlightGeoJSON] = useState(null);
   const [cityHighlightCircle, setCityHighlightCircle] = useState(null);
-  const [displayLimit, setDisplayLimit] = useState(50); // Progressive loading limit
+  const [displayLimit, setDisplayLimit] = useState(50);
+  const [viewMode, setViewMode] = useState('split'); // Progressive loading limit
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
   const observerTarget = useRef(null); // Ref for infinite scroll
+
+  const sportFilters = ['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'];
 
   // Add Location Flow
   const [isAddingLocation, setIsAddingLocation] = useState(false);
@@ -45,28 +79,67 @@ export default function VenuesPage() {
   const outlineRequestIdRef = useRef(0);
   const outlineDebounceRef = useRef(null);
   const nearbyRequestIdRef = useRef(0);
+  const areaRadiusDebounceRef = useRef(null);
   const mapRef = useRef(null); // Ref for scrolling to map
+  const countryStateCityRef = useRef(null);
+  const cityCacheRef = useRef(new globalThis.Map());
+  const wasRefreshingRef = useRef(false);
+  const [countries, setCountries] = useState([]);
   const defaultMapCenter = [25, 0];
   const defaultMapZoom = 2;
 
   const shouldUseManualCitySelection = locationStatus !== "granted";
+  const isAreaSearchAvailable =
+    locationStatus === "granted" && !isGlobalView && Array.isArray(userCoords);
+  const effectiveNearbyRadiusKm = isAreaSearchEnabled ? areaRadiusKm : 20;
 
   // Load Official Venues (Business) on Mount
   useEffect(() => {
     venueService.getAllVenues()
-      .then((rows) => setOfficialVenues((rows || []).filter((venue) => !isPlaceholderVenueName(venue?.name))))
+      .then((rows) => setOfficialVenues(filterPlaceholderVenues(rows || [])))
       .catch(err => console.error("Error loading official venues:", err));
   }, []);
 
+  const ensureCountryStateCity = async () => {
+    if (countryStateCityRef.current) return countryStateCityRef.current;
+    countryStateCityRef.current = await import('country-state-city');
+    return countryStateCityRef.current;
+  };
+
+  const loadCitiesForCountry = async (countryCode) => {
+    if (!countryCode) return [];
+    const cached = cityCacheRef.current.get(countryCode);
+    if (cached) return cached;
+    const mod = await ensureCountryStateCity();
+    const allCities = mod.City.getCitiesOfCountry(countryCode) || [];
+    cityCacheRef.current.set(countryCode, allCities);
+    return allCities;
+  };
+
   useEffect(() => {
-    if (userCountry) return;
-    const localeCountry =
-      typeof navigator !== "undefined" && navigator.language?.includes("-")
-        ? navigator.language.split("-")[1]?.toUpperCase()
-        : null;
-    const validLocaleCountry =
-      localeCountry && Country.getCountryByCode(localeCountry) ? localeCountry : "US";
-    setUserCountry(validLocaleCountry);
+    let isMounted = true;
+    ensureCountryStateCity().then((mod) => {
+      if (!isMounted) return;
+      const allCountries = mod.Country.getAllCountries() || [];
+      setCountries(allCountries);
+
+      if (!userCountry) {
+        const localeCountry =
+          typeof navigator !== "undefined" && navigator.language?.includes("-")
+            ? navigator.language.split("-")[1]?.toUpperCase()
+            : null;
+        const isValid = localeCountry && mod.Country.getCountryByCode(localeCountry);
+        setUserCountry(isValid ? localeCountry : "US");
+      }
+    }).catch((err) => {
+      console.error("Failed to load country-state-city data:", err);
+      if (!isMounted) return;
+      if (!userCountry) setUserCountry("US");
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [userCountry]);
 
   // REMOVED: Initial global fetch (user wants local-only by default)
@@ -92,6 +165,14 @@ export default function VenuesPage() {
     return () => observer.disconnect();
   }, [showCityResults, filteredCities, displayLimit]);
 
+  useEffect(() => {
+    if (isRefreshing && !wasRefreshingRef.current) {
+      setRefreshSpinKey((key) => key + 1);
+      setShowRefreshSpin(true);
+    }
+    wasRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
+
   const loadGlobalVenues = async () => {
     const hasExistingData = communityLocations.length > 0 || officialVenues.length > 0;
     if (hasExistingData) {
@@ -111,7 +192,7 @@ export default function VenuesPage() {
     }
   };
 
-  const loadNearbyForCoords = async (lat, lng) => {
+  const loadNearbyForCoords = async (lat, lng, radiusKm = 20) => {
     const id = ++nearbyRequestIdRef.current;
     const hasExistingData = communityLocations.length > 0 || officialVenues.length > 0;
     if (hasExistingData) {
@@ -120,7 +201,11 @@ export default function VenuesPage() {
       setIsLoading(true);
     }
     try {
-      const locations = await communityLocationService.getNearbyLocations(lat, lng, 20);
+      const locations = await communityLocationService.getNearbyLocations(
+        lat,
+        lng,
+        radiusKm,
+      );
       if (id !== nearbyRequestIdRef.current) return;
       setCommunityLocations(locations);
     } catch (error) {
@@ -171,18 +256,20 @@ export default function VenuesPage() {
   const handleUserLocationFound = async (lat, lng) => {
     setLocationStatus("granted");
     setLocationNotice("");
+    setUserCoords([lat, lng]);
 
     if (!gpsInitializedRef.current) {
       gpsInitializedRef.current = true;
       setMapCenter([lat, lng]);
       setMapZoom(14);
-      await loadNearbyForCoords(lat, lng);
+      await loadNearbyForCoords(lat, lng, effectiveNearbyRadiusKm);
       await detectUserCountry(lat, lng);
     }
   };
 
   const handleUserLocationUpdate = async (lat, lng) => {
     if (isGlobalView || locationStatus !== "granted") return;
+    setUserCoords([lat, lng]);
 
     const now = Date.now();
     const prev = lastRealtimePositionRef.current;
@@ -196,11 +283,14 @@ export default function VenuesPage() {
     if (movedKm <= 0.5 && !enoughTimePassed) return;
 
     lastRealtimeFetchRef.current = now;
-    await loadNearbyForCoords(lat, lng);
+    await loadNearbyForCoords(lat, lng, effectiveNearbyRadiusKm);
   };
 
   const handleLocationUnavailable = ({ reason }) => {
     setLocationStatus(reason === "denied" ? "denied" : "manual");
+    setUserCoords(null);
+    setIsAreaSearchEnabled(false);
+    setIsAreaAutoFollow(true);
     gpsInitializedRef.current = false;
     setMapCenter((prev) => prev || defaultMapCenter);
     setMapZoom((prev) => (prev === 14 ? defaultMapZoom : prev));
@@ -227,6 +317,40 @@ export default function VenuesPage() {
       setLocationStatus("pending");
     }
   };
+
+  useEffect(() => {
+    if (!isAreaSearchEnabled) return;
+    if (!isAreaSearchAvailable) {
+      setIsAreaSearchEnabled(false);
+      setIsAreaAutoFollow(true);
+    }
+  }, [isAreaSearchEnabled, isAreaSearchAvailable]);
+
+  useEffect(() => {
+    if (
+      !isAreaSearchEnabled ||
+      !isAreaAutoFollow ||
+      !Array.isArray(userCoords) ||
+      isGlobalView
+    ) {
+      return;
+    }
+    const [lat, lng] = userCoords;
+    setMapCenter([lat, lng]);
+
+    if (areaRadiusDebounceRef.current) {
+      clearTimeout(areaRadiusDebounceRef.current);
+    }
+    areaRadiusDebounceRef.current = setTimeout(() => {
+      loadNearbyForCoords(lat, lng, areaRadiusKm);
+    }, 180);
+
+    return () => {
+      if (areaRadiusDebounceRef.current) {
+        clearTimeout(areaRadiusDebounceRef.current);
+      }
+    };
+  }, [isAreaSearchEnabled, isAreaAutoFollow, userCoords, areaRadiusKm, isGlobalView]);
 
   const toggleGlobalView = () => {
     const newState = !isGlobalView;
@@ -265,7 +389,11 @@ export default function VenuesPage() {
 
         // Load Local Data
         setIsRefreshing(true);
-        communityLocationService.getNearbyLocations(targetCenter[0], targetCenter[1], 20)
+        communityLocationService.getNearbyLocations(
+          targetCenter[0],
+          targetCenter[1],
+          effectiveNearbyRadiusKm,
+        )
           .then((locations) => {
             setCommunityLocations(locations);
             setIsRefreshing(false);
@@ -364,7 +492,11 @@ export default function VenuesPage() {
     setNewLocationCoords(null);
     // Refresh whatever view we are in - simplified to nearby user or city
     if (mapCenter) {
-      communityLocationService.getNearbyLocations(mapCenter[0], mapCenter[1], 20)
+      communityLocationService.getNearbyLocations(
+        mapCenter[0],
+        mapCenter[1],
+        effectiveNearbyRadiusKm,
+      )
         .then(setCommunityLocations);
     }
   };
@@ -383,20 +515,48 @@ export default function VenuesPage() {
       if (!matchesSport) return false;
     }
 
-    // 2. Distance-Based "Strict" Filter
-    // Only apply if NOT in Global View
-    if (!isGlobalView && citySearchTerm && mapCenter) {
-      const [centerLat, centerLng] = mapCenter;
-      // Simple distance check (approximate)
-      const dist = Math.sqrt(
-        Math.pow(loc.lat - centerLat, 2) + Math.pow(loc.lng - centerLng, 2)
-      ) * 111; // degrees to km
+    // 2. Distance-Based "Strict" Filter (Haversine, matches slider radius / map circle)
+    if (!isGlobalView && mapCenter) {
+      const areaFilterActive = isAreaSearchEnabled && Array.isArray(userCoords);
+      const cityFilterActive = !isAreaSearchEnabled && !!citySearchTerm;
+      if (areaFilterActive || cityFilterActive) {
+        const centerSource = areaFilterActive ? userCoords : mapCenter;
+        const maxDistanceKm = areaFilterActive ? areaRadiusKm : 50;
+        const point = getLocationLatLng(loc);
+        if (!point) return false;
+        const dist = getDistance(
+          centerSource[0],
+          centerSource[1],
+          point[0],
+          point[1],
+        );
+        if (dist > maxDistanceKm) return false;
+      }
+    }
 
-      if (dist > 50) return false; // Hide venues > 50km from city center
+    // 3. Text search from homepage / URL ?q=
+    if (textQuery) {
+      const haystack = [
+        loc.name,
+        loc.city,
+        loc.address,
+        ...(loc.sports || []),
+        loc.sport,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(textQuery)) return false;
     }
 
     return true;
   });
+
+  const displayedDiameterKm = areaRadiusKm * 2;
+  const diameterLabel =
+    displayedDiameterKm < 1
+      ? `${Math.round(displayedDiameterKm * 1000)} m`
+      : `${displayedDiameterKm.toFixed(displayedDiameterKm >= 10 ? 0 : 1)} km`;
 
   return (
     <main className={styles.main}>
@@ -410,7 +570,7 @@ export default function VenuesPage() {
         </div>
 
         {/* Map Integration */}
-        <div id="map-section" className={styles.mapWrapper} ref={mapRef}>
+        <div id="map-section" className={`${styles.mapWrapper} ${viewMode === 'list' ? styles.mapHidden : ''}`} ref={mapRef}>
           <Map
             venues={activeLocations}
             onUserLocationFound={handleUserLocationFound}
@@ -424,9 +584,23 @@ export default function VenuesPage() {
             center={mapCenter}
             zoom={mapZoom}
             isGlobalView={isGlobalView}
-            cityHighlightGeoJSON={cityHighlightGeoJSON}
-            cityHighlightCircle={cityHighlightCircle}
+            cityHighlightGeoJSON={isAreaSearchEnabled ? null : cityHighlightGeoJSON}
+            cityHighlightCircle={
+              isAreaSearchEnabled && Array.isArray(userCoords)
+                ? { center: userCoords, radiusMeters: areaRadiusKm * 1000 }
+                : cityHighlightCircle
+            }
             hideInternalPlaceSearch={true}
+            onLocateMeTriggered={() => {
+              if (isAreaSearchEnabled && isAreaSearchAvailable) {
+                setIsAreaAutoFollow(true);
+              }
+            }}
+            onUserMapNavigate={() => {
+              if (isAreaSearchEnabled && isAreaAutoFollow) {
+                setIsAreaAutoFollow(false);
+              }
+            }}
           />
         </div>
         {!isGlobalView && locationNotice && (
@@ -452,7 +626,7 @@ export default function VenuesPage() {
                     setCommunityLocations([]);
                   }}
                 >
-                  {Country.getAllCountries().map((country) => (
+                  {countries.map((country) => (
                     <option key={country.isoCode} value={country.isoCode}>
                       {country.name}
                     </option>
@@ -461,30 +635,41 @@ export default function VenuesPage() {
               )}
 
               {/* City Search - Disabled when Global View is ON */}
-              <div className={`${styles.comboboxContainer} ${isGlobalView ? styles.disabledArea : ''}`}>
-                <div
+              <div
+                className={`${styles.comboboxContainer} ${(isGlobalView || isAreaSearchEnabled) ? styles.disabledArea : ''}`}
+              >
+                <button
+                  type="button"
                   className={`${styles.comboboxTrigger} ${showCityResults ? styles.active : ''}`}
+                  aria-expanded={showCityResults}
+                  aria-label="Open city selector"
                   onClick={() => {
-                    if (isGlobalView) return; // Prevent interaction
+                    if (isGlobalView || isAreaSearchEnabled) return; // Prevent interaction
                     if (!userCountry) return;
                     // Always load all cities when opening to ensure fresh state
                     if (!showCityResults) {
-                      const cities = City.getCitiesOfCountry(userCountry);
-                      setFilteredCities(cities);
-                      setDisplayLimit(50);
+                      loadCitiesForCountry(userCountry)
+                        .then((cities) => {
+                          setFilteredCities(cities);
+                          setDisplayLimit(50);
+                        })
+                        .catch((err) => {
+                          console.error("Failed to load cities:", err);
+                          setFilteredCities([]);
+                        });
                     }
                     setShowCityResults(!showCityResults);
                   }}
                 >
-                  <span className="icon">🔍</span>
+                  <Icon name="search" size={16} className="icon-inline" />
                   <span style={{
                     flex: 1,
                     color: citySearchTerm ? 'var(--text-main)' : 'var(--text-muted)'
                   }}>
                     {citySearchTerm || (userCountry ? `Searching in ${userCountry}...` : "Choose country first")}
                   </span>
-                  <span className="icon">▼</span>
-                </div>
+                  <Icon name="chevronDown" size={16} className="icon-inline" />
+                </button>
 
                 {showCityResults && !isGlobalView && (
                   <div className={styles.comboboxDropdown}>
@@ -499,12 +684,18 @@ export default function VenuesPage() {
                         onChange={(e) => {
                           const term = e.target.value;
                           if (userCountry) {
-                            const allCities = City.getCitiesOfCountry(userCountry);
-                            const matches = allCities.filter(city =>
-                              city.name.toLowerCase().includes(term.toLowerCase())
-                            );
-                            setFilteredCities(matches);
-                            setDisplayLimit(50); // Reset limit
+                            loadCitiesForCountry(userCountry)
+                              .then((allCities) => {
+                                const matches = allCities.filter(city =>
+                                  city.name.toLowerCase().includes(term.toLowerCase())
+                                );
+                                setFilteredCities(matches);
+                                setDisplayLimit(50); // Reset limit
+                              })
+                              .catch((err) => {
+                                console.error("Failed to filter city list:", err);
+                                setFilteredCities([]);
+                              });
                           }
                         }}
                       />
@@ -540,12 +731,14 @@ export default function VenuesPage() {
                 )}
               </div>
 
+              <div className={styles.toggleRow}>
               {/* Global Perspective Toggle */}
               <div className={styles.toggleContainer} onClick={toggleGlobalView} title="Show venues from all over the world">
                 <label className={styles.switch} onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={!!isGlobalView} /* Double bang to ensure boolean true/false, never undefined */
+                    aria-label="Toggle global venues"
                     onChange={toggleGlobalView}
                   />
                   <span className={`${styles.slider} ${styles.round}`}></span>
@@ -553,6 +746,52 @@ export default function VenuesPage() {
                 <span style={{ fontSize: '0.9rem', color: isGlobalView ? 'var(--color-primary)' : 'var(--text-muted)', fontWeight: 600 }}>
                   Global Venues
                 </span>
+              </div>
+
+              <div
+                className={`${styles.toggleContainer} ${!isAreaSearchAvailable ? styles.disabledArea : ""}`}
+                title="Search venues inside a radius around your location"
+              >
+                <label className={styles.switch} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={!!isAreaSearchEnabled}
+                    disabled={!isAreaSearchAvailable}
+                    aria-label="Toggle area search"
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsAreaSearchEnabled(checked);
+                      setIsAreaAutoFollow(true);
+                      if (checked && Array.isArray(userCoords)) {
+                        setMapCenter(userCoords);
+                        loadNearbyForCoords(userCoords[0], userCoords[1], areaRadiusKm);
+                      }
+                    }}
+                  />
+                  <span className={`${styles.slider} ${styles.round}`}></span>
+                </label>
+                <span style={{ fontSize: '0.9rem', color: isAreaSearchEnabled ? 'var(--color-primary)' : 'var(--text-muted)', fontWeight: 600 }}>
+                  Search by area
+                </span>
+              </div>
+
+              {isAreaSearchEnabled && (
+                <div className={styles.areaControls}>
+                  <span className={styles.areaLabel}>
+                    Diameter: {diameterLabel}
+                  </span>
+                  <input
+                    className={styles.areaSlider}
+                    type="range"
+                    aria-label="Area search radius in kilometers"
+                    min="0.5"
+                    max="50"
+                    step="0.5"
+                    value={areaRadiusKm}
+                    onChange={(e) => setAreaRadiusKm(parseFloat(e.target.value))}
+                  />
+                </div>
+              )}
               </div>
             </div>
 
@@ -572,48 +811,104 @@ export default function VenuesPage() {
         </div>
 
         {/* Sport Filters */}
-        <div className="filter-group">
-          {/* Removed button, replaced by toggle above */}
+        <div className={styles.contextBar} role="status">
+          <span className={styles.contextMeta}>
+            <strong className="tabular">{activeLocations.length}</strong> venues · {filterSport}
+            {citySearchTerm ? ` · ${citySearchTerm}` : ''}
+            {textQuery ? ` · “${searchParams.get('q')}”` : ''}
+          </span>
+          <div className={styles.viewToggle} role="group" aria-label="View mode">
+            {[
+              { id: 'split', label: 'Split' },
+              { id: 'list', label: 'List' },
+              { id: 'map', label: 'Map' },
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                className={`${styles.viewBtn} ${viewMode === mode.id ? styles.viewBtnActive : ''}`}
+                onClick={() => {
+                  setViewMode(mode.id);
+                  if (mode.id === 'map') {
+                    document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className={styles.filterFab}
+            onClick={() => setShowFilterSheet(true)}
+            aria-label="Open venue filters"
+          >
+            <Icon name="chevronDown" size={16} className="icon-inline" />
+            Filters
+            {filterSport !== 'All' ? <span className={styles.filterBadge}>1</span> : null}
+          </button>
+        </div>
 
-          {[
-            { name: 'All', icon: '🌟' },
-            { name: 'Basketball', icon: '🏀' },
-            { name: 'Soccer', icon: '⚽' },
-            { name: 'Tennis', icon: '🎾' },
-            { name: 'Volleyball', icon: '🏐' },
-            { name: 'Fitness', icon: '💪' },
-            { name: 'Baseball', icon: '⚾' }
-          ].map((sport) => (
+        <div className={`filter-group ${styles.desktopFilters}`} role="tablist" aria-label="Sport filters">
+          {sportFilters.map((sport) => (
             <button
-              key={sport.name}
-              onClick={() => setFilterSport(sport.name)}
-              className={`filter-pill ${filterSport === sport.name ? 'filter-pill-active' : ''}`}
+              key={sport}
+              onClick={() => setFilterSport(sport)}
+              className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+              role="tab"
+              aria-selected={filterSport === sport}
               suppressHydrationWarning
             >
-              <span className="icon">{sport.icon}</span>
-              <span>{sport.name}</span>
+              <span>{sport}</span>
             </button>
           ))}
         </div>
 
-        <div className="grid-auto-fit">
-          {isRefreshing && (
-            <div className={styles.refreshingBadge}>Updating venues...</div>
-          )}
+        <div className={`grid-auto-fit ${viewMode === 'map' ? styles.listHidden : ''}`}>
           {isLoading && activeLocations.length === 0 ? (
-            <div className={styles.loaderContainer}>
-              <span className={styles.loader}></span>
-              <p>Loading venues...</p>
-            </div>
+            <SkeletonCardGrid count={6} nested variant="venue" />
           ) : activeLocations.length === 0 ? (
-            <div className="text-center p-5 text-muted" style={{ gridColumn: '1 / -1' }}>
-              No locations found for {filterSport}.
+            <div style={{ gridColumn: '1 / -1' }}>
+              <EmptyState
+                title="No venues in this area"
+                description={
+                  filterSport !== 'All' || textQuery
+                    ? 'Try widening your search radius, changing sport filters, or switching to global view.'
+                    : 'Enable location access or pick a city to discover courts and fields near you.'
+                }
+                actionLabel={
+                  filterSport !== 'All' || textQuery
+                    ? 'Clear filters'
+                    : isGlobalView
+                      ? undefined
+                      : 'Expand search area'
+                }
+                onAction={
+                  filterSport !== 'All' || textQuery
+                    ? () => {
+                        setFilterSport('All');
+                        if (textQuery) router.push('/venues');
+                      }
+                    : !isGlobalView
+                      ? () => {
+                          if (isAreaSearchAvailable) {
+                            setIsAreaSearchEnabled(true);
+                            setAreaRadiusKm(Math.min(areaRadiusKm + 10, 50));
+                          } else {
+                            setIsGlobalView(true);
+                            loadGlobalVenues();
+                          }
+                        }
+                      : undefined
+                }
+              />
             </div>
           ) : (
             activeLocations.map((location, index) => (
               <div
                 key={location.id}
-                className={styles.animateCard}
+                className={`${styles.animateCard} list-stagger`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <LocationCard
@@ -626,25 +921,105 @@ export default function VenuesPage() {
         </div>
       </div>
 
+      {showRefreshSpin && (
+        <div
+          key={refreshSpinKey}
+          className={styles.refreshIndicator}
+          role="status"
+          aria-live="polite"
+          aria-label="Updating venues"
+          onAnimationEnd={() => setShowRefreshSpin(false)}
+        >
+          <Icon name="refresh" size={16} />
+        </div>
+      )}
+
       {/* Add Location Modal */}
+      {showFilterSheet && (
+        <div className="dismiss-backdrop" onClick={() => setShowFilterSheet(false)}>
+          <div
+            className={`glass-panel ticket-card ${styles.filterSheet} dismiss-panel`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Venue filters"
+          >
+            <ModalHeader title="Filters" onClose={() => setShowFilterSheet(false)} />
+
+            <div className={styles.sheetSection}>
+              <p className={styles.sheetLabel}>View</p>
+              <div className={styles.sheetViewToggle} role="group" aria-label="View mode">
+                {[
+                  { id: 'split', label: 'Split' },
+                  { id: 'list', label: 'List' },
+                  { id: 'map', label: 'Map' },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    className={`${styles.sheetViewBtn} ${viewMode === mode.id ? styles.sheetViewBtnActive : ''}`}
+                    onClick={() => {
+                      setViewMode(mode.id);
+                      if (mode.id === 'map') {
+                        setShowFilterSheet(false);
+                        document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.sheetSection}>
+              <p className={styles.sheetLabel}>Sport</p>
+              <div className={styles.sheetPills} role="tablist" aria-label="Sport filters">
+                {sportFilters.map((sport) => (
+                  <button
+                    key={sport}
+                    type="button"
+                    onClick={() => setFilterSport(sport)}
+                    className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
+                    role="tab"
+                    aria-selected={filterSport === sport}
+                  >
+                    <span>{sport}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className={`btn-primary ${styles.sheetApply}`}
+              onClick={() => setShowFilterSheet(false)}
+            >
+              Show {activeLocations.length} venues
+            </button>
+          </div>
+        </div>
+      )}
+
       {showAddForm && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 2000,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem'
-        }}>
-          <CommunityLocationForm
-            initialCoords={newLocationCoords}
-            onSuccess={handleLocationAdded}
-            onCancel={() => setShowAddForm(false)}
-          />
+        <div className="dismiss-backdrop" onClick={() => setShowAddForm(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <CommunityLocationForm
+              initialCoords={newLocationCoords}
+              onSuccess={handleLocationAdded}
+              onCancel={() => setShowAddForm(false)}
+            />
+          </div>
         </div>
       )}
     </main>
+  );
+}
+
+export default function VenuesPage() {
+  return (
+    <Suspense fallback={null}>
+      <VenuesPageContent />
+    </Suspense>
   );
 }

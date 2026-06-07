@@ -20,3 +20,16 @@ export const isPlaceholderVenueName = (name) => {
   if (!name || typeof name !== "string") return false;
   return placeholderVenueSet.has(name.trim().toLowerCase());
 };
+
+export function filterPlaceholderVenues(venues = []) {
+  return venues.filter((venue) => !isPlaceholderVenueName(venue?.name));
+}
+
+export function isPlaceholderSearchResult(result) {
+  if (!result || typeof result !== "object") return false;
+  return isPlaceholderVenueName(result.title) || isPlaceholderVenueName(result.name);
+}
+
+export function filterPlaceholderSearchResults(results = []) {
+  return results.filter((result) => !isPlaceholderSearchResult(result));
+}
