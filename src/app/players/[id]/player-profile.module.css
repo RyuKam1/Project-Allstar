@@ -1,0 +1,57 @@
+.breadcrumbWrap {
+  margin-bottom: 1.25rem;
+}
+
+.notFoundWrap {
+  padding-top: 2rem;
+}
+
+.metaTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.sectionTitle {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.teamList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.teamLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.teamLink:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(var(--color-primary-rgb), 0.35);
+}
+
+.teamName {
+  font-weight: 700;
+}
+
+.teamSport {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

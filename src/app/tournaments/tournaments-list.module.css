@@ -1,0 +1,224 @@
+.main {
+  min-height: 100dvh;
+  padding-bottom: 4rem;
+}
+
+.container {
+  padding-top: clamp(100px, 15vh, 140px);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+  gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+}
+
+.title {
+  font-size: clamp(2rem, 8vw, 3.5rem);
+  margin: 0;
+  font-weight: 800;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 1.5rem;
+}
+
+.modalPanel {
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  width: 100%;
+  max-width: 600px;
+  background: #0a0a0b;
+  border: 1px solid var(--border-glass);
+  border-radius: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalTitle {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 800;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.input, .select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.input:focus, .select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.teamListContainer {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-glass);
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.2);
+}
+
+.teamItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-glass);
+  transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.teamItem:focus-visible {
+  outline: 2px solid rgba(var(--color-primary-rgb), 0.7);
+  outline-offset: 2px;
+}
+
+.teamItem:last-child {
+  border-bottom: none;
+}
+
+.teamItemActive {
+  background: var(--color-primary);
+  color: var(--color-on-primary, #ffffff) !important;
+}
+
+.modalActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancelButton {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.cancelButton:hover {
+  color: white;
+  border-color: #666;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 2.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filterButton {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 8px 20px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
+}
+
+.filterButton:hover {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.filterButtonActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary, #ffffff) !important;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.tournamentCard {
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.tournamentCard:hover {
+  transform: translateY(-4px);
+}
+
+.tournamentCard:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cardMeta {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.winnerLabel {
+  color: var(--color-primary);
+  font-weight: 700;
+}

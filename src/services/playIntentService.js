@@ -1,0 +1,372 @@
+import { supabase } from "@/lib/supabaseClient";
+import { enrichLocationImageRow } from "@/lib/storageImages";
+
+async function getCommunityLocationPreview(locationId) {
+  const [{ data: loc }, { data: imageRow }] = await Promise.all([
+    supabase.from("community_locations").select("name").eq("id", locationId).maybeSingle(),
+    supabase
+      .from("location_images")
+      .select("object_key, storage_bucket, mime_type, byte_size, image_url")
+      .eq("location_id", locationId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    name: loc?.name || "Unknown Location",
+    image: enrichLocationImageRow(imageRow)?.image_url || null,
+  };
+}
+
+/**
+ * Play Intent Service
+ * Core social momentum feature - NOT a booking system
+ * Language: "Play", "Join", "Going", "Activity" (avoid "book", "reserve", "slot")
+ */
+export const playIntentService = {
+    /**
+     * Create a play intent (signal when you're planning to play)
+     * @param {string} locationId - Location ID (UUID for community, integer for business)
+     * @param {string} locationType - 'community' or 'business'
+     * @param {Date} intentTime - When you plan to play
+     * @param {string} sport - Optional sport
+     * @param {string} skillLevel - Optional skill level
+     * @param {string} note - Optional short note
+     * @returns {Promise<Object>} Created intent
+     */
+    createIntent: async (locationId, locationType, intentTime, sport = null, skillLevel = null, note = null) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in to signal play intent");
+
+        // Validate intent time is in the future
+        if (new Date(intentTime) < new Date()) {
+            throw new Error("Intent time must be in the future");
+        }
+
+        // Check if user already has an intent for this location around this time
+        const existingIntent = await playIntentService.getUserIntentNearTime(
+            locationId,
+            locationType,
+            intentTime
+        );
+
+        if (existingIntent) {
+            throw new Error("You already have a play intent around this time");
+        }
+
+        const { data, error } = await supabase
+            .from('play_intents')
+            .insert({
+                location_id: locationId.toString(),
+                location_type: locationType,
+                user_id: user.id,
+                intent_time: intentTime,
+                sport,
+                skill_level: skillLevel,
+                note: note?.trim() || null
+            })
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    /**
+     * Get active (non-expired) play intents for a location
+     * @param {string} locationId - Location ID
+     * @param {string} locationType - 'community' or 'business'
+     * @returns {Promise<Array>} Active intents with user info
+     */
+    getActiveIntents: async (locationId, locationType) => {
+        const { data, error } = await supabase
+            .rpc('get_active_play_intents', {
+                p_location_id: locationId.toString(),
+                p_location_type: locationType
+            });
+
+        if (error) throw new Error(error.message);
+        return data || [];
+    },
+
+    /**
+     * Get activity timeline with clustered time blocks
+     * @param {string} locationId - Location ID
+     * @param {string} locationType - 'community' or 'business'
+     * @returns {Promise<Array>} Time blocks with player counts
+     */
+    getIntentTimeline: async (locationId, locationType) => {
+        const intents = await playIntentService.getActiveIntents(locationId, locationType);
+
+        if (intents.length === 0) return [];
+
+        // Cluster intents within ±15 minute windows
+        const clusters = playIntentService.clusterIntents(intents);
+
+        return clusters;
+    },
+
+    /**
+     * Cluster play intents within ±15 minute windows
+     * @param {Array} intents - Array of play intents
+     * @returns {Array} Clustered time blocks
+     */
+    clusterIntents: (intents) => {
+        const clusters = [];
+        const sorted = [...intents].sort((a, b) =>
+            new Date(a.intent_time) - new Date(b.intent_time)
+        );
+
+        for (const intent of sorted) {
+            const intentTime = new Date(intent.intent_time);
+
+            // Find existing cluster within ±15 minutes
+            const existingCluster = clusters.find(c => {
+                const timeDiff = Math.abs(c.centerTime - intentTime);
+                return timeDiff <= 15 * 60 * 1000; // 15 minutes in milliseconds
+            });
+
+            if (existingCluster) {
+                existingCluster.intents.push(intent);
+                existingCluster.playerCount++;
+                // Update center time to average
+                const totalTime = existingCluster.intents.reduce((sum, i) =>
+                    sum + new Date(i.intent_time).getTime(), 0
+                );
+                existingCluster.centerTime = new Date(totalTime / existingCluster.intents.length);
+            } else {
+                clusters.push({
+                    centerTime: intentTime,
+                    intents: [intent],
+                    playerCount: 1
+                });
+            }
+        }
+
+        return clusters;
+    },
+
+    /**
+     * Join an existing time block (create intent at cluster center time)
+     * @param {string} locationId - Location ID
+     * @param {string} locationType - 'community' or 'business'
+     * @param {Date} timeBlock - Center time of the cluster
+     * @param {string} sport - Optional sport
+     * @param {string} skillLevel - Optional skill level
+     * @param {string} note - Optional note
+     * @returns {Promise<Object>} Created intent
+     */
+    joinTimeBlock: async (locationId, locationType, timeBlock, sport = null, skillLevel = null, note = null) => {
+        return playIntentService.createIntent(
+            locationId,
+            locationType,
+            timeBlock,
+            sport,
+            skillLevel,
+            note
+        );
+    },
+
+    /**
+     * Cancel own play intent
+     * @param {string} intentId - Intent UUID
+     * @returns {Promise<boolean>} Success status
+     */
+    cancelIntent: async (intentId) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in");
+
+        const { error } = await supabase
+            .from('play_intents')
+            .delete()
+            .eq('id', intentId)
+            .eq('user_id', user.id); // RLS ensures user can only delete their own
+
+        if (error) throw new Error(error.message);
+        return true;
+    },
+
+    /**
+     * Get participants for a specific time block
+     * @param {string} locationId - Location ID
+     * @param {string} locationType - 'community' or 'business'
+     * @param {Date} timeBlock - Center time of the cluster
+     * @returns {Promise<Array>} Participants in this time block
+     */
+    getParticipants: async (locationId, locationType, timeBlock) => {
+        const intents = await playIntentService.getActiveIntents(locationId, locationType);
+        const blockTime = new Date(timeBlock);
+
+        // Filter intents within ±15 minutes of this time block
+        const participants = intents.filter(intent => {
+            const intentTime = new Date(intent.intent_time);
+            const timeDiff = Math.abs(blockTime - intentTime);
+            return timeDiff <= 15 * 60 * 1000;
+        });
+
+        return participants;
+    },
+
+    /**
+     * Get user's own active intents
+     * @returns {Promise<Array>} User's active intents
+     */
+    getUserIntents: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        // 1. Get raw intents
+        const { data: intents, error } = await supabase
+            .from('play_intents')
+            .select('*')
+            .eq('user_id', user.id)
+            .gt('expires_at', new Date().toISOString())
+            .order('intent_time', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching user intents:', error);
+            return [];
+        }
+
+        if (!intents || intents.length === 0) return [];
+
+        // 2. Enrich with location details (Name, Image)
+        // Since we have two tables (venues and community_locations), we handle them separately.
+        const enrichedIntents = await Promise.all(intents.map(async (intent) => {
+            try {
+                let locationName = 'Unknown Location';
+                let locationImage = null;
+
+                if (intent.location_type === 'community') {
+                    const preview = await getCommunityLocationPreview(intent.location_id);
+                    locationName = preview.name;
+                    locationImage = preview.image;
+                } else {
+                    // Fetch from venues (business)
+                    // Assuming 'venues' table. If using a service, we might need to be careful about circular deps or just use direct DB call for speed.
+                    // Let's use direct DB call for performance.
+                    const { data: loc } = await supabase
+                        .from('venues')
+                        .select('name, image, image_url')
+                        .eq('id', intent.location_id)
+                        .single();
+
+                    if (loc) {
+                        locationName = loc.name;
+                        locationImage = loc.image_url || loc.image || null;
+                    }
+                }
+
+                return {
+                    ...intent,
+                    location_name: locationName,
+                    location_image: locationImage
+                };
+            } catch (err) {
+                console.warn(`Failed to fetch details for location ${intent.location_id}`, err);
+                return { ...intent, location_name: 'Unknown Location' };
+            }
+        }));
+
+        return enrichedIntents;
+    },
+
+    /**
+     * Check if user has an intent near a specific time
+     * @param {string} locationId - Location ID
+     * @param {string} locationType - 'community' or 'business'
+     * @param {Date} intentTime - Time to check
+     * @returns {Promise<Object|null>} Existing intent or null
+     */
+    getUserIntentNearTime: async (locationId, locationType, intentTime) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+
+        const checkTime = new Date(intentTime);
+        const before = new Date(checkTime.getTime() - 30 * 60 * 1000); // 30 min before
+        const after = new Date(checkTime.getTime() + 30 * 60 * 1000); // 30 min after
+
+        const { data } = await supabase
+            .from('play_intents')
+            .select('*')
+            .eq('location_id', locationId.toString())
+            .eq('location_type', locationType)
+            .eq('user_id', user.id)
+            .gte('intent_time', before.toISOString())
+            .lte('intent_time', after.toISOString())
+            .gt('expires_at', new Date().toISOString())
+            .single();
+
+        return data;
+    },
+
+    /**
+     * Get user's past play history
+     * @returns {Promise<Array>} User's past intents
+     */
+    getUserHistory: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        const { data: intents, error } = await supabase
+            .from('play_intents')
+            .select('*')
+            .eq('user_id', user.id)
+            .lt('intent_time', new Date().toISOString())
+            .order('intent_time', { ascending: false }); // Newest past item first
+
+        if (error) {
+            console.error('Error fetching user history:', error);
+            return [];
+        }
+
+        if (!intents || intents.length === 0) return [];
+
+        // Enrich with location details (Name, Image)
+        const enrichedIntents = await Promise.all(intents.map(async (intent) => {
+            try {
+                let locationName = 'Unknown Location';
+                let locationImage = null;
+
+                if (intent.location_type === 'community') {
+                    const preview = await getCommunityLocationPreview(intent.location_id);
+                    locationName = preview.name;
+                    locationImage = preview.image;
+                } else {
+                    const { data: loc } = await supabase
+                        .from('venues')
+                        .select('name, image, image_url')
+                        .eq('id', intent.location_id)
+                        .single();
+                    if (loc) {
+                        locationName = loc.name;
+                        locationImage = loc.image_url || loc.image || null;
+                    }
+                }
+
+                return {
+                    ...intent,
+                    location_name: locationName,
+                    location_image: locationImage
+                };
+            } catch (err) {
+                console.warn(`Failed to fetch details for location ${intent.location_id}`, err);
+                return { ...intent, location_name: 'Unknown Location' };
+            }
+        }));
+
+        return enrichedIntents;
+    },
+
+    /**
+     * Get total active player count for a location
+     * @param {string} locationId - Location ID
+     * @param {string} locationType - 'community' or 'business'
+     * @returns {Promise<number>} Total players
+     */
+    getActivePlayerCount: async (locationId, locationType) => {
+        const intents = await playIntentService.getActiveIntents(locationId, locationType);
+        return intents.length;
+    }
+};

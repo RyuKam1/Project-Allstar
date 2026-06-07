@@ -1,0 +1,370 @@
+.main {
+  min-height: 100dvh;
+  padding-bottom: 4rem;
+}
+
+.notFoundWrap {
+  padding-top: 120px;
+}
+
+.hero {
+  min-height: clamp(300px, 50vh, 500px);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 100px 0 4rem;
+}
+
+.heroBgImage {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.6;
+}
+
+.heroGradientOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--bg-deep) 0%, transparent 80%);
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.heroTag {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  font-size: clamp(2rem, 10vw, 4rem);
+  margin: 1rem 0;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: clamp(0.9rem, 2vw, 1.05rem);
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ratingMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ratingText {
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.contentGrid {
+  margin-top: clamp(1.5rem, 5vw, 3rem);
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: clamp(1.5rem, 5vw, 4rem);
+}
+
+@media (max-width: 1024px) {
+  .contentGrid {
+    grid-template-columns: 1.5fr 1fr;
+    gap: 2rem;
+  }
+}
+
+.section {
+  margin-bottom: clamp(2rem, 6vw, 3rem);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitleNoMargin {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin: 0;
+}
+
+.description {
+  line-height: 1.8;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.uploadLabel {
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.emptyGallery {
+  padding: 2.5rem;
+  text-align: center;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-glass);
+  border-radius: 16px;
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 45vw, 220px), 1fr));
+  gap: 1rem;
+}
+
+.galleryItem {
+  aspect-ratio: 4/3;
+  height: auto;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-glass);
+  position: relative;
+}
+
+.galleryImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.loginPrompt {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.loginLink {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.amenities {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.amenityItem {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.bookingCard {
+  padding: 2rem;
+  background: rgba(20, 20, 31, 0.8);
+  backdrop-filter: blur(10px);
+  margin-bottom: 1.5rem;
+}
+
+.bookingTitle {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 800;
+}
+
+.bookingSubtitle {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+.priceBox {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+}
+
+.priceLabel {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.priceValue {
+  font-size: clamp(1.5rem, 4vw, 1.8rem);
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.bookButton {
+  width: 100%;
+  padding: 18px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.mobileCta {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    min-height: auto;
+    padding: 100px 0 3rem;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .main {
+    padding-bottom: calc(5rem + var(--bottom-nav-height, 64px) + 72px);
+  }
+
+  .bookButton {
+    display: none;
+  }
+
+  .mobileCta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--bottom-nav-height, 64px) + env(safe-area-inset-bottom, 0px));
+    z-index: 900;
+    padding: 12px 16px;
+    background: color-mix(in srgb, var(--bg-deep) 92%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-glass);
+  }
+
+  .mobileCtaInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .mobileCtaLabel {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .mobileCtaPrice {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+
+  .mobileCtaButton {
+    flex-shrink: 0;
+    min-width: 140px;
+    padding: 14px 20px;
+  }
+
+  .reviewsHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .shareExperienceButton {
+    width: 100%;
+  }
+}
+
+.hidden {
+  display: none;
+}
+
+/* Review Section Styles */
+.reviewsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.shareExperienceButton {
+  font-size: 0.9rem;
+  padding: 10px 20px;
+  white-space: nowrap;
+}
+
+.reviewFormContainer {
+  margin-bottom: 2rem;
+}
+
+.userReviewNotice {
+  padding: 1rem 1.5rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.userReviewNotice p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.editLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+  transition: color 0.2s ease;
+}
+
+.editLink:hover {
+  color: var(--accent-hover);
+}
+
+.loadingReviews {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.reviewStatsContainer {
+  background: rgba(20, 20, 31, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+/* Sticky sidebar container */
+.sidebarSticky {
+  position: sticky;
+  top: calc(var(--header-height, 80px) + 16px);
+  align-self: flex-start;
+}

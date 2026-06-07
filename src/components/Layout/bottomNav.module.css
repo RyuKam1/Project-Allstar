@@ -1,0 +1,79 @@
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: calc(var(--bottom-nav-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  background: color-mix(in srgb, var(--bg-deep) 88%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-glass);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: var(--z-nav, 100);
+  box-sizing: border-box;
+}
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 44px;
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: color var(--duration-normal) var(--ease-out);
+  padding: 4px;
+}
+
+.navItem:active {
+  transform: scale(0.95);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+  position: relative;
+}
+
+.label {
+  font-family: var(--font-header);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.active {
+  color: var(--color-primary);
+}
+
+.active .icon::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.active .label {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+@media (min-width: 769px) {
+  .bottomNav {
+    display: none;
+  }
+}

@@ -1,0 +1,146 @@
+.memberDashboard {
+  padding-top: 120px;
+  padding-bottom: var(--space-12);
+}
+
+.header {
+  margin-bottom: var(--space-8);
+}
+
+.greeting {
+  margin: 0 0 var(--space-2);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+}
+
+.caption {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-8);
+}
+
+.heroCard {
+  grid-column: 1 / -1;
+  padding: var(--space-8);
+  background: var(--surface-raised, #1c1c1e);
+  border: 1px solid var(--border-glass);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-6);
+  align-items: flex-start;
+}
+
+.heroLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+  display: block;
+}
+
+.heroTitle {
+  font-size: var(--text-3xl);
+  margin: 0 0 var(--space-4);
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.card {
+  padding: var(--space-6);
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xl);
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.quickLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-start;
+  text-decoration: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.activityList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.activityItem {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-glass);
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.2s;
+}
+
+.activityItem:hover {
+  opacity: 0.9;
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(var(--color-primary-rgb), 0.15);
+}
+
+.activityTitle {
+  font-weight: 500;
+  font-size: var(--text-sm);
+  margin-bottom: 2px;
+}
+
+.activityTime {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.viewAll {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}

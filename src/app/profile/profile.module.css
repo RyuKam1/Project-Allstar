@@ -1,0 +1,565 @@
+.main {
+  min-height: 100dvh;
+  padding-bottom: calc(var(--space-8) + var(--bottom-nav-height) + var(--safe-bottom));
+}
+
+@media (min-width: 769px) {
+  .main {
+    padding-bottom: 4rem;
+  }
+}
+
+.container {
+  padding-top: var(--page-top, clamp(100px, 15vh, 140px));
+}
+
+.profileGrid {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) 2fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .profileGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.glassPanel {
+  padding: clamp(1.25rem, 5vw, 2rem);
+}
+
+.identityCard {
+  text-align: center;
+}
+
+.avatarContainer {
+  width: clamp(100px, 20vw, 140px);
+  height: clamp(100px, 20vw, 140px);
+  border-radius: 50%;
+  overflow: visible;
+  margin: 0 auto 1.5rem;
+  position: relative;
+  isolation: isolate;
+}
+
+.avatarContainer::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  box-shadow: 0 0 28px var(--color-primary-glow, rgba(var(--color-primary-rgb), 0.45));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid var(--color-primary);
+  position: relative;
+  z-index: 1;
+}
+
+.uploadLabel {
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  text-align: left;
+}
+
+.input, .textarea {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  border-radius: 12px;
+  width: 100%;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.input:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.textarea {
+  min-height: 100px;
+}
+
+.userName {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 900;
+}
+
+.userBio {
+  color: var(--text-muted);
+  margin: 0 0 1.5rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.statsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 0.75rem;
+}
+
+.statsHeader h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.toggleContainer {
+  display: flex;
+  background: rgba(255,255,255,0.05);
+  border-radius: 20px;
+  padding: 3px;
+  border: 1px solid var(--border-glass);
+}
+
+.toggleButton {
+  padding: 5px 14px;
+  border-radius: 18px;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.toggleButtonActive {
+  background: var(--color-primary);
+  color: var(--color-on-primary, #ffffff);
+  box-shadow: 0 2px 10px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.statsGridEdit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.statsGridDisplay {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 1rem;
+}
+
+@media (max-width: 480px) {
+  .statsGridEdit, .statsGridDisplay {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.valueHighlight {
+  color: var(--color-primary);
+}
+
+.separator {
+  color: #666;
+  margin: 0 2px;
+}
+
+.actions {
+  margin-top: 2rem;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .buttonGroup {
+    flex-direction: column-reverse;
+  }
+}
+
+.button {
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.buttonCancel {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  color: #ccc;
+  border: 1px solid var(--border-glass);
+}
+
+.buttonCancel:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.buttonSave {
+  flex: 1;
+  background: var(--color-primary);
+  color: var(--color-on-primary, #ffffff);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.buttonEdit {
+  width: 100%;
+  background: var(--color-primary);
+  color: var(--color-on-primary, #ffffff);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sectionTitle {
+  margin: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 800;
+}
+
+.winCount {
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  border: 2px dashed var(--border-glass);
+  border-radius: 24px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.historyList {
+  display: grid;
+  gap: 1.25rem;
+}
+
+/* Career / game history lists: cap height then scroll inside the panel */
+.historyScroll {
+  --history-row-height: 5.5rem;
+  --history-row-gap: 1.25rem;
+  --history-visible-rows: 5;
+  max-height: calc(
+    var(--history-visible-rows) * var(--history-row-height)
+    + (var(--history-visible-rows) - 1) * var(--history-row-gap)
+  );
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding-right: 2px;
+  margin-right: -2px;
+}
+
+.historyScroll:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.historyScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.historyScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.historyScroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.historyScroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+@media (max-width: 600px) {
+  .historyScroll {
+    --history-visible-rows: 4;
+    --history-row-height: 6.75rem;
+    max-height: min(
+      calc(
+        var(--history-visible-rows) * var(--history-row-height)
+        + (var(--history-visible-rows) - 1) * var(--history-row-gap)
+      ),
+      52dvh
+    );
+  }
+}
+
+.historyItem {
+  padding: clamp(1rem, 4vw, 1.5rem);
+  border-radius: 0 16px 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s;
+}
+
+@media (max-width: 600px) {
+  .historyItem {
+    flex-direction: column;
+    align-items: flex-start;
+    border-radius: 12px;
+  }
+
+  .historyMeta {
+    text-align: left;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-glass);
+  }
+
+  .statsHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .toggleContainer {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.historyItem:hover {
+  transform: translateX(6px);
+}
+
+.tournamentItem {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.03));
+  border-left: 4px solid #FFD700;
+}
+
+.matchItem {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  border-left: 4px solid #fff;
+}
+
+.historyInfo {
+  flex-grow: 1;
+}
+
+.historyTitle {
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin-bottom: 4px;
+}
+
+.tournamentText {
+  color: #FFD700;
+}
+
+.matchText {
+  color: var(--text-main);
+}
+
+.historySubtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.teamName {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.historyMeta {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.metaCategory {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.metaDate {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.teamsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.teamCard {
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border-glass);
+}
+
+.teamCard:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px);
+}
+
+.teamCardName {
+  font-weight: 800;
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+  color: #fff;
+}
+
+.teamCardSport {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Utilities */
+.hidden {
+  display: none;
+}
+.fullWidth {
+  width: 100%;
+}
+.span2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 480px) {
+  .span2 {
+    grid-column: span 1;
+  }
+}
+
+/* ================= THEME OVERRIDES ================= */
+
+/* Pro League (Light Mode) Fixes */
+:global([data-theme='pro']) .input,
+:global([data-theme='pro']) .textarea {
+  background: white;
+  border: 1px solid #ccc;
+  color: black;
+}
+
+:global([data-theme='pro']) .label,
+:global([data-theme='pro']) .separator,
+:global([data-theme='pro']) .historySubtitle,
+:global([data-theme='pro']) .teamCardSport,
+:global([data-theme='pro']) .metaDate {
+  color: #555;
+  font-weight: 500;
+}
+
+:global([data-theme='pro']) .value {
+  color: black;
+}
+
+:global([data-theme='pro']) .matchText,
+:global([data-theme='pro']) .teamName {
+  color: #111;
+}
+
+:global([data-theme='pro']) .matchItem {
+  background: rgba(0,0,0,0.05); /* Grey for light mode */
+  border-left: 4px solid #999;
+}
+
+:global([data-theme='pro']) .teamCard {
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 2px 2px 0 #eee;
+}
+
+:global([data-theme='pro']) .winCount {
+  background: #eee;
+  color: black;
+  border: 1px solid #ddd;
+}
+
+:global([data-theme='pro']) .emptyState {
+  border-color: #ccc;
+  color: #555;
+  background: rgba(0,0,0,0.02);
+}
+
+:global([data-theme='pro']) .statsHeader {
+  border-bottom: 1px solid #ddd;
+}
+
+:global([data-theme='pro']) .toggleContainer {
+  background: #eee;
+  border: 1px solid #ddd;
+}
+
+:global([data-theme='pro']) .toggleButton {
+  color: #666;
+}
+
+:global([data-theme='pro']) .toggleButtonActive {
+  color: var(--color-on-primary, #ffffff);
+}

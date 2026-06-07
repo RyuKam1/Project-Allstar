@@ -1,0 +1,709 @@
+"use client";
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import Navbar from '@/components/Layout/Navbar'; // Import Navbar
+import Link from 'next/link';
+import { communityLocationService } from '@/services/communityLocationService';
+import { venueService } from '@/services/venueService';
+import { playIntentService } from '@/services/playIntentService';
+import { interactionTrackingService } from '@/services/interactionTrackingService';
+import { supabase } from '@/lib/supabaseClient';
+import PlayIntentForm from '@/components/PlayIntent/PlayIntentForm';
+import EditLocationForm from '@/components/Community/EditLocationForm'; // Import Edit Form
+import ActivityTimeline from '@/components/PlayIntent/ActivityTimeline';
+import ReviewStats from '@/components/Reviews/ReviewStats';
+import ReviewList from '@/components/Reviews/ReviewList';
+import ReviewForm from '@/components/Reviews/ReviewForm';
+import { reviewService } from '@/services/reviewService'; // Import Service
+import Map from '@/components/UI/Map';
+import PendingEditsList from '@/components/Community/PendingEditsList'; // Import correctly at top
+import PendingVenueContributions from '@/components/Locations/PendingVenueContributions';
+import BusinessContributionForm from '@/components/Locations/BusinessContributionForm';
+import { useAuth } from '@/context/AuthContext';
+import ImageLightbox from '@/components/UI/ImageLightbox';
+import { useNotificationCenter } from '@/components/UI/NotificationCenter';
+import { getPlayButtonText } from '@/lib/sportUtils';
+import { Breadcrumbs, EmptyState, SkeletonVenueDetail } from '@/components/UI/primitives';
+import styles from './location-detail.module.css';
+
+export default function LocationDetailPage() {
+    const { id } = useParams();
+    const searchParams = useSearchParams();
+    const typeParam = searchParams.get('type'); // 'community' or 'business'
+
+    const { user } = useAuth();
+    const { notify } = useNotificationCenter();
+    const [location, setLocation] = useState(null);
+    const [locationType, setLocationType] = useState(typeParam || 'community');
+    const [loading, setLoading] = useState(true);
+    const [showPlayForm, setShowPlayForm] = useState(false);
+    const [showEditForm, setShowEditForm] = useState(false); // New State
+    const [activePlayerCount, setActivePlayerCount] = useState(0);
+    const [reviews, setReviews] = useState([]);
+    const [reviewStats, setReviewStats] = useState(null);
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [publisherInfo, setPublisherInfo] = useState(null);
+
+    // Lightbox State
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+
+    // Determine type based on ID format if not meant in param
+    // UUID = Community (usually), Integer = Business (Legacy)
+    useEffect(() => {
+        if (!typeParam) {
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            setLocationType(isUUID ? 'community' : 'business');
+        }
+    }, [id, typeParam]);
+
+    const [fetchedAddress, setFetchedAddress] = useState(null);
+    const activeCountRefreshTimerRef = useRef(null);
+
+    useEffect(() => {
+        loadLocationData();
+        // Track visit
+        if (location && locationType) {
+            interactionTrackingService.trackVisit(id, locationType);
+        }
+
+        // Real-time Player Count Subscription
+        const channel = supabase
+            .channel(`location_header_${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'play_intents',
+                    filter: `location_id=eq.${id}`
+                },
+                () => {
+                    if (activeCountRefreshTimerRef.current) {
+                        clearTimeout(activeCountRefreshTimerRef.current);
+                    }
+                    activeCountRefreshTimerRef.current = setTimeout(() => {
+                        playIntentService.getActivePlayerCount(id, locationType)
+                            .then(count => setActivePlayerCount(count))
+                            .catch(err => console.error(err));
+                    }, 1200);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            if (activeCountRefreshTimerRef.current) {
+                clearTimeout(activeCountRefreshTimerRef.current);
+            }
+            supabase.removeChannel(channel);
+        };
+    }, [id, locationType]);
+
+    // Auto-fetch address if missing
+    useEffect(() => {
+        if (location && !location.address && location.lat && location.lng && !fetchedAddress) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.display_name) {
+                        setFetchedAddress(data.display_name);
+                    }
+                })
+                .catch(err => console.error("Failed to auto-fetch address:", err));
+        }
+    }, [location, fetchedAddress]);
+
+    const loadLocationData = async () => {
+        setLoading(true);
+        try {
+            let data = null;
+            if (locationType === 'community') {
+                data = await communityLocationService.getLocationById(id);
+            } else {
+                // Fetch business venue
+                data = await venueService.getVenueById(id);
+                // Normalize data structure if needed
+            }
+            setLocation(data);
+            setPublisherInfo(await resolvePublisherInfo(data, locationType));
+
+            // Get active player count
+            const count = await playIntentService.getActivePlayerCount(id, locationType);
+            setActivePlayerCount(count);
+
+            // Get Reviews & Stats
+            const [fetchedReviews, stats] = await Promise.all([
+                reviewService.getReviews(id, locationType),
+                reviewService.getReviewStats(id, locationType)
+            ]);
+            setReviews(fetchedReviews);
+            setReviewStats(stats);
+
+        } catch (error) {
+            console.error('Failed to load location:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePlayIntentSuccess = () => {
+        setShowPlayForm(false);
+        loadLocationData(); // Refresh counts
+    };
+
+    if (loading) {
+        return (
+            <div className={styles.container}>
+                <Navbar />
+                <SkeletonVenueDetail />
+            </div>
+        );
+    }
+
+    if (!location) {
+        return (
+            <div className={styles.container}>
+                <Navbar />
+                <div className={styles.notFoundWrap}>
+                    <EmptyState
+                        icon="location"
+                        title="Location not found"
+                        description="This spot may have been removed or the link is incorrect."
+                        actionLabel="Browse venues"
+                        actionHref="/venues"
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Normalize fields
+    const name = location.name || `Venue #${location.id}`;
+    const description = location.description || location.about || 'No description available.';
+
+    // Image Logic: 
+    // 1. Community Banner: location.banner_image_url
+    // 2. Community First Image: location.images[0].image_url
+    // 3. Business/Fallback: location.image_url
+    // 4. Default
+    let image = '/placeholder-court.jpg';
+    if (location.banner_image_url) {
+        image = location.banner_image_url;
+    } else if (location.images?.[0]?.image_url) {
+        image = location.images[0].image_url;
+    } else if (location.image_url) {
+        image = location.image_url;
+    } else if (location.image) {
+        // Direct property (from updated venues.js)
+        image = location.image;
+    } else if (locationType === 'business') {
+        // Fallback for any legacy venues still missing explicit image
+        image = `/venues/${name}.jpg`;
+    }
+
+    const sports = location.sports || (location.sport ? [location.sport] : []);
+    const contributionPolicy = getContributionPolicy(location, locationType);
+    const showSuggestEdit = locationType === 'community';
+    const isBusinessOwner = locationType === 'business' && user && location.owner_id === user.id;
+    const businessContribEnabled = !!location.booking_config?.allow_community_contributions;
+    const hasBookingLink = locationType === 'business' && location.booking_link;
+    const primaryActionLabel = hasBookingLink
+        ? 'Book Now'
+        : getPlayButtonText(location.sports || location.sport);
+
+    const handlePrimaryAction = () => {
+        if (hasBookingLink) {
+            try {
+                const bookingUrl = new URL(location.booking_link);
+                if (bookingUrl.protocol !== "https:") {
+                    notify("Booking link must use HTTPS.", "warning");
+                    return;
+                }
+                window.open(bookingUrl.toString(), '_blank', 'noopener,noreferrer');
+            } catch {
+                notify("Invalid booking link.", "error");
+            }
+            return;
+        }
+        setShowPlayForm(true);
+    };
+
+    return (
+        <div className={styles.container}>
+            <Navbar /> {/* Add Navbar */}
+
+            {/* Hero Section */}
+            <div className={styles.hero}>
+                <div className={styles.heroImageContainer}>
+                    <img src={image} alt={name} className={styles.heroImage} />
+                    <div className={styles.heroOverlay} />
+                </div>
+
+                <div className={styles.heroContent}>
+                    <Breadcrumbs
+                        items={[
+                            { label: 'Venues', href: '/venues' },
+                            { label: name },
+                        ]}
+                    />
+                    <div className={styles.badges}>
+                        {locationType === 'business' && <span className={styles.officialBadge}>Official Venue</span>}
+                        {locationType === 'community' && <span className={styles.communityBadge}>Community Spot</span>}
+                    </div>
+
+                    <h1 className={styles.title}>{name}</h1>
+
+                    <div className={styles.meta}>
+                        <div className={styles.rating}>
+                            {reviewStats?.totalReviews > 0 ? (
+                                <>
+                                    <span className={styles.star}>★</span>
+                                    {reviewStats.averageRating} ({reviewStats.totalReviews} reviews)
+                                </>
+                            ) : (
+                                <span className={styles.noRating}>New Spot</span>
+                            )}
+                        </div>
+                        {sports.map(s => <span key={s} className={styles.sportTag}>{s}</span>)}
+                    </div>
+
+                    <div className={styles.activeIndicator}>
+                        <span className={styles.pulseDot}></span>
+                        {activePlayerCount} people playing soon
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.contentGrid}>
+                {/* Main Content */}
+                <div className={styles.mainColumn}>
+
+                    {/* Play Intent / Action Section */}
+                    <section className={styles.section}>
+                        <div className={styles.playHeader}>
+                            <h2 className={styles.sectionTitle}>Activity</h2>
+
+                            <div className={`${styles.actionGroup} ${styles.actionGroupPrimary}`}>
+                                {hasBookingLink ? (
+                                    <button
+                                        type="button"
+                                        className={styles.btnProfessional}
+                                        onClick={handlePrimaryAction}
+                                    >
+                                        Book Now
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handlePrimaryAction}
+                                        className="btn-primary"
+                                    >
+                                        {primaryActionLabel}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <ActivityTimeline
+                            locationId={id}
+                            locationType={locationType}
+                            onJoinBlock={(time) => {
+                                // Open form pre-filled with this time? 
+                                // For now just open form
+                                setShowPlayForm(true);
+                            }}
+                        />
+                    </section>
+
+                    {/* Description */}
+                    <section className={styles.section}>
+                        <h2 className={styles.sectionTitle}>About</h2>
+                        <p className={styles.description}>{description}</p>
+                    </section>
+
+
+
+                    {/* Image Gallery */}
+                    {(location.images?.length > 0 || location.gallery?.length > 0) && (
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>Gallery</h2>
+                            <div className={styles.galleryGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                                {/* Combine all images for the lightbox logic */}
+                                {(() => {
+                                    // Collect all image URLs
+                                    const allImages = [
+                                        ...(location.images?.map(i => i.image_url) || []),
+                                        ...(location.gallery || [])
+                                    ];
+
+                                    return allImages.map((imgUrl, idx) => (
+                                        <div
+                                            key={idx}
+                                            style={{ aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer' }}
+                                            onClick={() => {
+                                                setLightboxIndex(idx);
+                                                setIsLightboxOpen(true);
+                                            }}
+                                        >
+                                            <img
+                                                src={imgUrl}
+                                                alt={`Gallery ${idx}`}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                                                onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                                                onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                                            />
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Lightbox */}
+                    {isLightboxOpen && (
+                        <ImageLightbox
+                            images={[
+                                ...(location.images?.map(i => i.image_url) || []),
+                                ...(location.gallery || [])
+                            ]}
+                            initialIndex={lightboxIndex}
+                            onClose={() => setIsLightboxOpen(false)}
+                        />
+                    )}
+
+                    {/* Reviews */}
+                    <section className={styles.section}>
+                        <div className={styles.playHeader}> {/* Reusing playHeader for same flex layout */}
+                            <h2 className={styles.sectionTitle}>What people are saying</h2>
+                            <button
+                                className="btn-primary"
+                                onClick={() => {
+                                    // Scroll to review form or open modal?
+                                    // For now, let's open the Review Form in a modal (reusing edit form logic kind of)
+                                    // But we don't have a Review Modal state yet.
+                                    // Let's add one quickly or assume we add it. 
+                                    // Actually, let's check if we have a Review Modal. No.
+                                    // I'll add `showReviewForm` state.
+                                    setShowReviewForm(true);
+                                }}
+                            >
+                                Write a Review
+                            </button>
+                        </div>
+                        <div className={styles.reviewListPlaceholder}>
+                            <ReviewList
+                                reviews={reviews}
+                                onReviewDeleted={loadLocationData}
+                            />
+                        </div>
+                    </section>
+
+
+                </div>
+
+
+
+                {/* Sidebar */}
+                <div className={styles.sidebar}>
+                    <div className={styles.sidebarContainerInternal}>
+
+                        {/* Owner: Pending Edits */}
+                        {user && location && user.id === location.created_by && (
+                            <PendingEditsList
+                                locationId={id}
+                                onUpdate={loadLocationData}
+                            />
+                        )}
+
+                        <div className={styles.sidebarCard}>
+                            <h3>Location</h3>
+                            <div className={styles.miniMap}>
+                                {location.lat && location.lng ? (
+                                    <Map
+                                        venues={[location]}
+                                        minimal={true}
+                                        initialCenter={[location.lat, location.lng]}
+                                        initialZoom={15}
+                                        style={{ height: '100%', width: '100%', borderRadius: '8px' }}
+                                    />
+                                ) : (
+                                    <span style={{ fontSize: '2rem' }}>🗺️</span>
+                                )}
+                            </div>
+                            <AddressDisplay
+                                address={location.address || fetchedAddress}
+                                lat={location.lat}
+                                lng={location.lng}
+                            />
+                            <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={styles.directionsLink}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                                </svg>
+                                <span>Get Directions</span>
+                            </a>
+                        </div>
+
+                        {/* Reviews Card */}
+                        <div className={styles.sidebarCard}>
+                            <h3>Reviews</h3>
+                            <ReviewStats stats={reviewStats} />
+
+                            <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '1rem', marginTop: '1rem' }}>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Played here recently?</p>
+                                <button
+                                    className={styles.secondaryButton}
+                                    style={{ width: '100%', fontSize: '0.9rem', padding: '10px' }}
+                                    onClick={() => setShowReviewForm(true)}
+                                >
+                                    Write a Review
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className={styles.sidebarCard}>
+                            <h3>Posted By</h3>
+                            <p>
+                                {publisherInfo?.label || (locationType === 'business' ? 'Venue Owner' : 'Community Member')}
+                            </p>
+                            <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                {publisherInfo?.subtitle || 'Maintains this venue page'}
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem', fontSize: '0.9rem' }}>
+                                {contributionPolicy}
+                            </p>
+                        </div>
+
+                        {showSuggestEdit && (
+                            <div className={styles.sidebarCard}>
+                                <h3>Contributors</h3>
+                                <p>Added by {publisherInfo?.label || location.created_by_name || 'Community Member'}</p>
+                                <button
+                                    className={styles.secondaryButton}
+                                    onClick={() => setShowEditForm(true)}
+                                >
+                                    Suggest Edit
+                                </button>
+                            </div>
+                        )}
+
+                        {locationType === 'business' && isBusinessOwner && businessContribEnabled && (
+                            <PendingVenueContributions
+                                venueId={id}
+                                onUpdate={loadLocationData}
+                            />
+                        )}
+
+                        {locationType === 'business' && (
+                            <div className={styles.sidebarCard}>
+                                <h3>Info</h3>
+                                <p>Opening Hours: {location.operating_hours || 'Not specified'}</p>
+                                <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                                    {(location.booking_config?.allow_community_contributions)
+                                        ? 'Community contributions are enabled by the owner.'
+                                        : 'Only owner account can make venue page changes.'}
+                                </p>
+                                {businessContribEnabled && !isBusinessOwner && (
+                                    <button className={styles.secondaryButton} onClick={() => setShowEditForm(true)}>
+                                        Suggest Improvement
+                                    </button>
+                                )}
+                                {!businessContribEnabled && <button className={styles.secondaryButton}>Contact Venue</button>}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Play Intent Modal */}
+            {showPlayForm && (
+                <PlayIntentForm
+                    locationId={id}
+                    locationType={locationType}
+                    locationName={name}
+                    availableSports={sports} // Pass context for sport selection
+                    onSuccess={handlePlayIntentSuccess}
+                    onCancel={() => setShowPlayForm(false)}
+                />
+            )}
+
+            {/* Edit Location Modal */}
+            {showEditForm && location && (
+                <div className="dismiss-backdrop" onClick={() => setShowEditForm(false)}>
+                    <div className="glass-panel dismiss-panel" onClick={(e) => e.stopPropagation()}>
+                        {locationType === 'community' ? (
+                            <EditLocationForm
+                                location={location}
+                                onSuccess={() => {
+                                    setShowEditForm(false);
+                                    loadLocationData();
+                                }}
+                                onCancel={() => setShowEditForm(false)}
+                            />
+                        ) : (
+                            <BusinessContributionForm
+                                venue={location}
+                                onSuccess={() => {
+                                    setShowEditForm(false);
+                                    loadLocationData();
+                                }}
+                                onCancel={() => setShowEditForm(false)}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Review Form Modal */}
+            {showReviewForm && (
+                <div className="dismiss-backdrop" onClick={() => setShowReviewForm(false)}>
+                    <div className="glass-panel dismiss-panel" onClick={(e) => e.stopPropagation()}>
+                        <ReviewForm
+                            locationId={id}
+                            locationType={locationType}
+                            venueName={name}
+                            availableSports={sports}
+                            onSuccess={() => {
+                                setShowReviewForm(false);
+                                loadLocationData();
+                            }}
+                            onCancel={() => setShowReviewForm(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className={styles.mobileCta}>
+                <div className={styles.mobileCtaInfo}>
+                    <span className={styles.mobileCtaLabel}>
+                        {hasBookingLink ? 'Reserve' : 'Join activity'}
+                    </span>
+                    <span className={styles.mobileCtaMeta}>
+                        {activePlayerCount} playing soon
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    className={`btn-primary ${styles.mobileCtaButton}`}
+                    onClick={handlePrimaryAction}
+                >
+                    {primaryActionLabel}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+async function resolvePublisherInfo(location, locationType) {
+    if (!location) return null;
+
+    if (locationType === 'community') {
+        if (!location.created_by) {
+            return { label: 'Community Member', subtitle: 'Community-maintained location' };
+        }
+
+        const { data: profile } = await supabase
+            .from('profiles_public')
+            .select('name')
+            .eq('id', location.created_by)
+            .single();
+
+        return {
+            label: profile?.name || 'Community Member',
+            subtitle: 'Community maintainer'
+        };
+    }
+
+    if (!location.owner_id) {
+        return { label: 'Platform Venue', subtitle: 'Managed by platform team' };
+    }
+
+    const bookingConfig = location.booking_config || {};
+    const showAsCompany = bookingConfig.owner_display_mode === 'company';
+
+    const [{ data: profile }, { data: approvedClaim }] = await Promise.all([
+        supabase.from('profiles_public').select('name').eq('id', location.owner_id).single(),
+        supabase
+            .from('claim_requests')
+            .select('business_name')
+            .eq('requester_id', location.owner_id)
+            .eq('venue_id', location.id)
+            .eq('status', 'approved')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+    ]);
+
+    const ownerName = profile?.name || 'Venue Owner';
+    const companyName = approvedClaim?.business_name || ownerName;
+
+    return {
+        label: showAsCompany ? companyName : ownerName,
+        subtitle: showAsCompany ? 'Published by company account' : 'Published by owner account'
+    };
+}
+
+function getContributionPolicy(location, locationType) {
+    if (!location) return '';
+    if (locationType === 'community') {
+        return 'Community contributions are enabled. Other users can suggest edits for maintainer review.';
+    }
+
+    const bookingConfig = location.booking_config || {};
+    if (bookingConfig.allow_community_contributions) {
+        return 'Owner allows community contributions (reviews and collaborative feedback). Owner account remains the only direct editor.';
+    }
+    return 'Only the owner account can edit this venue page. Community contributions are currently disabled.';
+}
+
+function AddressDisplay({ address, lat, lng }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    // Inline styles for simplicity
+    const containerStyle = { marginBottom: '1rem' };
+    const addressStyle = { marginBottom: '0.25rem' };
+    const coordsStyle = { fontSize: '0.85rem', color: 'var(--text-muted)', fontFamily: 'monospace' };
+    const btnStyle = {
+        background: 'none',
+        border: 'none',
+        color: 'var(--color-primary)',
+        fontSize: '0.9em',
+        marginLeft: '5px',
+        cursor: 'pointer',
+        padding: 0,
+        textDecoration: 'underline'
+    };
+
+    if (!address) {
+        return (
+            <div style={containerStyle}>
+                <div style={coordsStyle}>
+                    {lat?.toFixed(5)}, {lng?.toFixed(5)}
+                </div>
+            </div>
+        );
+    }
+
+    const isLong = address.length > 50;
+    const displayAddr = isExpanded || !isLong ? address : `${address.substring(0, 50)}...`;
+
+    return (
+        <div style={containerStyle}>
+            <div style={addressStyle}>
+                {displayAddr}
+                {isLong && (
+                    <button onClick={() => setIsExpanded(!isExpanded)} style={btnStyle}>
+                        {isExpanded ? 'Show Less' : 'View Full'}
+                    </button>
+                )}
+            </div>
+            <div style={coordsStyle}>
+                {lat?.toFixed(5)}, {lng?.toFixed(5)}
+            </div>
+        </div>
+    );
+}
