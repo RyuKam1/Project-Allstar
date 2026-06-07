@@ -54,12 +54,11 @@ export default function HomePage() {
       <section className={`container ${styles.heroSection}`}>
         <div className={styles.heroGrid}>
           <Reveal className={styles.heroCopy}>
-            <p className={styles.eyebrow}>Play local · your city</p>
+            <p className={styles.eyebrow}>Local sports, one platform</p>
             <h1 className={styles.title}>
-              <span className={styles.titleLine}>Find a court.</span>
-              <span className={styles.titleLine}>Fill a roster.</span>
+              <span className={styles.titleLine}>Play local.</span>
               <span className={`${styles.titleLine} ${styles.titleAccent}`}>
-                Play tonight.
+                Go AllStar.
               </span>
             </h1>
             <p className={styles.subtitle}>
