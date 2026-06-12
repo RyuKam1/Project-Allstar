@@ -1,4 +1,24 @@
 import { supabase } from "@/lib/supabaseClient";
+import { sanitizeHttpUrl } from "@/lib/security/inputSanitizer";
+
+const EVIDENCE_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+// Verify the file's real content type by sniffing magic bytes, not trusting
+// the browser-provided file.type. Returns a normalized type or null.
+async function sniffEvidenceType(file) {
+  const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const hex = (n) => buf[n]?.toString(16).padStart(2, "0");
+  // JPEG
+  if (hex(0) === "ff" && hex(1) === "d8" && hex(2) === "ff") return "image/jpeg";
+  // PNG
+  if (hex(0) === "89" && hex(1) === "50" && hex(2) === "4e" && hex(3) === "47") return "image/png";
+  // PDF (%PDF)
+  if (hex(0) === "25" && hex(1) === "50" && hex(2) === "44" && hex(3) === "46") return "application/pdf";
+  // WEBP (RIFF....WEBP)
+  if (hex(0) === "52" && hex(1) === "49" && hex(2) === "46" && hex(3) === "46" &&
+      hex(8) === "57" && hex(9) === "45" && hex(10) === "42" && hex(11) === "50") return "image/webp";
+  return null;
+}
 
 export const businessService = {
 
@@ -85,75 +105,108 @@ export const businessService = {
         return data; 
     },
 
-    // Create a new business venue
-    createBusinessVenue: async (venueData) => {
+    // Propose a new official venue.
+    // Direct venues.insert is denied by RLS; new official listings must go
+    // through the venue_proposals queue and be promoted by an admin.
+    proposeVenue: async (venueData) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Must be logged in");
 
-        // Insert into venues with owner_id
+        const { data, error } = await supabase.rpc('submit_venue_proposal', {
+            p_name: venueData.name,
+            p_description: venueData.description || null,
+            p_sports: venueData.sports || [],
+            p_lat: venueData.lat ?? null,
+            p_lng: venueData.lng ?? null,
+            p_address: venueData.address || null
+        });
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    // Backwards-compatible alias: now submits a proposal for admin review
+    // instead of creating an official venue directly.
+    createBusinessVenue: async (venueData) => {
+        return businessService.proposeVenue(venueData);
+    },
+
+    // Opt the current user into business onboarding (none -> pending).
+    requestBusinessAccount: async () => {
+        const { data, error } = await supabase.rpc('request_business_account');
+        if (error) throw new Error(error.message);
+        return data; // returns the resulting verification status
+    },
+
+    // List the current user's venue proposals (pending/approved/rejected).
+    getMyVenueProposals: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
         const { data, error } = await supabase
-            .from('venues')
+            .from('venue_proposals')
+            .select('*')
+            .eq('proposer_id', user.id)
+            .order('created_at', { ascending: false });
+        if (error) throw new Error(error.message);
+        return data || [];
+    },
+
+    // Attach evidence to a claim. Optionally upload a private file to the
+    // 'trust-evidence' bucket first, then record a claim_evidence row.
+    addClaimEvidence: async (claimId, { type = 'other', payload = null, file = null } = {}) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in");
+
+        let objectKey = null;
+        if (file) {
+            if (file.size > EVIDENCE_MAX_BYTES) {
+                throw new Error("Evidence file is too large (max 10MB)");
+            }
+            const sniffed = await sniffEvidenceType(file);
+            if (!sniffed) {
+                throw new Error("Unsupported file type. Upload a JPG, PNG, WEBP, or PDF.");
+            }
+            const safeName = (file.name || 'evidence').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+            objectKey = `${user.id}/${claimId}/${Date.now()}_${safeName}`;
+            const { error: uploadError } = await supabase.storage
+                .from('trust-evidence')
+                .upload(objectKey, file, { upsert: false, contentType: sniffed });
+            if (uploadError) throw new Error(uploadError.message);
+        }
+
+        let safePayload = null;
+        if (payload) {
+            if (type === 'domain') {
+                safePayload = sanitizeHttpUrl(payload, 500);
+                if (!safePayload) {
+                    throw new Error('Enter a valid website URL (http or https).');
+                }
+            } else {
+                safePayload = String(payload).slice(0, 2000);
+            }
+        }
+
+        const { data, error } = await supabase
+            .from('claim_evidence')
             .insert({
-                name: venueData.name,
-                description: venueData.description,
-                sport: venueData.sports[0], // Schema has single sport currently, or use type. We'll pick first.
-                amenities: venueData.sports, // Store extra sports in amenities for now or need schema update.
-                coordinates: [venueData.lat, venueData.lng],
-                location: "Custom Location",
-                owner_id: user.id,
-                gallery: []
+                claim_id: claimId,
+                type,
+                storage_object_key: objectKey,
+                verification_payload: safePayload
             })
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         return data;
     },
 
-    // Admin: Get All Claims (Parallel Fetch Pattern)
-    // We use this pattern instead of native joins to ensure stability regardless of API Schema Caching.
+    // Admin: Get All Claims (server route, service-role enriched)
     getAllClaims: async () => {
-        // 1. Fetch Claims
-        const { data: claims, error } = await supabase
-            .from('claim_requests')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if (error) throw new Error(error.message);
-        if (!claims || claims.length === 0) return [];
-
-        // 2. Extract IDs for batch fetching
-        const requesterIds = [...new Set(claims.map(c => c.requester_id).filter(Boolean))];
-        const officialVenueIds = [...new Set(claims.map(c => c.venue_id).filter(Boolean))];
-        const communityVenueIds = [...new Set(claims.map(c => c.community_location_id).filter(Boolean))];
-
-        // 3. Parallel Fetch
-        const results = await Promise.all([
-            requesterIds.length > 0 ? supabase.from('profiles').select('id, name, email, avatar').in('id', requesterIds) : { data: [] },
-            officialVenueIds.length > 0 ? supabase.from('venues').select('id, name').in('id', officialVenueIds) : { data: [] },
-            communityVenueIds.length > 0 ? supabase.from('community_locations').select('id, name').in('id', communityVenueIds) : { data: [] }
-        ]);
-
-        const profiles = results[0].data || [];
-        const officialVenues = results[1].data || [];
-        const communityVenues = results[2].data || [];
-
-        // 4. Merge Data
-        return claims.map(claim => {
-            const profile = profiles.find(p => p.id === claim.requester_id);
-            let venue = null;
-            if (claim.venue_id) {
-                venue = officialVenues.find(v => v.id === claim.venue_id);
-            } else if (claim.community_location_id) {
-                venue = communityVenues.find(v => v.id === claim.community_location_id);
-            }
-            
-            return {
-                ...claim,
-                profile: profile || { name: 'Unknown', email: 'N/A' },
-                venue: venue || { name: 'Unknown Venue' }
-            };
-        });
+        const res = await fetch('/api/admin/claims');
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Failed to load claims');
+        return payload.claims || [];
     },
 
     // Admin: Resolve Claim (Approve/Reject)
@@ -166,5 +219,33 @@ export const businessService = {
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error || 'Failed to resolve claim');
         return payload.claim;
+    },
+
+    // Admin: list all venue proposals (server route).
+    getAllVenueProposals: async () => {
+        const res = await fetch('/api/admin/venue-proposals');
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Failed to load venue proposals');
+        return payload.proposals || [];
+    },
+
+    // Admin: likely-duplicate venue pairs (trigram similarity).
+    getDuplicateVenues: async () => {
+        const res = await fetch('/api/admin/duplicates');
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Failed to load duplicates');
+        return payload.duplicates || [];
+    },
+
+    // Admin: approve / reject / request-info on a proposal.
+    reviewVenueProposal: async (proposalId, status, reviewNotes = null) => {
+        const res = await fetch(`/api/admin/venue-proposals/${proposalId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, reviewNotes })
+        });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Failed to review proposal');
+        return payload;
     }
 };

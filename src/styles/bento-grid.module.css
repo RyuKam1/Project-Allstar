@@ -1,0 +1,83 @@
+/* Shared even grid with subtle vertical bento rhythm */
+.grid {
+  display: grid;
+  width: 100%;
+  gap: clamp(1rem, 2.2vw, 1.65rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  justify-items: stretch;
+  padding-block: 0.35rem;
+}
+
+.item {
+  min-width: 0;
+  display: flex;
+  transition: margin-top 0.25s ease;
+}
+
+.item > * {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.item:nth-child(6n + 1) { margin-top: 10px; }
+.item:nth-child(6n + 2) { margin-top: -7px; }
+.item:nth-child(6n + 3) { margin-top: 14px; }
+.item:nth-child(6n + 4) { margin-top: -4px; }
+.item:nth-child(6n + 5) { margin-top: 8px; }
+.item:nth-child(6n + 6) { margin-top: -2px; }
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(1.15rem, 2vw, 1.75rem);
+  }
+
+  .item:nth-child(6n + 1) { margin-top: 12px; }
+  .item:nth-child(6n + 2) { margin-top: -9px; }
+  .item:nth-child(6n + 3) { margin-top: 16px; }
+  .item:nth-child(6n + 4) { margin-top: -6px; }
+  .item:nth-child(6n + 5) { margin-top: 10px; }
+  .item:nth-child(6n + 6) { margin-top: -3px; }
+}
+
+@media (min-width: 1400px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Wider cards — events & venues (fewer columns). Use with .grid */
+@media (min-width: 768px) {
+  .gridMd {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .gridMd {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .gridMd {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 479px) {
+  .item:nth-child(6n + 1) { margin-top: 6px; }
+  .item:nth-child(6n + 2) { margin-top: -4px; }
+  .item:nth-child(6n + 3) { margin-top: 8px; }
+  .item:nth-child(6n + 4) { margin-top: -3px; }
+  .item:nth-child(6n + 5) { margin-top: 5px; }
+  .item:nth-child(6n + 6) { margin-top: -1px; }
+}

@@ -4,6 +4,7 @@ import StarRating from './StarRating';
 import { reviewService } from '@/services/reviewService';
 import { useAuth } from '@/context/AuthContext';
 import { ModalDismissButton } from '@/components/UI/primitives';
+import { getCatalogSportLabels } from '@/lib/sportsCatalog';
 import styles from './review-form.module.css';
 
 /**
@@ -40,7 +41,7 @@ export default function ReviewForm({
     // Logic for available sports
     const safeSports = Array.isArray(availableSports) ? availableSports : [];
     const hasSpecificSports = safeSports.length > 0;
-    const sportOptions = hasSpecificSports ? safeSports : ['Basketball', 'Tennis', 'Soccer', 'Pickleball', 'Volleyball', 'Other'];
+    const sportOptions = hasSpecificSports ? safeSports : getCatalogSportLabels({ includeOther: true });
 
     // Auto-select if only one sport available
     React.useEffect(() => {

@@ -140,6 +140,12 @@ const ICON_PATHS = {
       <path d="M5 12h14" />
     </>
   ),
+  bell: (
+    <>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </>
+  ),
   calendar: (
     <>
       <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -174,6 +180,29 @@ const ICON_PATHS = {
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <circle cx="8.5" cy="10.5" r="1.5" />
       <path d="m21 17-5.5-5.5a1.5 1.5 0 0 0-2.12 0L8 17" />
+    </>
+  ),
+  expand: (
+    <>
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </>
+  ),
+  minimize: (
+    <>
+      <path d="M4 14h6v6" />
+      <path d="M20 10h-6V4" />
+      <path d="M14 10l7-7" />
+      <path d="M3 21l7-7" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
     </>
   ),
 };

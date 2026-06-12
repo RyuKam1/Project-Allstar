@@ -114,7 +114,7 @@ export default function PlayerProfilePage() {
               </p>
               <div className={styles.metaTags}>
                 {profile.sport && <Tag accent>{profile.sport}</Tag>}
-                {profile.role && <Tag>{profile.role}</Tag>}
+                {profile.is_verified_business && <Tag>Verified Business</Tag>}
               </div>
             </div>
 

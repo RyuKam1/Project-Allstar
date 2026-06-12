@@ -29,3 +29,17 @@ export function sanitizeUuid(value) {
   const cleaned = sanitizeText(value, 64);
   return UUID_REGEX.test(cleaned) ? cleaned : null;
 }
+
+/** Accept http(s) URLs only; bare domains get https:// prepended. */
+export function sanitizeHttpUrl(value, maxLen = 500) {
+  const cleaned = sanitizeText(value, maxLen);
+  if (!cleaned) return '';
+  try {
+    const candidate = /^https?:\/\//i.test(cleaned) ? cleaned : `https://${cleaned}`;
+    const url = new URL(candidate);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+    return url.toString().slice(0, maxLen);
+  } catch {
+    return '';
+  }
+}

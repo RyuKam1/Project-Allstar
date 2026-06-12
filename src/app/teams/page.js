@@ -1,7 +1,8 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Navbar from "@/components/Layout/Navbar";
-import TeamCard from "@/components/Teams/TeamCard";
+import TeamCard, { LAYOUT_ACCENTS } from "@/components/Teams/TeamCard";
+import bentoStyles from "@/styles/bento-grid.module.css";
 import Icon from '@/components/UI/Icon';
 import { teamService } from "@/services/teamService";
 import { useAuth } from "@/context/AuthContext";
@@ -9,7 +10,14 @@ import { useNotificationCenter } from "@/components/UI/NotificationCenter";
 import { useRouter } from 'next/navigation';
 import styles from './teams.module.css';
 import { SkeletonTeamGrid, EmptyState, ModalHeader } from '@/components/UI/primitives';
-import { Stagger } from '@/components/UI/motion';
+import SportSelect from '@/components/Tournament/SportSelect';
+import {
+  DEFAULT_SPORT_LABEL,
+  collectSportValues,
+  resolveSportSelection,
+} from '@/lib/sportsCatalog';
+import { useSportFilter } from '@/hooks/useSportFilter';
+import SportFilterPills from '@/components/UI/SportFilterPills';
 import eventStyles from '../events/events.module.css';
 
 export default function TeamsPage() {
@@ -19,13 +27,21 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filterSport, setFilterSport] = useState('All');
   const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [newTeamSport, setNewTeamSport] = useState(DEFAULT_SPORT_LABEL);
+  const [newTeamCustomSport, setNewTeamCustomSport] = useState("");
 
-  const sportFilters = ['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Baseball'];
-  
+  const inUseSports = useMemo(
+    () => collectSportValues(teams, (team) => team.sport),
+    [teams],
+  );
+  const { filterSport, setFilterSport, sportFilters, filtersLoading, matchesFilter } = useSportFilter(
+    inUseSports,
+    { loading },
+  );
+
   // Create Form State
-  const [newTeam, setNewTeam] = useState({ name: '', sport: 'Basketball', description: '' });
+  const [newTeam, setNewTeam] = useState({ name: '', description: '' });
 
   async function loadTeams() {
     const data = await teamService.getAllTeams();
@@ -41,10 +57,13 @@ export default function TeamsPage() {
     e.preventDefault();
     if (!user) return;
     try {
-      await teamService.createTeam(newTeam, user);
+      const sport = resolveSportSelection(newTeamSport, newTeamCustomSport);
+      await teamService.createTeam({ ...newTeam, sport }, user);
       setShowCreateModal(false);
-      setNewTeam({ name: '', sport: 'Basketball', description: '' });
-      loadTeams(); // Refresh
+      setNewTeam({ name: '', description: '' });
+      setNewTeamSport(DEFAULT_SPORT_LABEL);
+      setNewTeamCustomSport("");
+      loadTeams();
     } catch (err) {
       notify(err.message, "error");
     }
@@ -63,9 +82,7 @@ export default function TeamsPage() {
     }
   };
 
-  const activeTeams = teams.filter(team => 
-    filterSport === 'All' || team.sport === filterSport
-  );
+  const activeTeams = teams.filter((team) => matchesFilter(team.sport));
 
   return (
     <main className={styles.main}>
@@ -103,23 +120,17 @@ export default function TeamsPage() {
            </button>
          </div>
 
-         <div className={`filter-group ${eventStyles.desktopFilters}`} role="tablist" aria-label="Sport filters">
-           {sportFilters.map(sport => (
-             <button 
-               key={sport}
-               type="button"
-               onClick={() => setFilterSport(sport)}
-               className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
-               role="tab"
-               aria-selected={filterSport === sport}
-             >
-               <span>{sport}</span>
-             </button>
-           ))}
-         </div>
+         <SportFilterPills
+           sportFilters={sportFilters}
+           filterSport={filterSport}
+           onSelect={setFilterSport}
+           loading={filtersLoading}
+           className={eventStyles.desktopFilters}
+           enableSearch
+         />
 
         {loading ? (
-             <SkeletonTeamGrid count={6} />
+             <SkeletonTeamGrid count={12} gridClassName={bentoStyles.grid} itemClassName={bentoStyles.item} />
         ) : activeTeams.length === 0 ? (
              <EmptyState
                icon="users"
@@ -133,11 +144,18 @@ export default function TeamsPage() {
                onAction={() => (user ? setShowCreateModal(true) : router.push('/login'))}
              />
         ) : (
-          <Stagger className="grid-auto-fit">
-            {activeTeams.map(team => (
-              <TeamCard key={team.id} team={team} user={user} onJoin={handleJoinTeam} />
+          <div className={`${bentoStyles.grid} list-stagger`}>
+            {activeTeams.map((team, index) => (
+              <div key={team.id} className={bentoStyles.item}>
+                <TeamCard
+                  team={team}
+                  user={user}
+                  onJoin={handleJoinTeam}
+                  layoutAccent={LAYOUT_ACCENTS[index % LAYOUT_ACCENTS.length]}
+                />
+              </div>
             ))}
-          </Stagger>
+          </div>
         )}
       </div>
 
@@ -154,20 +172,13 @@ export default function TeamsPage() {
             <ModalHeader title="Filters" onClose={() => setShowFilterSheet(false)} />
             <div className={eventStyles.sheetSection}>
               <p className={eventStyles.sheetLabel}>Sport</p>
-              <div className={eventStyles.sheetPills} role="tablist" aria-label="Sport filters">
-                {sportFilters.map((sport) => (
-                  <button
-                    key={sport}
-                    type="button"
-                    onClick={() => setFilterSport(sport)}
-                    className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
-                    role="tab"
-                    aria-selected={filterSport === sport}
-                  >
-                    <span>{sport}</span>
-                  </button>
-                ))}
-              </div>
+              <SportFilterPills
+                sportFilters={sportFilters}
+                filterSport={filterSport}
+                onSelect={setFilterSport}
+                loading={filtersLoading}
+                className={eventStyles.sheetPills}
+              />
             </div>
             <button
               type="button"
@@ -236,17 +247,13 @@ export default function TeamsPage() {
               
               <div>
                 <label className={styles.label}>Sport</label>
-                <select
-                  value={newTeam.sport}
-                  onChange={e => setNewTeam({...newTeam, sport: e.target.value})}
-                  className={styles.select}
-                >
-                  <option>Basketball</option>
-                  <option>Soccer</option>
-                  <option>Tennis</option>
-                  <option>Baseball</option>
-                  <option>Volleyball</option>
-                </select>
+                <SportSelect
+                  id="team-create-sport"
+                  value={newTeamSport}
+                  customSport={newTeamCustomSport}
+                  onChange={setNewTeamSport}
+                  onCustomSportChange={setNewTeamCustomSport}
+                />
               </div>
 
               <div>

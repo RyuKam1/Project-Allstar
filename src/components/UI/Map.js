@@ -377,33 +377,15 @@ export default function Map({
 
     setupPermissions();
 
-    const onFocus = () => retryLocationProbe();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") retryLocationProbe();
-    };
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (permissionStatusRef.current) {
         permissionStatusRef.current.onchange = null;
       }
     };
   }, [minimal, onLocationUnavailable]);
 
-  // 1.7 Live location refresh loop while granted.
-  useEffect(() => {
-    if (minimal || isGlobalView || geoStatus !== "granted") {
-      clearLocationInterval();
-      return;
-    }
-    startLiveLocationUpdates();
-    return () => clearLocationInterval();
-  }, [minimal, isGlobalView, geoStatus]);
+  // Live GPS polling disabled — location updates only on initial load or "Locate Me".
 
   // 2.5 Handle Center & Zoom Updates (Fly to new center if map exists)
   useEffect(() => {

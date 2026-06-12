@@ -11,7 +11,10 @@ import Map from '@/components/UI/Map'; // Map Integration
 import { useNotificationCenter } from '@/components/UI/NotificationCenter';
 import { sanitizeLikeTerm } from '@/lib/security/inputSanitizer';
 import Icon from '@/components/UI/Icon';
+import { getCatalogSportLabels } from '@/lib/sportsCatalog';
 import styles from './dashboard.module.css';
+
+const SPORT_OPTIONS = getCatalogSportLabels();
 
 const DashboardContent = () => {
     const { user, loading, updateUser } = useAuth();
@@ -176,8 +179,6 @@ const DashboardContent = () => {
     const [addForm, setAddForm] = useState({ name: '', description: '', sports: [] });
     const [isCreatingVenue, setIsCreatingVenue] = useState(false);
 
-    const SPORT_OPTIONS = ["Basketball", "Soccer", "Tennis", "Baseball", "Volleyball", "Fitness", "Running", "Skating", "Multi-sport"];
-
     const handleMapClick = (coords) => {
         setNewVenueLocation(coords);
     };
@@ -198,7 +199,7 @@ const DashboardContent = () => {
 
         setIsCreatingVenue(true);
         try {
-            await businessService.createBusinessVenue({
+            await businessService.proposeVenue({
                 name: addForm.name,
                 description: addForm.description,
                 sports: addForm.sports,
@@ -206,7 +207,7 @@ const DashboardContent = () => {
                 lng: newVenueLocation.lng
             });
 
-            notify("Venue created successfully.", "success");
+            notify("Venue submitted for review. We'll verify ownership before it goes live.", "success");
 
             // Reset and refresh
             setNewVenueLocation(null);
@@ -305,6 +306,18 @@ const DashboardContent = () => {
                                 >
                                     <Icon name="location" size={18} className="icon-inline" /> Add New Venue
                                 </button>
+                                <Link
+                                    href="/business/dashboard/events"
+                                    className={`btn-secondary ${styles.navActionBtn}`}
+                                >
+                                    <Icon name="calendar" size={18} className="icon-inline" /> Manage Events
+                                </Link>
+                                <Link
+                                    href="/business/dashboard/tournaments"
+                                    className={`btn-secondary ${styles.navActionBtn}`}
+                                >
+                                    <Icon name="trophy" size={18} className="icon-inline" /> Official Tournaments
+                                </Link>
                             </div>
                         </div>
 

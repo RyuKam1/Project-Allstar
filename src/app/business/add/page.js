@@ -4,6 +4,9 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Navbar from "@/components/Layout/Navbar";
 import { useNotificationCenter } from '@/components/UI/NotificationCenter';
+import { getCatalogSportLabels } from '@/lib/sportsCatalog';
+
+const availableSports = getCatalogSportLabels();
 
 export default function AddBusinessVenuePage() {
     const router = useRouter();
@@ -18,8 +21,6 @@ export default function AddBusinessVenuePage() {
         contactPhone: '',
         sports: []
     });
-
-    const availableSports = ['Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Pickleball', 'Badminton'];
 
     const toggleSport = (sport) => {
         if (formData.sports.includes(sport)) {

@@ -55,26 +55,38 @@ export async function middleware(request) {
     }
   }
 
-  // 3. Business Dashboard & Protected Flows
-  if (request.nextUrl.pathname.startsWith('/business/') || request.nextUrl.pathname === '/business/dashboard') {
+  // 3. Business Dashboard & Protected Flows (verification-aware route matrix)
+  if (request.nextUrl.pathname.startsWith('/business/')) {
     if (!user) {
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }
 
-    // Role Check - Fetch from DB for robustness (metadata might be stale)
+    // Fetch role + verification status from DB (metadata can be stale).
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_verification_status')
       .eq('id', user.id)
       .single();
-    
+
     const role = profile?.role || 'user';
-    
-    if (role !== 'business' && role !== 'admin') {
-      // User is logged in but trying to access business area without permission
-      url.pathname = '/unauthorized'; 
-      return NextResponse.redirect(url);
+    const vStatus = profile?.business_verification_status || 'none';
+    const isAdmin = role === 'admin';
+    const isVerified = vStatus === 'verified' || role === 'business';
+
+    const pathname = request.nextUrl.pathname;
+
+    // Onboarding + claim are open to any logged-in user (the opt-in surface).
+    const onboardingRoutes = ['/business/onboarding', '/business/claim'];
+    const isOnboardingRoute = onboardingRoutes.some((p) => pathname.startsWith(p));
+
+    if (!isAdmin && !isOnboardingRoute) {
+      // Everything else (dashboard, add/propose, events) requires the user to
+      // have at least opted into onboarding. 'none' users get sent to onboarding.
+      if (vStatus === 'none' && !isVerified) {
+        url.pathname = '/business/onboarding';
+        return NextResponse.redirect(url);
+      }
     }
   }
 

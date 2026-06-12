@@ -61,5 +61,26 @@ export async function requireAdmin(request) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
+  // Optional admin MFA enforcement. Enable by enrolling a TOTP factor in the
+  // Supabase dashboard (Authentication > MFA) and setting REQUIRE_ADMIN_MFA=true.
+  // Gated so it cannot lock admins out before they enroll.
+  if (process.env.REQUIRE_ADMIN_MFA === 'true') {
+    try {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel !== 'aal2') {
+        return {
+          error: NextResponse.json(
+            { error: 'Multi-factor authentication required for admin actions' },
+            { status: 403 },
+          ),
+        };
+      }
+    } catch {
+      return {
+        error: NextResponse.json({ error: 'Could not verify MFA status' }, { status: 403 }),
+      };
+    }
+  }
+
   return { user, supabaseAdmin };
 }

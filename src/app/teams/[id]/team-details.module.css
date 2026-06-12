@@ -93,7 +93,72 @@
   margin-top: 0.75rem;
   font-size: clamp(0.95rem, 2vw, 1.1rem);
   line-height: 1.5;
-  max-width: 600px;
+  max-width: min(600px, 100%);
+}
+
+.descriptionEditBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  min-height: var(--touch-target-min, 44px);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out);
+}
+
+.descriptionEditBtn:hover {
+  color: var(--text-main);
+  border-color: rgba(var(--color-primary-rgb), 0.35);
+  background: rgba(var(--color-primary-rgb), 0.08);
+}
+
+.descriptionEditForm {
+  margin-top: 0.75rem;
+  max-width: min(600px, 100%);
+  width: 100%;
+}
+
+.descriptionInput {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.descriptionInput:focus {
+  outline: none;
+  border-color: rgba(var(--color-primary-rgb), 0.45);
+}
+
+.descriptionActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.descriptionSaveBtn,
+.descriptionCancelBtn {
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-height: var(--touch-target-min, 44px);
 }
 
 .headerStats {
@@ -684,6 +749,31 @@
     align-items: center;
   }
 
+  .headerInfo {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .description,
+  .descriptionEditForm {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .descriptionEditBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .descriptionActions {
+    flex-direction: column;
+  }
+
+  .descriptionActions .descriptionSaveBtn,
+  .descriptionActions .descriptionCancelBtn {
+    width: 100%;
+  }
+
   .headerStats {
     flex-direction: row;
     padding-left: 0;
@@ -695,8 +785,108 @@
     gap: 3rem;
   }
 
+  .joinPanel,
+  .joinPending {
+    align-items: center;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .joinBtn {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .loginPrompt {
+    text-align: center;
+    max-width: none;
+  }
+
   .titleFlex {
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .requestItem {
+    flex-wrap: wrap;
+  }
+
+  .requestActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .guestForm {
+    flex-direction: column;
+  }
+
+  .guestBtn {
+    width: 100%;
+    min-height: var(--touch-target-min, 44px);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .teamHeader {
+    gap: 1.5rem;
+  }
+
+  .headerStats {
+    padding-left: 1.25rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .description {
+    max-width: min(720px, 100%);
+    font-size: clamp(1rem, 1.1vw, 1.2rem);
+  }
+
+  .descriptionInput {
+    min-height: 130px;
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .main {
+    padding-top: calc(var(--header-height) + var(--safe-top) + 0.5rem);
+    padding-bottom: 2rem;
+  }
+
+  .teamHeader {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    text-align: left;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    gap: 1rem;
+  }
+
+  .headerStats {
+    flex-direction: column;
+    border-top: none;
+    border-left: 1px solid var(--border-glass);
+    padding-top: 0;
+    padding-left: 1rem;
+    width: auto;
+    gap: 1rem;
+  }
+
+  .titleFlex {
+    justify-content: flex-start;
+  }
+
+  .modalOverlay {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .playerModal {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
   }
 }
 

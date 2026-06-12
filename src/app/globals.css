@@ -26,6 +26,17 @@
   --container-padding: 20px;
   --header-height: 80px;
 
+  /* Responsive breakpoint reference (use in @media queries) */
+  --bp-phone-sm: 360px;
+  --bp-phone: 480px;
+  --bp-tablet: 768px;
+  --bp-laptop: 1024px;
+  --bp-desktop: 1280px;
+  --bp-wide: 1536px;
+  --bp-tv: 1920px;
+  --bp-ultra: 2560px;
+  --touch-target-min: 44px;
+
   --chamfer: 14px;
   --chalk-line: rgba(255, 255, 255, 0.1);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.45);
@@ -1161,6 +1172,57 @@ textarea::placeholder {
   html {
     font-size: 15px;
     /* Slightly smaller base font for mobile */
+  }
+}
+
+/* Tablet landscape & small laptops */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --container-padding: clamp(16px, 2.5vw, 24px);
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1280px) {
+  :root {
+    --container-padding: clamp(20px, 2vw, 32px);
+  }
+}
+
+/* TV & large displays */
+@media (min-width: 1920px) {
+  :root {
+    --container-width: 1400px;
+    --container-padding: clamp(24px, 2vw, 48px);
+    --header-height: 88px;
+  }
+
+  html {
+    font-size: 17px;
+  }
+}
+
+/* Ultra-wide / 4K */
+@media (min-width: 2560px) {
+  :root {
+    --container-width: 1680px;
+    --container-padding: clamp(32px, 2.5vw, 64px);
+  }
+
+  html {
+    font-size: 18px;
+  }
+}
+
+/* Car displays & short landscape viewports */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --header-height: 56px;
+    --page-top: calc(var(--header-height) + var(--safe-top) + 0.35rem);
+  }
+
+  .page-shell {
+    padding-bottom: calc(var(--space-4) + var(--safe-bottom));
   }
 }
 

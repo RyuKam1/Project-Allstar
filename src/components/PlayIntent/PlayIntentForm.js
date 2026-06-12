@@ -5,6 +5,7 @@ import { playIntentService } from '@/services/playIntentService';
 import { interactionTrackingService } from '@/services/interactionTrackingService';
 import { useAuth } from '@/context/AuthContext';
 import { ModalDismissButton } from '@/components/UI/primitives';
+import { getCatalogSportLabels } from '@/lib/sportsCatalog';
 import styles from './play-intent-form.module.css';
 
 /**
@@ -19,12 +20,9 @@ import styles from './play-intent-form.module.css';
 export default function PlayIntentForm({ locationId, locationType, locationName, availableSports = [], onSuccess, onCancel }) {
     const { user } = useAuth();
 
-    // Determine sports list: use available venue sports if provided, otherwise default list
-    const defaultSports = [
-        'Basketball', 'Football', 'Soccer', 'Tennis', 'Volleyball',
-        'Baseball', 'Badminton', 'Table Tennis', 'Cricket', 'Other'
-    ];
-    const sportOptions = (availableSports && availableSports.length > 0) ? availableSports : defaultSports;
+    const sportOptions = (availableSports && availableSports.length > 0)
+        ? availableSports
+        : getCatalogSportLabels({ includeOther: true });
     const isSingleSport = sportOptions.length === 1;
 
     const [selectedTime, setSelectedTime] = useState(() => {

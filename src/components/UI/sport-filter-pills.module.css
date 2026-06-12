@@ -1,0 +1,128 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.pillsViewport {
+  --fade-width: 72px;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - var(--fade-width)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - var(--fade-width)),
+    transparent 100%
+  );
+  transition: mask-image 0.28s ease, -webkit-mask-image 0.28s ease;
+}
+
+.pillsScroll {
+  margin-bottom: 0 !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+  padding-right: 0.25rem;
+}
+
+.searchRail {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  margin-left: 0.35rem;
+  padding-left: 0.15rem;
+}
+
+.searchPanel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    width 0.28s cubic-bezier(0.34, 1.2, 0.64, 1),
+    opacity 0.2s ease;
+}
+
+.searchRailOpen .searchPanel {
+  width: min(220px, 36vw);
+  opacity: 1;
+}
+
+.searchInput {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: var(--surface-elevated, var(--bg-card));
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-family: inherit;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.18);
+}
+
+.searchToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: var(--surface-elevated, var(--bg-card));
+  color: var(--text-main);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.searchToggle:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.searchToggleActive {
+  background: rgba(var(--color-primary-rgb), 0.12);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.pillSkeleton {
+  flex-shrink: 0;
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .bar {
+    display: none;
+  }
+}
