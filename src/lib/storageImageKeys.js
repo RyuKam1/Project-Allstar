@@ -1,11 +1,13 @@
 export const DEFAULT_STORAGE_BUCKET = "allstar-assets";
 
-export function generateShortObjectKey(prefix = "c") {
+export function generateShortObjectKey(prefix = "c", userId = null) {
   const token =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID().replace(/-/g, "").slice(0, 12)
       : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  return `${prefix}/${token}.jpg`;
+  const safePrefix = String(prefix || "c").replace(/^\/+|\/+$/g, "");
+  const root = userId ? `${userId}/${safePrefix}` : safePrefix;
+  return `${root}/${token}.jpg`;
 }
 
 export function extractObjectKeyFromUrl(url) {

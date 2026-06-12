@@ -5,7 +5,7 @@ export async function getPublicProfile(userId) {
 
   const { data, error } = await supabase
     .from("profiles_public")
-    .select("id, name, avatar, sport, role, bio, created_at")
+    .select("id, name, avatar, sport, is_verified_business, bio, created_at")
     .eq("id", userId)
     .single();
 
@@ -19,7 +19,7 @@ export async function getPublicProfilesMap(userIds = []) {
 
   const { data, error } = await supabase
     .from("profiles_public")
-    .select("id, name, avatar, sport, role, bio, created_at")
+    .select("id, name, avatar, sport, is_verified_business, bio, created_at")
     .in("id", ids);
 
   if (error) throw new Error(error.message);

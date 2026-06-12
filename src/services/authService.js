@@ -32,28 +32,44 @@ export const authService = {
   },
 
   // Register with Supabase
-  register: async (name, email, password, _role = 'user') => {
+  // accountType is 'player' | 'business'. Business signups do NOT receive the
+  // business role here — that is granted only on verification. Instead we record
+  // the intent and opt the user into business onboarding (status 'pending').
+  register: async (name, email, password, accountType = 'player') => {
     if (!name || !email || !password) throw new Error("All fields are required");
 
-    // 1. Sign Up
+    const isBusinessIntent = accountType === 'business';
+
+    // 1. Sign Up. Role is always created as 'user' by the DB trigger; the
+    // account_type metadata is informational only and never grants privileges.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name,
-          account_type: 'user'
+          account_type: isBusinessIntent ? 'business' : 'user'
         },
       },
     });
 
     if (error) return { success: false, error: error.message };
 
-    // 2. Profile Creation is now handled by Postgres Trigger (supabase_triggers.sql)
-    // We wait a brief moment for the trigger to fire before returning, just in case user logs in immediately.
+    // 2. Profile Creation is handled by a Postgres Trigger. Wait briefly for it.
     await new Promise(r => setTimeout(r, 1000));
 
-    return { success: true, user: data.user };
+    // 3. If the user wants a business account and a session already exists
+    // (email confirmation disabled), opt them into onboarding (none -> pending).
+    // Otherwise the /business/onboarding page performs this opt-in after login.
+    if (isBusinessIntent && data.session) {
+      try {
+        await supabase.rpc('request_business_account');
+      } catch (e) {
+        console.warn('Business onboarding opt-in deferred to onboarding page', e);
+      }
+    }
+
+    return { success: true, user: data.user, businessIntent: isBusinessIntent };
   },
 
   logout: async () => {
@@ -121,8 +137,8 @@ export const authService = {
     const isOwnProfile = user?.id === userId;
     const source = isOwnProfile ? 'profiles' : 'profiles_public';
     const fields = isOwnProfile
-      ? 'id, name, avatar, sport, role, created_at, bio, height, weight, speed, vertical'
-      : 'id, name, avatar, sport, role, created_at, bio';
+      ? 'id, name, avatar, sport, role, business_verification_status, created_at, bio, height, weight, speed, vertical'
+      : 'id, name, avatar, sport, is_verified_business, created_at, bio';
 
     const { data, error } = await supabase
       .from(source)

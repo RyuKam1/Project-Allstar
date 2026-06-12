@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Layout/Navbar";
 import Icon from "@/components/UI/Icon";
 import BookingModal from "@/components/UI/BookingModal";
+import ReportLocationButton from "@/components/Locations/ReportLocationButton";
 import ReviewForm from "@/components/Reviews/ReviewForm";
 import ReviewList from "@/components/Reviews/ReviewList";
 import ReviewStats from "@/components/Reviews/ReviewStats";
@@ -221,6 +222,11 @@ export default function VenueDetails() {
               {venue.price}
             </span>
           </div>
+          {user && (
+            <div style={{ marginTop: "16px" }}>
+              <ReportLocationButton locationType="venue" locationId={params.id} />
+            </div>
+          )}
         </div>
       </div>
 

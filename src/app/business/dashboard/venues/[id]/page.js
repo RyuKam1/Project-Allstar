@@ -8,9 +8,10 @@ import { supabase } from '@/lib/supabaseClient';
 import { uploadCompressedImage } from '@/lib/imageOptimizer';
 import { deleteLocationImageStorage, enrichLocationImageRow } from '@/lib/storageImages';
 import { useNotificationCenter } from '@/components/UI/NotificationCenter';
+import { getCatalogSportLabels } from '@/lib/sportsCatalog';
 import styles from './venue-editor.module.css';
 
-const SPORT_OPTIONS = ["Basketball", "Soccer", "Tennis", "Baseball", "Volleyball", "Fitness", "Running", "Skating", "Multi-sport", "Pickleball"];
+const SPORT_OPTIONS = getCatalogSportLabels();
 
 export default function VenueEditorPage() {
     const params = useParams();

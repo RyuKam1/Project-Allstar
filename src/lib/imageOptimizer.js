@@ -1,6 +1,15 @@
 import imageCompression from 'browser-image-compression';
 import { supabase } from './supabaseClient';
 
+function buildObjectKey(folder, fileExt) {
+  const token =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const safeFolder = String(folder || '').replace(/^\/+|\/+$/g, '');
+  return `${safeFolder}/${token}.${fileExt}`;
+}
+
 /**
  * Compresses an image file.
  * @param {File} file - The image file to compress.
@@ -13,7 +22,7 @@ export async function compressImage(file, optionsOverride = {}) {
     maxWidthOrHeight: 1200,
     useWebWorker: true,
     fileType: 'image/jpeg',
-    initialQuality: 0.7
+    initialQuality: 0.7,
   };
 
   const options = { ...defaultOptions, ...optionsOverride };
@@ -27,27 +36,28 @@ export async function compressImage(file, optionsOverride = {}) {
   }
 }
 
-function buildObjectKey(folder, fileExt) {
-  const token =
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
-      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const safeFolder = String(folder || '').replace(/^\/+|\/+$/g, '');
-  return `${safeFolder}/${token}.${fileExt}`;
-}
-
 /**
  * Compresses and uploads an image to Supabase Storage.
+ * Objects are stored under `{userId}/{folder}/…` for owner-scoped bucket policies.
  * @param {File} file - The image file.
  * @param {string} bucket - Storage bucket name.
- * @param {string} folder - Folder path within bucket.
+ * @param {string} folder - Folder path within the user's prefix.
  * @returns {Promise<{ publicUrl: string, objectKey: string, bucket: string, mimeType: string, byteSize: number }|null>}
  */
 export async function uploadCompressedImage(file, bucket, folder) {
   try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Must be logged in to upload images');
+    }
+
     const compressedFile = await compressImage(file);
     const fileExt = compressedFile.type?.includes('png') ? 'png' : 'jpg';
-    const objectKey = buildObjectKey(folder, fileExt);
+    const safeFolder = String(folder || 'uploads').replace(/^\/+|\/+$/g, '');
+    const objectKey = buildObjectKey(`${user.id}/${safeFolder}`, fileExt);
 
     const { error } = await supabase.storage
       .from(bucket)

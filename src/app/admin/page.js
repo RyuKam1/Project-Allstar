@@ -10,6 +10,8 @@ import { tournamentService } from "@/services/tournamentService";
 import { venueService } from "@/services/venueService";
 import { businessService } from "@/services/businessService";
 import { adminReviewReportService } from "@/services/adminReviewReportService";
+import { locationReportService } from "@/services/locationReportService";
+import { eventReportService } from "@/services/eventReportService";
 import { placeholderVenueCleanupService } from "@/services/placeholderVenueCleanupService";
 import { useRouter } from "next/navigation";
 import { useNotificationCenter } from "@/components/UI/NotificationCenter";
@@ -59,6 +61,10 @@ export default function AdminPage() {
     venues: [],
     claims: [],
     reports: [],
+    proposals: [],
+    locReports: [],
+    eventReports: [],
+    duplicates: [],
   });
   const [currentUser, setCurrentUser] = useState(null);
   const [cleanupRunning, setCleanupRunning] = useState(false);
@@ -93,9 +99,13 @@ export default function AdminPage() {
         venueService.getAllVenues(),
         businessService.getAllClaims(),
         adminReviewReportService.getAllReports(),
+        businessService.getAllVenueProposals(),
+        locationReportService.getAllReports(),
+        eventReportService.getAllReports(),
+        businessService.getDuplicateVenues(),
       ]);
 
-      const [usersRes, teamsRes, tournRes, venuesRes, claimsRes, reportsRes] =
+      const [usersRes, teamsRes, tournRes, venuesRes, claimsRes, reportsRes, proposalsRes, locReportsRes, eventReportsRes, duplicatesRes] =
         results;
 
       if (usersRes.status === "rejected") console.error("Users load failed:", usersRes.reason);
@@ -104,6 +114,10 @@ export default function AdminPage() {
       if (venuesRes.status === "rejected") console.error("Venues load failed:", venuesRes.reason);
       if (claimsRes.status === "rejected") console.error("Claims load failed:", claimsRes.reason);
       if (reportsRes.status === "rejected") console.error("Reports load failed:", reportsRes.reason);
+      if (proposalsRes.status === "rejected") console.error("Proposals load failed:", proposalsRes.reason);
+      if (locReportsRes.status === "rejected") console.error("Location reports load failed:", locReportsRes.reason);
+      if (eventReportsRes.status === "rejected") console.error("Event reports load failed:", eventReportsRes.reason);
+      if (duplicatesRes.status === "rejected") console.error("Duplicates load failed:", duplicatesRes.reason);
 
       setData({
         users: usersRes.status === "fulfilled" ? usersRes.value : [],
@@ -112,6 +126,10 @@ export default function AdminPage() {
         venues: venuesRes.status === "fulfilled" ? venuesRes.value : [],
         claims: claimsRes.status === "fulfilled" ? claimsRes.value : [],
         reports: reportsRes.status === "fulfilled" ? reportsRes.value : [],
+        proposals: proposalsRes.status === "fulfilled" ? proposalsRes.value : [],
+        locReports: locReportsRes.status === "fulfilled" ? locReportsRes.value : [],
+        eventReports: eventReportsRes.status === "fulfilled" ? eventReportsRes.value : [],
+        duplicates: duplicatesRes.status === "fulfilled" ? duplicatesRes.value : [],
       });
     } catch (e) {
       console.error("Admin load critical error", e);
@@ -142,6 +160,22 @@ export default function AdminPage() {
   };
 
   const handleClaim = async (claimId, status) => {
+    const confirmLabels = {
+      approved: "approve this ownership claim and transfer control to the requester",
+      rejected: "reject this claim",
+      rolled_back: "roll back this ownership transfer (within the dispute window)",
+    };
+    const confirmActions = {
+      approved: "Approve",
+      rejected: "Reject",
+      rolled_back: "Roll back",
+    };
+    const approved = await confirm(`Confirm: ${confirmLabels[status] || status}?`, {
+      confirmLabel: confirmActions[status] || "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (!approved) return;
+
     try {
       const res = await fetch(`/api/admin/claims/${claimId}`, {
         method: "PATCH",
@@ -169,6 +203,56 @@ export default function AdminPage() {
       await adminReviewReportService.resolveReport(reportId, { status, deleteReview });
       loadData();
       notify(deleteReview ? "Review removed." : "Report updated.", "success");
+    } catch (e) {
+      notify(`Error: ${e.message}`, "error");
+    }
+  };
+
+  const handleProposalAction = async (proposalId, status) => {
+    const approved = await confirm(`Confirm: ${status} this venue proposal?`, {
+      confirmLabel: "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (!approved) return;
+    try {
+      await businessService.reviewVenueProposal(proposalId, status);
+      loadData();
+      notify(
+        status === "approved" ? "Venue published and proposer verified." : `Proposal ${status}.`,
+        "success",
+      );
+    } catch (e) {
+      notify(`Error: ${e.message}`, "error");
+    }
+  };
+
+  const handleLocationReportAction = async (reportId, { status, removeTarget = false }) => {
+    const label = removeTarget ? "remove this location" : status;
+    const approved = await confirm(`Confirm: ${label}?`, {
+      confirmLabel: removeTarget ? "Remove location" : "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (!approved) return;
+    try {
+      await locationReportService.resolveReport(reportId, { status, removeTarget });
+      loadData();
+      notify(removeTarget ? "Location removed." : "Report updated.", "success");
+    } catch (e) {
+      notify(`Error: ${e.message}`, "error");
+    }
+  };
+
+  const handleEventReportAction = async (reportId, { status, removeTarget = false }) => {
+    const label = removeTarget ? "remove this event" : status;
+    const approved = await confirm(`Confirm: ${label}?`, {
+      confirmLabel: removeTarget ? "Remove event" : "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (!approved) return;
+    try {
+      await eventReportService.resolveReport(reportId, { status, removeTarget });
+      loadData();
+      notify(removeTarget ? "Event removed." : "Report updated.", "success");
     } catch (e) {
       notify(`Error: ${e.message}`, "error");
     }
@@ -369,32 +453,54 @@ export default function AdminPage() {
                   render: (c) => c.venue?.name || "Unknown Venue",
                 },
                 {
+                  key: "evidence",
+                  label: "Evidence",
+                  render: (c) =>
+                    c.evidence?.length ? (
+                      <span className={tableStyles.cellStrong}>{c.evidence.length} item(s)</span>
+                    ) : (
+                      <span className={tableStyles.cellMuted}>None</span>
+                    ),
+                },
+                {
                   key: "status",
                   label: "Status",
                   render: (c) => <StatusBadge status={c.status} />,
                 },
               ]}
               data={data.claims}
-              actions={(c) =>
-                c.status === "pending" && (
-                  <>
+              actions={(c) => (
+                <>
+                  {c.status === "pending" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleClaim(c.id, "approved")}
+                        className={tableStyles.approveBtn}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleClaim(c.id, "rejected")}
+                        className={tableStyles.rejectBtn}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {c.status === "approved" && c.dispute_until && new Date(c.dispute_until) > new Date() && (
                     <button
                       type="button"
-                      onClick={() => handleClaim(c.id, "approved")}
-                      className={tableStyles.approveBtn}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleClaim(c.id, "rejected")}
+                      onClick={() => handleClaim(c.id, "rolled_back")}
                       className={tableStyles.rejectBtn}
+                      title={`Dispute window open until ${new Date(c.dispute_until).toLocaleDateString()}`}
                     >
-                      Reject
+                      Roll back
                     </button>
-                  </>
-                )
-              }
+                  )}
+                </>
+              )}
               emptyMessage="No claim requests."
             />
           </div>
@@ -488,6 +594,221 @@ export default function AdminPage() {
                 )
               }
               emptyMessage="No review reports in the queue."
+            />
+          </div>
+        );
+
+      case "proposals":
+        return (
+          <div>
+            <PanelHeader title="Venue Proposals Queue" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                { key: "name", label: "Proposed Venue", render: (p) => <span className={tableStyles.cellStrong}>{p.name}</span> },
+                { key: "sport", label: "Sport", render: (p) => p.sport || "—" },
+                { key: "address", label: "Address", render: (p) => p.address || "—" },
+                {
+                  key: "proposer",
+                  label: "Proposed by",
+                  render: (p) => p.proposer?.name || p.proposer?.email || "Unknown",
+                },
+                { key: "status", label: "Status", render: (p) => <StatusBadge status={p.status} /> },
+              ]}
+              data={data.proposals}
+              actions={(p) =>
+                (p.status === "pending" || p.status === "needs_info") && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleProposalAction(p.id, "approved")}
+                      className={tableStyles.approveBtn}
+                    >
+                      Approve &amp; publish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProposalAction(p.id, "needs_info")}
+                      className={tableStyles.dismissBtn}
+                    >
+                      Needs info
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProposalAction(p.id, "rejected")}
+                      className={tableStyles.rejectBtn}
+                    >
+                      Reject
+                    </button>
+                  </>
+                )
+              }
+              emptyMessage="No venue proposals."
+            />
+          </div>
+        );
+
+      case "locreports":
+        return (
+          <div>
+            <PanelHeader title="Location Reports Queue" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                {
+                  key: "target",
+                  label: "Reported location",
+                  render: (r) => (
+                    <div>
+                      <div className={tableStyles.cellStrong}>{r.target?.name || "Unknown"}</div>
+                      <div className={styles.reportMeta}>
+                        {r.location_type} #{r.location_id}
+                      </div>
+                    </div>
+                  ),
+                },
+                { key: "reason", label: "Reason", render: (r) => <div className={styles.reportReason}>{r.reason}</div> },
+                {
+                  key: "reporter",
+                  label: "Reporter",
+                  render: (r) => r.reporter?.name || r.reporter?.email || "Unknown",
+                },
+                { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
+                {
+                  key: "created_at",
+                  label: "Filed",
+                  render: (r) => new Date(r.created_at).toLocaleDateString(),
+                },
+              ]}
+              data={data.locReports}
+              actions={(r) =>
+                r.status === "pending" && (
+                  <>
+                    <button
+                      type="button"
+                      className={tableStyles.dismissBtn}
+                      onClick={() => handleLocationReportAction(r.id, { status: "dismissed" })}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      className={tableStyles.deleteBtn}
+                      onClick={() => handleLocationReportAction(r.id, { status: "reviewed", removeTarget: true })}
+                    >
+                      Remove location
+                    </button>
+                    <button
+                      type="button"
+                      className={tableStyles.approveBtn}
+                      onClick={() => handleLocationReportAction(r.id, { status: "reviewed" })}
+                    >
+                      Mark reviewed
+                    </button>
+                  </>
+                )
+              }
+              emptyMessage="No location reports in the queue."
+            />
+          </div>
+        );
+
+      case "eventreports":
+        return (
+          <div>
+            <PanelHeader title="Event Reports Queue" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                {
+                  key: "target",
+                  label: "Reported event",
+                  render: (r) => (
+                    <div>
+                      <div className={tableStyles.cellStrong}>{r.target?.title || "Unknown"}</div>
+                      <div className={styles.reportMeta}>
+                        {r.event_kind} #{r.event_id}
+                      </div>
+                    </div>
+                  ),
+                },
+                { key: "reason", label: "Reason", render: (r) => <div className={styles.reportReason}>{r.reason}</div> },
+                {
+                  key: "reporter",
+                  label: "Reporter",
+                  render: (r) => r.reporter?.name || r.reporter?.email || "Unknown",
+                },
+                { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
+                {
+                  key: "created_at",
+                  label: "Filed",
+                  render: (r) => new Date(r.created_at).toLocaleDateString(),
+                },
+              ]}
+              data={data.eventReports}
+              actions={(r) =>
+                r.status === "pending" && (
+                  <>
+                    <button
+                      type="button"
+                      className={tableStyles.dismissBtn}
+                      onClick={() => handleEventReportAction(r.id, { status: "dismissed" })}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      className={tableStyles.deleteBtn}
+                      onClick={() => handleEventReportAction(r.id, { status: "reviewed", removeTarget: true })}
+                    >
+                      Remove event
+                    </button>
+                    <button
+                      type="button"
+                      className={tableStyles.approveBtn}
+                      onClick={() => handleEventReportAction(r.id, { status: "reviewed" })}
+                    >
+                      Mark reviewed
+                    </button>
+                  </>
+                )
+              }
+              emptyMessage="No event reports in the queue."
+            />
+          </div>
+        );
+
+      case "duplicates":
+        return (
+          <div>
+            <PanelHeader title="Possible Duplicate Venues" onRefresh={loadData} />
+            <AdminDataTable
+              columns={[
+                { key: "name_a", label: "Venue A", render: (d) => <span className={tableStyles.cellStrong}>{d.name_a}</span> },
+                { key: "name_b", label: "Venue B", render: (d) => <span className={tableStyles.cellStrong}>{d.name_b}</span> },
+                {
+                  key: "score",
+                  label: "Similarity",
+                  render: (d) => `${Math.round((d.score || 0) * 100)}%`,
+                },
+              ]}
+              data={data.duplicates}
+              actions={(d) => (
+                <>
+                  <button
+                    type="button"
+                    className={`btn-secondary ${tableStyles.actionBtn}`}
+                    onClick={() => window.open(`/venues/${d.venue_id_a}`, "_blank", "noopener,noreferrer")}
+                  >
+                    View A
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-secondary ${tableStyles.actionBtn}`}
+                    onClick={() => window.open(`/venues/${d.venue_id_b}`, "_blank", "noopener,noreferrer")}
+                  >
+                    View B
+                  </button>
+                </>
+              )}
+              emptyMessage="No likely duplicates detected."
             />
           </div>
         );

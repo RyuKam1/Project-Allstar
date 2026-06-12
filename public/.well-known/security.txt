@@ -1,0 +1,4 @@
+Contact: mailto:security@project-allstar.app
+Policy: https://project-allstar.vercel.app/security
+Preferred-Languages: en
+Expires: 2027-06-12T00:00:00.000Z

@@ -11,7 +11,11 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
         { id: 'teams', icon: 'shield', label: 'Teams' },
         { id: 'tournaments', icon: 'trophy', label: 'Tournaments' },
         { id: 'claims', icon: 'document', label: 'Claims' },
-        { id: 'reports', icon: 'warning', label: 'Reports' },
+        { id: 'proposals', icon: 'location', label: 'Venue Proposals' },
+        { id: 'reports', icon: 'warning', label: 'Review Reports' },
+        { id: 'locreports', icon: 'warning', label: 'Location Reports' },
+        { id: 'eventreports', icon: 'warning', label: 'Event Reports' },
+        { id: 'duplicates', icon: 'location', label: 'Duplicates' },
     ];
 
     return (

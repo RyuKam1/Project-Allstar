@@ -26,7 +26,7 @@ export default function RegisterPage() {
     const result = await register(name, email, password, accountType);
     if (result.success) {
       if (accountType === 'business') {
-        router.push('/business/dashboard');
+        router.push('/business/onboarding');
       } else {
         router.push('/profile');
       }

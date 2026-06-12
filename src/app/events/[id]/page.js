@@ -4,6 +4,7 @@ import Navbar from "@/components/Layout/Navbar";
 import Icon from "@/components/UI/Icon";
 import { useParams, useRouter } from 'next/navigation';
 import { eventService } from "@/services/eventService";
+import EventReportButton from "@/components/Events/EventReportButton";
 import { useAuth } from "@/context/AuthContext";
 import { useNotificationCenter } from "@/components/UI/NotificationCenter";
 import {
@@ -164,6 +165,11 @@ export default function EventDetails() {
               {event.sport}
             </span>
           </div>
+          {user && (
+            <div style={{ marginTop: "16px" }}>
+              <EventReportButton eventKind="community" eventId={params.id} />
+            </div>
+          )}
         </div>
       </div>
 

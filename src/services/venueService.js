@@ -55,7 +55,16 @@ async function resolveVenueImageUrl(venueId, imageInput) {
   const response = await fetch(normalizedInput);
   const blob = await response.blob();
   const extension = blob.type?.includes("png") ? "png" : "jpg";
-  const objectPath = `venues/${venueId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${extension}`;
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error("Must be logged in to upload images");
+  }
+
+  const objectPath = `${user.id}/venues/${venueId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${extension}`;
   const { error } = await supabase.storage
     .from("allstar-assets")
     .upload(objectPath, blob, {

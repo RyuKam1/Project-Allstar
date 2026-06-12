@@ -5,6 +5,7 @@ import { interactionTrackingService } from '@/services/interactionTrackingServic
 import { useAuth } from '@/context/AuthContext';
 import { ModalDismissButton } from '@/components/UI/primitives';
 import { COMMUNITY_IMAGE_MAX_COUNT, compressCommunityImageFile } from '@/lib/storageImages';
+import { getCatalogSportLabels } from '@/lib/sportsCatalog';
 import styles from './community-location-form.module.css'; // Reusing styles
 
 /**
@@ -25,10 +26,7 @@ export default function EditLocationForm({ location, onSuccess, onCancel }) {
     const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
 
-    const availableSports = [
-        'Basketball', 'Football', 'Soccer', 'Tennis', 'Volleyball',
-        'Baseball', 'Skateboarding', 'Running', 'Fitness', 'Other'
-    ];
+    const availableSports = getCatalogSportLabels({ includeOther: true });
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

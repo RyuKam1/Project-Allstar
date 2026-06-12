@@ -21,6 +21,7 @@ import PendingVenueContributions from '@/components/Locations/PendingVenueContri
 import BusinessContributionForm from '@/components/Locations/BusinessContributionForm';
 import { useAuth } from '@/context/AuthContext';
 import ImageLightbox from '@/components/UI/ImageLightbox';
+import ReportLocationButton from '@/components/Locations/ReportLocationButton';
 import { useNotificationCenter } from '@/components/UI/NotificationCenter';
 import { getPlayButtonText } from '@/lib/sportUtils';
 import { Breadcrumbs, EmptyState, SkeletonVenueDetail } from '@/components/UI/primitives';
@@ -271,6 +272,15 @@ export default function LocationDetailPage() {
                         <span className={styles.pulseDot}></span>
                         {activePlayerCount} people playing soon
                     </div>
+
+                    {user && (
+                        <div style={{ marginTop: '14px' }}>
+                            <ReportLocationButton
+                                locationType={locationType === 'business' ? 'venue' : 'community'}
+                                locationId={location.id}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

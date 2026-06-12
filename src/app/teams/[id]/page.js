@@ -22,6 +22,9 @@ export default function TeamDetails() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [guestName, setGuestName] = useState('');
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [savingDescription, setSavingDescription] = useState(false);
 
   async function loadTeam() {
     const teams = await teamService.getAllTeams();
@@ -126,7 +129,7 @@ export default function TeamDetails() {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
-        await teamService.updateTeam(team.id, { logo: reader.result });
+        await teamService.updateTeam(team.id, { logo: reader.result }, user);
         await loadTeam();
       } catch (error) {
         notify(error?.message || "Could not update team logo.", "error");
@@ -166,6 +169,34 @@ export default function TeamDetails() {
   const isMember = user && team.members.some(m => m.id === user.id);
   const hasPendingRequest = user && team.requests?.some(r => r.id === user.id);
   const benchPlayers = team.members.filter(m => m.position === 'Bench');
+  const isOfficialTeam = !team.is_guest;
+
+  const handleStartDescriptionEdit = () => {
+    setDescriptionDraft(team.description || '');
+    setEditingDescription(true);
+  };
+
+  const handleCancelDescriptionEdit = () => {
+    setEditingDescription(false);
+    setDescriptionDraft('');
+  };
+
+  const handleSaveDescription = async (event) => {
+    event.preventDefault();
+    if (!user || !isOwner || savingDescription) return;
+
+    setSavingDescription(true);
+    try {
+      await teamService.updateTeamDescription(team.id, descriptionDraft, user);
+      await loadTeam();
+      setEditingDescription(false);
+      notify('Team description updated.', 'success');
+    } catch (error) {
+      notify(error?.message || 'Could not update team description.', 'error');
+    } finally {
+      setSavingDescription(false);
+    }
+  };
 
   const handlePlayerClick = async (member) => {
     // If it's a guest, they don't have a "profile" per se, but we can show what we have
@@ -250,7 +281,49 @@ export default function TeamDetails() {
               <h1 className={styles.title}>{team.name}</h1>
               <span className={styles.sportTag}>{team.sport}</span>
             </div>
-            <p className={styles.description}>{team.description}</p>
+            <p className={styles.description}>
+              {team.description || (isOwner && isOfficialTeam ? 'Add a short description for your team.' : 'No description yet.')}
+            </p>
+            {isOwner && isOfficialTeam && !editingDescription && (
+              <button
+                type="button"
+                className={styles.descriptionEditBtn}
+                onClick={handleStartDescriptionEdit}
+              >
+                <Icon name="edit" size={14} aria-hidden="true" />
+                Edit description
+              </button>
+            )}
+            {isOwner && isOfficialTeam && editingDescription && (
+              <form className={styles.descriptionEditForm} onSubmit={handleSaveDescription}>
+                <textarea
+                  value={descriptionDraft}
+                  onChange={(e) => setDescriptionDraft(e.target.value)}
+                  maxLength={500}
+                  rows={4}
+                  className={styles.descriptionInput}
+                  placeholder="Tell athletes about your team, level, home court, schedule…"
+                  aria-label="Team description"
+                />
+                <div className={styles.descriptionActions}>
+                  <button
+                    type="submit"
+                    className={`btn-primary ${styles.descriptionSaveBtn}`}
+                    disabled={savingDescription}
+                  >
+                    {savingDescription ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-secondary ${styles.descriptionCancelBtn}`}
+                    onClick={handleCancelDescriptionEdit}
+                    disabled={savingDescription}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
           
           <div className={styles.headerStats}>

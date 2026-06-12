@@ -33,6 +33,14 @@
   gap: 2rem;
 }
 
+.dashboardLink {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  padding: 12px 16px;
+  border-radius: var(--btn-radius, 10px);
+}
+
 .glassPanel {
   padding: clamp(1.25rem, 5vw, 2rem);
 }

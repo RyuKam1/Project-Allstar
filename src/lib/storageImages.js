@@ -104,7 +104,15 @@ export async function uploadCompressedCommunityImage(input, { prefix = "c" } = {
     throw new Error("Image must be under 500KB after compression");
   }
 
-  const objectKey = generateShortObjectKey(prefix);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error("Must be logged in to upload images");
+  }
+
+  const objectKey = generateShortObjectKey(prefix, user.id);
   const mimeType = compressed.type || "image/jpeg";
 
   const { error } = await supabase.storage.from(DEFAULT_STORAGE_BUCKET).upload(objectKey, compressed, {

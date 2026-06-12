@@ -1,4 +1,25 @@
 import { supabase } from "@/lib/supabaseClient";
+import { getPublicProfilesMap } from "./publicProfileService";
+
+// Build public-safe attendee objects from event_attendees rows.
+// Only non-sensitive fields from profiles_public are exposed here — never
+// contact details or private physical stats (see security master plan 2.7).
+async function hydrateAttendees(attendeeRows = []) {
+    const rows = attendeeRows || [];
+    const userIds = rows.map((a) => a.user_id).filter(Boolean);
+    const profileMap = await getPublicProfilesMap(userIds);
+    return rows.map((a) => {
+        const p = profileMap.get(a.user_id) || {};
+        return {
+            id: a.user_id,
+            name: p.name,
+            avatar: p.avatar,
+            bio: p.bio,
+            sport: p.sport,
+            isVerifiedBusiness: p.is_verified_business || false
+        };
+    });
+}
 
 export const eventService = {
   getAllEvents: async () => {
@@ -6,35 +27,19 @@ export const eventService = {
         .from('events')
         .select(`
             *,
-            attendees:event_attendees(
-                user_id,
-                profile:user_id(id, name, email, avatar, bio, height, weight, speed, vertical, sport, positions)
-            )
+            attendees:event_attendees(user_id)
         `);
-    
+
     if (error) {
         console.error("Event fetch error", error);
         return [];
     }
 
-    // Map to frontend structure
-    return events.map(e => ({
+    return Promise.all(events.map(async (e) => ({
         ...e,
         maxSpots: e.max_spots, // Align with frontend
-        attendees: e.attendees ? e.attendees.map(a => ({
-            id: a.user_id,
-            name: a.profile?.name,
-            email: a.profile?.email,
-            avatar: a.profile?.avatar,
-            bio: a.profile?.bio,
-            height: a.profile?.height,
-            weight: a.profile?.weight,
-            speed: a.profile?.speed,
-            vertical: a.profile?.vertical,
-            sport: a.profile?.sport,
-            positions: a.profile?.positions
-        })) : []
-    }));
+        attendees: await hydrateAttendees(e.attendees)
+    })));
   },
 
   getEventById: async (id) => {
@@ -42,32 +47,17 @@ export const eventService = {
         .from('events')
         .select(`
             *,
-            attendees:event_attendees(
-                user_id,
-                profile:user_id(id, name, email, avatar, bio, height, weight, speed, vertical, sport, positions)
-            )
+            attendees:event_attendees(user_id)
         `)
         .eq('id', id)
         .single();
-    
+
     if (!event) return null;
 
     return {
         ...event,
         maxSpots: event.max_spots, // Align with frontend
-        attendees: event.attendees ? event.attendees.map(a => ({
-            id: a.user_id,
-            name: a.profile?.name,
-            email: a.profile?.email,
-            avatar: a.profile?.avatar,
-            bio: a.profile?.bio,
-            height: a.profile?.height,
-            weight: a.profile?.weight,
-            speed: a.profile?.speed,
-            vertical: a.profile?.vertical,
-            sport: a.profile?.sport,
-            positions: a.profile?.positions
-        })) : []
+        attendees: await hydrateAttendees(event.attendees)
     };
   },
 

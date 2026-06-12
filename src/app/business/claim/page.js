@@ -10,6 +10,7 @@ import { communityLocationService } from "@/services/communityLocationService";
 import { useNotificationCenter } from "@/components/UI/NotificationCenter";
 import Icon from "@/components/UI/Icon";
 import { Field, EmptyState, SkeletonList, Tag } from "@/components/UI/primitives";
+import { sanitizeHttpUrl } from "@/lib/security/inputSanitizer";
 import styles from "./claim.module.css";
 
 async function searchClaimableVenues(query) {
@@ -42,7 +43,9 @@ function ClaimVenueContent() {
     businessName: "",
     contactEmail: "",
     contactPhone: "",
+    website: "",
   });
+  const [proofFile, setProofFile] = useState(null);
 
   useEffect(() => {
     if (!initialVenueId) return;
@@ -98,8 +101,35 @@ function ClaimVenueContent() {
     setLoading(true);
 
     try {
-      await businessService.claimVenue(selectedVenue.id, formData, venueType);
-      notify("Claim request submitted. We will verify your details.", "success");
+      const claim = await businessService.claimVenue(selectedVenue.id, formData, venueType);
+
+      const websiteUrl = formData.website?.trim()
+        ? sanitizeHttpUrl(formData.website.trim(), 500)
+        : '';
+      if (formData.website?.trim() && !websiteUrl) {
+        throw new Error('Enter a valid website URL (http or https).');
+      }
+
+      // Attach verification evidence (optional but strongly encouraged).
+      const evidenceJobs = [];
+      if (websiteUrl) {
+        evidenceJobs.push(
+          businessService.addClaimEvidence(claim.id, { type: "domain", payload: websiteUrl }),
+        );
+      }
+      if (proofFile) {
+        evidenceJobs.push(businessService.addClaimEvidence(claim.id, { type: "license", file: proofFile }));
+      }
+      if (evidenceJobs.length) {
+        try {
+          await Promise.all(evidenceJobs);
+        } catch (evErr) {
+          // The claim is filed; surface evidence issues without losing the claim.
+          notify(`Claim filed, but evidence upload failed: ${evErr.message}`, "warning");
+        }
+      }
+
+      notify("Claim request submitted. We will verify your ownership before transferring control.", "success");
       router.push("/business/dashboard");
     } catch (error) {
       console.error(error);
@@ -271,10 +301,32 @@ function ClaimVenueContent() {
                 />
               </Field>
 
+              <Field id="claim-website" label="Business website or domain">
+                <input
+                  id="claim-website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  className={styles.input}
+                  placeholder="https://yourvenue.com"
+                />
+              </Field>
+
+              <Field id="claim-proof" label="Proof of ownership (license, utility bill, etc.)">
+                <input
+                  id="claim-proof"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                  className={styles.input}
+                />
+              </Field>
+
               <div className={styles.disclaimer}>
                 By submitting, you confirm that you are the authorized
-                representative of this venue. False claims may result in account
-                suspension.
+                representative of this venue. Evidence is stored privately and
+                only reviewed by our trust team. False claims may result in
+                account suspension.
               </div>
 
               <button

@@ -1,17 +1,22 @@
 "use client";
 import Navbar from "@/components/Layout/Navbar";
-import LocationCard from "@/components/Locations/LocationCard";
+import LocationCard, { VENUE_LAYOUT_ACCENTS } from "@/components/Locations/LocationCard";
+import bentoStyles from '@/styles/bento-grid.module.css';
+import { getLayoutAccent } from '@/lib/cardLayoutAccents';
 import Map from "@/components/UI/Map";
 import CommunityLocationForm from "@/components/Community/CommunityLocationForm";
 import { communityLocationService } from "@/services/communityLocationService";
 import { venueService } from "@/services/venueService";
 import { filterPlaceholderVenues } from "@/lib/placeholderVenues";
 import { getCityOutline } from "@/lib/nominatimCityOutline";
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getDistance } from '@/utils/geoUtils';
 import Icon from '@/components/UI/Icon';
 import { EmptyState, ModalHeader, SkeletonCardGrid } from '@/components/UI/primitives';
+import { collectSportValues } from '@/lib/sportsCatalog';
+import { useSportFilter } from '@/hooks/useSportFilter';
+import SportFilterPills from '@/components/UI/SportFilterPills';
 import styles from './venues.module.css';
 
 function getLocationLatLng(loc) {
@@ -38,7 +43,6 @@ function VenuesPageContent() {
   const textQuery = (searchParams.get('q') || '').trim().toLowerCase();
   const [communityLocations, setCommunityLocations] = useState([]);
   const [officialVenues, setOfficialVenues] = useState([]); // Official Business Venues
-  const [filterSport, setFilterSport] = useState('All');
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRefreshSpin, setShowRefreshSpin] = useState(false);
@@ -66,16 +70,13 @@ function VenuesPageContent() {
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const observerTarget = useRef(null); // Ref for infinite scroll
 
-  const sportFilters = ['All', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Fitness', 'Baseball'];
-
   // Add Location Flow
   const [isAddingLocation, setIsAddingLocation] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLocationCoords, setNewLocationCoords] = useState(null);
 
   const gpsInitializedRef = useRef(false);
-  const lastRealtimeFetchRef = useRef(0);
-  const lastRealtimePositionRef = useRef(null);
+  const userCoordsRef = useRef(null);
   const outlineRequestIdRef = useRef(0);
   const outlineDebounceRef = useRef(null);
   const nearbyRequestIdRef = useRef(0);
@@ -256,6 +257,7 @@ function VenuesPageContent() {
   const handleUserLocationFound = async (lat, lng) => {
     setLocationStatus("granted");
     setLocationNotice("");
+    userCoordsRef.current = [lat, lng];
     setUserCoords([lat, lng]);
 
     if (!gpsInitializedRef.current) {
@@ -267,23 +269,13 @@ function VenuesPageContent() {
     }
   };
 
-  const handleUserLocationUpdate = async (lat, lng) => {
+  const handleUserLocationUpdate = (lat, lng) => {
     if (isGlobalView || locationStatus !== "granted") return;
+    userCoordsRef.current = [lat, lng];
     setUserCoords([lat, lng]);
-
-    const now = Date.now();
-    const prev = lastRealtimePositionRef.current;
-    lastRealtimePositionRef.current = [lat, lng];
-    if (!prev) return;
-
-    const movedKm = Math.sqrt(
-      Math.pow(lat - prev[0], 2) + Math.pow(lng - prev[1], 2)
-    ) * 111;
-    const enoughTimePassed = now - lastRealtimeFetchRef.current > 12000;
-    if (movedKm <= 0.5 && !enoughTimePassed) return;
-
-    lastRealtimeFetchRef.current = now;
-    await loadNearbyForCoords(lat, lng, effectiveNearbyRadiusKm);
+    if (isAreaSearchEnabled && isAreaAutoFollow) {
+      setMapCenter([lat, lng]);
+    }
   };
 
   const handleLocationUnavailable = ({ reason }) => {
@@ -337,12 +329,20 @@ function VenuesPageContent() {
     }
     const [lat, lng] = userCoords;
     setMapCenter([lat, lng]);
+  }, [isAreaSearchEnabled, isAreaAutoFollow, userCoords, isGlobalView]);
+
+  useEffect(() => {
+    if (!isAreaSearchEnabled || !Array.isArray(userCoordsRef.current) || isGlobalView) {
+      return;
+    }
 
     if (areaRadiusDebounceRef.current) {
       clearTimeout(areaRadiusDebounceRef.current);
     }
     areaRadiusDebounceRef.current = setTimeout(() => {
-      loadNearbyForCoords(lat, lng, areaRadiusKm);
+      const coords = userCoordsRef.current;
+      if (!coords) return;
+      loadNearbyForCoords(coords[0], coords[1], areaRadiusKm);
     }, 180);
 
     return () => {
@@ -350,7 +350,7 @@ function VenuesPageContent() {
         clearTimeout(areaRadiusDebounceRef.current);
       }
     };
-  }, [isAreaSearchEnabled, isAreaAutoFollow, userCoords, areaRadiusKm, isGlobalView]);
+  }, [isAreaSearchEnabled, areaRadiusKm, isGlobalView]);
 
   const toggleGlobalView = () => {
     const newState = !isGlobalView;
@@ -502,20 +502,23 @@ function VenuesPageContent() {
   };
 
   // Merge legacy venues and community locations
-  const allLocations = [
+  const allLocations = useMemo(() => [
     ...officialVenues.map(l => ({ ...l, type: 'business', isBusiness: true })),
     ...communityLocations.map(l => ({ ...l, type: 'community', isBusiness: false }))
-  ];
+  ], [officialVenues, communityLocations]);
+
+  const inUseSports = useMemo(
+    () => collectSportValues(allLocations, (loc) => loc.sports || (loc.sport ? [loc.sport] : [])),
+    [allLocations],
+  );
+  const { filterSport, setFilterSport, sportFilters, filtersLoading, matchesFilter } = useSportFilter(
+    inUseSports,
+    { multi: true, loading: isLoading },
+  );
 
   const activeLocations = allLocations.filter(loc => {
-    // 1. Sport Filter
-    if (filterSport !== 'All') {
-      const sports = loc.sports || (loc.sport ? [loc.sport] : []);
-      const matchesSport = sports.some(s => s === filterSport || s.includes(filterSport));
-      if (!matchesSport) return false;
-    }
-
-    // 2. Distance-Based "Strict" Filter (Haversine, matches slider radius / map circle)
+    const sports = loc.sports || (loc.sport ? [loc.sport] : []);
+    if (!matchesFilter(sports)) return false;
     if (!isGlobalView && mapCenter) {
       const areaFilterActive = isAreaSearchEnabled && Array.isArray(userCoords);
       const cityFilterActive = !isAreaSearchEnabled && !!citySearchTerm;
@@ -762,9 +765,14 @@ function VenuesPageContent() {
                       const checked = e.target.checked;
                       setIsAreaSearchEnabled(checked);
                       setIsAreaAutoFollow(true);
-                      if (checked && Array.isArray(userCoords)) {
-                        setMapCenter(userCoords);
-                        loadNearbyForCoords(userCoords[0], userCoords[1], areaRadiusKm);
+                      if (checked) {
+                        const coords =
+                          userCoordsRef.current ||
+                          (Array.isArray(userCoords) ? userCoords : null);
+                        if (coords) {
+                          setMapCenter(coords);
+                          loadNearbyForCoords(coords[0], coords[1], areaRadiusKm);
+                        }
                       }
                     }}
                   />
@@ -850,24 +858,24 @@ function VenuesPageContent() {
           </button>
         </div>
 
-        <div className={`filter-group ${styles.desktopFilters}`} role="tablist" aria-label="Sport filters">
-          {sportFilters.map((sport) => (
-            <button
-              key={sport}
-              onClick={() => setFilterSport(sport)}
-              className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
-              role="tab"
-              aria-selected={filterSport === sport}
-              suppressHydrationWarning
-            >
-              <span>{sport}</span>
-            </button>
-          ))}
-        </div>
+        <SportFilterPills
+          sportFilters={sportFilters}
+          filterSport={filterSport}
+          onSelect={setFilterSport}
+          loading={filtersLoading}
+          className={styles.desktopFilters}
+          enableSearch
+        />
 
-        <div className={`grid-auto-fit ${viewMode === 'map' ? styles.listHidden : ''}`}>
+        <div className={`${bentoStyles.grid} ${bentoStyles.gridMd} ${viewMode === 'map' ? styles.listHidden : ''} list-stagger`}>
           {isLoading && activeLocations.length === 0 ? (
-            <SkeletonCardGrid count={6} nested variant="venue" />
+            <SkeletonCardGrid
+              count={9}
+              nested
+              variant="venue"
+              gridClassName={`${bentoStyles.grid} ${bentoStyles.gridMd}`}
+              itemClassName={bentoStyles.item}
+            />
           ) : activeLocations.length === 0 ? (
             <div style={{ gridColumn: '1 / -1' }}>
               <EmptyState
@@ -906,14 +914,11 @@ function VenuesPageContent() {
             </div>
           ) : (
             activeLocations.map((location, index) => (
-              <div
-                key={location.id}
-                className={`${styles.animateCard} list-stagger`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
+              <div key={location.id} className={bentoStyles.item}>
                 <LocationCard
                   location={location}
                   type={location.isBusiness ? 'business' : 'community'}
+                  layoutAccent={getLayoutAccent(index, VENUE_LAYOUT_ACCENTS)}
                 />
               </div>
             ))
@@ -974,20 +979,13 @@ function VenuesPageContent() {
 
             <div className={styles.sheetSection}>
               <p className={styles.sheetLabel}>Sport</p>
-              <div className={styles.sheetPills} role="tablist" aria-label="Sport filters">
-                {sportFilters.map((sport) => (
-                  <button
-                    key={sport}
-                    type="button"
-                    onClick={() => setFilterSport(sport)}
-                    className={`filter-pill ${filterSport === sport ? 'filter-pill-active' : ''}`}
-                    role="tab"
-                    aria-selected={filterSport === sport}
-                  >
-                    <span>{sport}</span>
-                  </button>
-                ))}
-              </div>
+              <SportFilterPills
+                sportFilters={sportFilters}
+                filterSport={filterSport}
+                onSelect={setFilterSport}
+                loading={filtersLoading}
+                className={styles.sheetPills}
+              />
             </div>
 
             <button

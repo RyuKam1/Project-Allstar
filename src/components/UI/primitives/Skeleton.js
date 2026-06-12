@@ -101,15 +101,32 @@ const CARD_BY_VARIANT = {
   event: SkeletonEventCard,
 };
 
-export function SkeletonCardGrid({ count = 6, className = "", nested = false, variant = "venue" }) {
+export function SkeletonCardGrid({
+  count = 6,
+  className = "",
+  nested = false,
+  variant = "venue",
+  gridClassName = "grid-auto-fit",
+  itemClassName = "",
+}) {
   const Card = CARD_BY_VARIANT[variant] || SkeletonVenueCard;
-  const cards = Array.from({ length: count }).map((_, i) => <Card key={i} />);
+  const cards = Array.from({ length: count }).map((_, i) => {
+    const card = <Card key={i} />;
+    if (itemClassName) {
+      return (
+        <div key={i} className={itemClassName}>
+          {card}
+        </div>
+      );
+    }
+    return card;
+  });
 
   if (nested) {
     return cards;
   }
 
-  return <div className={`grid-auto-fit ${className}`.trim()}>{cards}</div>;
+  return <div className={`${gridClassName} list-stagger ${className}`.trim()}>{cards}</div>;
 }
 
 export function SkeletonProfile() {
@@ -168,25 +185,38 @@ export function SkeletonList({ rows = 5 }) {
   );
 }
 
-export function SkeletonTeamGrid({ count = 6, className = "", nested = false }) {
-  const cards = Array.from({ length: count }).map((_, i) => (
-    <div key={i} className={`glass-panel ${styles.skeletonTeamCard}`}>
-      <Skeleton width={88} height={88} circle style={{ marginTop: "0.5rem", marginBottom: "0.85rem" }} />
-      <Skeleton width="72%" height={20} />
-      <Skeleton width="48%" height={14} style={{ marginTop: "0.35rem" }} />
-      <Skeleton width="90%" height={14} style={{ marginTop: "0.85rem" }} />
-      <div style={{ display: "flex", gap: "8px", justifyContent: "center", width: "100%", marginTop: "1rem" }}>
-        <Skeleton width={88} height={34} />
-        <Skeleton width={88} height={34} />
+export function SkeletonTeamGrid({ count = 6, className = "", gridClassName = "grid-auto-fit", itemClassName = "", nested = false }) {
+  const cards = Array.from({ length: count }).map((_, i) => {
+    const card = (
+      <div className={`glass-panel ${styles.skeletonTeamCard}`}>
+        <Skeleton width={72} height={72} circle style={{ marginTop: "0.35rem", marginBottom: "0.65rem" }} />
+        <Skeleton width="78%" height={16} />
+        <Skeleton width="46%" height={12} style={{ marginTop: "0.35rem" }} />
+        <Skeleton width="92%" height={12} style={{ marginTop: "0.55rem" }} />
+        <Skeleton width="88%" height={12} style={{ marginTop: "0.35rem" }} />
+        <div style={{ display: "flex", gap: "6px", justifyContent: "center", width: "100%", marginTop: "0.75rem" }}>
+          <Skeleton width={64} height={30} />
+          <Skeleton width={64} height={30} />
+        </div>
       </div>
-    </div>
-  ));
+    );
+
+    if (itemClassName) {
+      return (
+        <div key={i} className={itemClassName}>
+          {card}
+        </div>
+      );
+    }
+
+    return <React.Fragment key={i}>{card}</React.Fragment>;
+  });
 
   if (nested) {
     return cards;
   }
 
-  return <div className={`grid-auto-fit list-stagger ${className}`.trim()}>{cards}</div>;
+  return <div className={`${gridClassName} list-stagger ${className}`.trim()}>{cards}</div>;
 }
 
 export function SkeletonCommunityFeed({ count = 3, className = "" }) {

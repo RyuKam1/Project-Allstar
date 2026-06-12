@@ -4,11 +4,21 @@ import { useRouter } from 'next/navigation';
 import { getPlayButtonText } from '@/lib/sportUtils';
 import styles from './location-card.module.css';
 
+export const VENUE_LAYOUT_ACCENTS = [
+    '',
+    styles.layoutLift,
+    styles.layoutDrop,
+    styles.layoutCompact,
+    styles.layoutEase,
+    styles.layoutSet,
+    styles.layoutDrift,
+];
+
 /**
  * LocationCard Component
  * Unified card for displaying both community locations and business venues
  */
-export default function LocationCard({ location, type, showActivity = true }) {
+export default function LocationCard({ location, type, showActivity = true, layoutAccent = '' }) {
     const router = useRouter();
 
     if (!location) return null;
@@ -26,7 +36,7 @@ export default function LocationCard({ location, type, showActivity = true }) {
 
     return (
         <div
-            className={`glass-panel court-frame ticket-card ${styles.card} ${isBusiness ? styles.businessCard : styles.communityCard}`}
+            className={`glass-panel court-frame ticket-card ${styles.card} ${isBusiness ? styles.businessCard : styles.communityCard} ${layoutAccent}`.trim()}
             onClick={handleClick}
         >
             <div className={styles.imageContainer}>
@@ -36,7 +46,7 @@ export default function LocationCard({ location, type, showActivity = true }) {
                     className={styles.image}
                     loading="lazy"
                     width={400}
-                    height={220}
+                    height={248}
                 />
 
                 <div className={styles.badges}>

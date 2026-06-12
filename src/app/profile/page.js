@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import Navbar from "@/components/Layout/Navbar";
 import { useAuth } from '@/context/AuthContext';
 import { uploadCompressedImage } from '@/lib/imageOptimizer';
@@ -354,6 +355,12 @@ function ProfileContent() {
 
             {isOwnProfile && !isEditing && authUser?.id && (
               <ShareProfileCard profileId={authUser.id} />
+            )}
+
+            {isOwnProfile && !isEditing && (
+              <Link href="/profile/tournaments" className={`btn-secondary ${styles.dashboardLink}`}>
+                My offline tournaments
+              </Link>
             )}
 
             {/* Physical Stats */}

@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 
 import Icon from '@/components/UI/Icon';
 import { runGlobalSearch } from "@/services/globalSearchService";
+import { notificationService } from "@/services/notificationService";
 import styles from './navbar.module.css';
 
 export default function Navbar() {
@@ -25,6 +26,14 @@ export default function Navbar() {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        if (!user) { setUnreadCount(0); return; }
+        let active = true;
+        notificationService.unreadCount().then((c) => { if (active) setUnreadCount(c); }).catch(() => {});
+        return () => { active = false; };
+    }, [user, pathname]);
 
     // Close profile menu when clicking outside
     useEffect(() => {
@@ -203,6 +212,25 @@ export default function Navbar() {
                     <div className={styles.authButtons}>
                         {user ? (
                             <div className={styles.profileMenuContainer} ref={profileMenuRef}>
+                                <Link
+                                    href="/notifications"
+                                    aria-label={`Notifications${unreadCount ? ` (${unreadCount} unread)` : ""}`}
+                                    style={{ position: "relative", display: "inline-flex", alignItems: "center", marginRight: "10px", color: "inherit" }}
+                                >
+                                    <Icon name="bell" size={20} />
+                                    {unreadCount > 0 && (
+                                        <span
+                                            aria-hidden="true"
+                                            style={{
+                                                position: "absolute", top: "-4px", right: "-6px", minWidth: "16px", height: "16px",
+                                                padding: "0 4px", borderRadius: "999px", background: "var(--color-primary)",
+                                                color: "#fff", fontSize: "10px", lineHeight: "16px", textAlign: "center", fontWeight: 700,
+                                            }}
+                                        >
+                                            {unreadCount > 9 ? "9+" : unreadCount}
+                                        </span>
+                                    )}
+                                </Link>
                                 <button
                                     className={styles.profileTrigger}
                                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}

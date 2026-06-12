@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { sanitizeLikeTerm, sanitizeText } from "@/lib/security/inputSanitizer";
 
 let getAllTeamsInFlight = null;
 let getAllTeamsCache = null;
@@ -19,7 +20,7 @@ export const teamService = {
     if (getAllTeamsInFlight) return getAllTeamsInFlight;
     getAllTeamsInFlight = (async () => {
     // Fetch teams
-    const { data: teams, error } = await supabase
+    const { data: allRows, error } = await supabase
       .from('teams')
       .select('*');
 
@@ -27,7 +28,9 @@ export const teamService = {
         console.error("Error fetching teams:", error);
         return [];
     }
-    const teamIds = (teams || []).map((t) => t.id);
+    // Guest teams (ad-hoc friendly-tournament entries) stay out of the directory.
+    const teams = (allRows || []).filter((t) => !t.is_guest);
+    const teamIds = teams.map((t) => t.id);
     if (teamIds.length === 0) return [];
 
     const [membersRes, requestsRes, winsRes] = await Promise.all([
@@ -103,6 +106,24 @@ export const teamService = {
     } finally {
       getAllTeamsInFlight = null;
     }
+  },
+
+  // Paginated team search for tournament builders (excludes guest teams).
+  searchTeams: async ({ sport, query = "", limit = 40, offset = 0 } = {}) => {
+    let builder = supabase
+      .from("teams")
+      .select("id, name, sport, logo, description")
+      .eq("is_guest", false)
+      .order("name", { ascending: true });
+
+    if (sport) builder = builder.eq("sport", sport);
+
+    const safeQuery = sanitizeLikeTerm(query);
+    if (safeQuery) builder = builder.ilike("name", `%${safeQuery}%`);
+
+    const { data, error } = await builder.range(offset, offset + limit - 1);
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   // Create a new team
@@ -259,32 +280,58 @@ export const teamService = {
     throw new Error("Guest system is pending schema update.");
   },
 
-  updateTeam: async (teamId, updates) => {
-     if (updates.logo && updates.logo.startsWith('data:image')) {
-         updates.logo = await uploadImage(updates.logo, 'team-logos');
-     }
-     
-     const { error } = await supabase
-        .from('teams')
-        .update({
-            name: updates.name,
-            description: updates.description,
-            logo: updates.logo
-            // sport is usually immutable or needs care
-        })
-        .eq('id', teamId);
+  updateTeam: async (teamId, updates, user) => {
+    if (user) {
+      await assertRegisteredTeamOwner(teamId, user.id);
+    }
 
-     if (error) throw new Error(error.message);
+    if (updates.logo && updates.logo.startsWith('data:image')) {
+      updates.logo = await uploadImage(updates.logo, 'team-logos');
+    }
+
+    const payload = {};
+    if (updates.name !== undefined) payload.name = sanitizeText(updates.name, 80);
+    if (updates.description !== undefined) {
+      payload.description = sanitizeText(updates.description, 500) || null;
+    }
+    if (updates.logo !== undefined) payload.logo = updates.logo;
+
+    const { error } = await supabase.from('teams').update(payload).eq('id', teamId);
+
+    if (error) throw new Error(error.message);
+    invalidateTeamListCache();
+  },
+
+  updateTeamDescription: async (teamId, rawDescription, user) => {
+    await assertRegisteredTeamOwner(teamId, user.id);
+    const description = sanitizeText(rawDescription, 500) || null;
+
+    const { error } = await supabase
+      .from('teams')
+      .update({ description })
+      .eq('id', teamId);
+
+    if (error) throw new Error(error.message);
+    invalidateTeamListCache();
+    return description;
   },
 
   addWin: async (teamId, category, description) => {
-     await supabase
-        .from('team_wins')
-        .insert({
-            team_id: teamId,
-            category,
-            description
-        });
+    const { data: team } = await supabase
+      .from('teams')
+      .select('is_guest')
+      .eq('id', teamId)
+      .maybeSingle();
+    if (team?.is_guest) return;
+
+    const { error } = await supabase
+      .from('team_wins')
+      .insert({
+        team_id: teamId,
+        category,
+        description,
+      });
+    if (error) throw new Error(error.message);
   },
 
   // Delete a team
@@ -325,12 +372,30 @@ export const teamService = {
   }
 };
 
+async function assertRegisteredTeamOwner(teamId, userId) {
+  const { data: team, error } = await supabase
+    .from('teams')
+    .select('id, owner_id, is_guest')
+    .eq('id', teamId)
+    .single();
+
+  if (error || !team) throw new Error('Team not found');
+  if (team.is_guest) throw new Error('Guest teams cannot be edited');
+  if (team.owner_id !== userId) throw new Error('Only the team owner can update this team');
+}
+
 // Helper: Upload Base64 to Supabase Storage
 async function uploadImage(base64Data, folder) {
     try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            throw new Error('Must be logged in to upload images');
+        }
+
         const base64Response = await fetch(base64Data);
         const blob = await base64Response.blob();
-        const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.png`;
+        const safeFolder = String(folder || 'teams').replace(/^\/+|\/+$/g, '');
+        const fileName = `${user.id}/${safeFolder}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.png`;
 
         const { data, error } = await supabase.storage
             .from('allstar-assets')
